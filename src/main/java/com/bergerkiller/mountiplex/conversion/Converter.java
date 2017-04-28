@@ -1,6 +1,10 @@
 package com.bergerkiller.mountiplex.conversion;
 
+import java.util.logging.Level;
+
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.type.ArrayElementConverter;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 
@@ -10,11 +14,26 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  * @param <T> output type
  */
 public abstract class Converter<T> {
-    private final Class<T> _outputType;
+    private final TypeDeclaration _output;
 
-    @SuppressWarnings("unchecked")
     public Converter(Class<?> outputType) {
-        this._outputType = (Class<T>) outputType;
+        this(new TypeDeclaration(ClassResolver.DEFAULT, outputType));
+    }
+
+    public Converter(ClassResolver resolver, String declaration) {
+        this(new TypeDeclaration(resolver, declaration));
+    }
+
+    public Converter(TypeDeclaration outputType) {
+        if (!outputType.isValid()) {
+            this._output = null;
+            MountiplexUtil.LOGGER.log(Level.WARNING, "Converter output declaration is invalid: " + outputType.toString(), new Exception());
+        } else if (!outputType.isResolved()) {
+            this._output = null;
+            MountiplexUtil.LOGGER.log(Level.WARNING, "Converter output could not be resolved: " + outputType.toString(), new Exception());
+        } else {
+            this._output = outputType;
+        }
     }
 
     /**
@@ -38,12 +57,32 @@ public abstract class Converter<T> {
     }
 
     /**
+     * Gets the full generics-supporting Class type declaration returned by convert
+     * 
+     * @return output Class type declaration
+     */
+    public final TypeDeclaration getOutput() {
+        return this._output;
+    }
+
+    /**
+     * Gets whether this converter has any output at all.
+     * If this returns False, the converter must be considered unusable.
+     * 
+     * @return True if output is set, False if not
+     */
+    public final boolean hasOutput() {
+        return this._output != null;
+    }
+
+    /**
      * Gets the Class type returned by convert
      *
      * @return output Class type
      */
+    @SuppressWarnings("unchecked")
     public Class<T> getOutputType() {
-        return this._outputType;
+        return (Class<T>) this._output.type;
     }
 
     /**

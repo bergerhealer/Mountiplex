@@ -11,7 +11,7 @@ import com.bergerkiller.mountiplex.conversion.BasicConverter;
  */
 public class EnumConverter<T> extends BasicConverter<T> {
 
-    public EnumConverter(Class<T> outputType) {
+    public EnumConverter(Class<?> outputType) {
         super(outputType);
     }
 

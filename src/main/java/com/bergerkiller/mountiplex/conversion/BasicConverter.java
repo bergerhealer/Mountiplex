@@ -1,5 +1,8 @@
 package com.bergerkiller.mountiplex.conversion;
 
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+
 /**
  * A basic implementation which stores the output type
  *
@@ -7,7 +10,15 @@ package com.bergerkiller.mountiplex.conversion;
  */
 public abstract class BasicConverter<T> extends Converter<T> {
 
-    public BasicConverter(Class<T> outputType) {
+    public BasicConverter(TypeDeclaration outputType) {
+        super(outputType);
+    }
+
+    public BasicConverter(ClassResolver resolver, String declaration) {
+        super(resolver, declaration);
+    }
+
+    public BasicConverter(Class<?> outputType) {
         super(outputType);
     }
 

@@ -20,6 +20,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
  * </ul>
  */
 public class TypeDeclaration extends Declaration {
+    public static final TypeDeclaration OBJECT = new TypeDeclaration(ClassResolver.DEFAULT, Object.class);
     public final boolean isWildcard;
     public final String typeName;
     public final String typePath;
@@ -34,6 +35,17 @@ public class TypeDeclaration extends Declaration {
      */
     public TypeDeclaration(ClassResolver resolver, Type type) {
         super(resolver);
+
+        // Null types are invalid
+        if (type == null) {
+            this.isWildcard = false;
+            this.type = null;
+            this.typeName = "NULL";
+            this.typePath = "NULL";
+            this.genericTypes = new TypeDeclaration[0];
+            this.setInvalid();
+            return;
+        }
 
         // Handle wildcard types, only support one upper bound for now ( ? extends <type> )
         this.isWildcard = (type instanceof WildcardType);

@@ -13,6 +13,8 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
  */
 public class ClassResolver {
     private static final List<String> default_imports = Arrays.asList("java.lang.*", "java.util.*");
+    public static final ClassResolver DEFAULT = new ClassResolver().immutable();
+
     private final HashSet<String> imports;
     private final List<String> manualImports;
     private String packagePath;
@@ -22,11 +24,18 @@ public class ClassResolver {
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.packagePath = src.packagePath;
     }
-    
+
     public ClassResolver() {
         this.imports = new HashSet<String>(default_imports);
         this.manualImports = new ArrayList<String>();
         this.packagePath = "";
+    }
+
+    public ClassResolver(String packagePath) {
+        this.imports = new HashSet<String>(default_imports);
+        this.manualImports = new ArrayList<String>();
+        this.packagePath = "";
+        this.setPackage(packagePath);
     }
 
     /**
@@ -35,6 +44,13 @@ public class ClassResolver {
     @Override
     public ClassResolver clone() {
         return new ClassResolver(this);
+    }
+
+    /**
+     * Clones this ClassResolver into an immutable version
+     */
+    public ClassResolver immutable() {
+        return new ImmutableClassResolver(this);
     }
 
     /**
@@ -203,5 +219,27 @@ public class ClassResolver {
             }
         }
         return name;
+    }
+
+    private static class ImmutableClassResolver extends ClassResolver {
+
+        public ImmutableClassResolver(ClassResolver resolver) {
+            super(resolver);
+        }
+
+        @Override
+        public void addClassImports(Class<?> type) {
+            throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
+
+        @Override
+        public void setPackage(String path) {
+            throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
+
+        @Override
+        public void addImport(String path) {
+            throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
     }
 }

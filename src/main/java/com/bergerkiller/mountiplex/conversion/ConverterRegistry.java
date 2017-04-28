@@ -7,6 +7,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.type.EmptyConverter;
 import com.bergerkiller.mountiplex.conversion.type.EnumConverter;
 import com.bergerkiller.mountiplex.conversion.type.ObjectArrayConverter;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
@@ -14,7 +15,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
  * Tracks all the converters that are in use
  */
 public class ConverterRegistry {
-    private static final Map<Class<?>, Converter<Object>> converters = new ConcurrentHashMap<Class<?>, Converter<Object>>();
+    private static final Map<TypeDeclaration, Converter<Object>> converters = new ConcurrentHashMap<TypeDeclaration, Converter<Object>>();
 
     /**
      * Registers all available static convertor constants found in the Class or
@@ -38,24 +39,16 @@ public class ConverterRegistry {
      */
     @SuppressWarnings("unchecked")
     public static void register(Converter<?> converter) {
+        if (!converter.hasOutput()) {
+            return;
+        }
         if (!converter.isRegisterSupported()) {
             return;
         }
         if (converter.getOutputType() == null) {
             return;
         }
-        converters.put(converter.getOutputType(), (Converter<Object>) converter);
-    }
-
-    /**
-     * Obtains the converter used to convert to the type declaration specified
-     * 
-     * @param input type to be converted
-     * @param output type to be converted to
-     * @return converter
-     */
-    public static Converter<?> getConverter(TypeDeclaration input, TypeDeclaration output) {
-        return getConverter(output.type).convertGenerics(input);
+        converters.put(converter.getOutput(), (Converter<Object>) converter);
     }
 
     /**
@@ -76,13 +69,26 @@ public class ConverterRegistry {
      * @param type to convert to
      * @return converter
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> Converter<T> getConverter(Class<T> type) {
-        if (type.isPrimitive()) {
-            type = (Class<T>) BoxedType.getBoxedType(type);
-        }
-        Converter<T> converter = (Converter<T>) converters.get(type);
+        return getConverter(TypeDeclaration.OBJECT, new TypeDeclaration(ClassResolver.DEFAULT, type));
+    }
+
+    /**
+     * Obtains the converter used to convert to the type specified<br>
+     * If none is available yet for the type, a new one is created
+     *
+     * @param input type to be converted
+     * @param output type to be converted to
+     * @return converter
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <T> Converter<T> getConverter(TypeDeclaration input, TypeDeclaration output) {
+        Converter<T> converter = (Converter<T>) converters.get(output);
         if (converter == null) {
+            Class<?> type = output.type;
+            if (type.isPrimitive()) {
+                type = (Class<T>) BoxedType.getBoxedType(type);
+            }
             if (type.isArray()) {
                 // Maybe converting to an Object array of a certain component type?
                 // Note: Primitives are already dealt with and registered in the map
@@ -108,8 +114,10 @@ public class ConverterRegistry {
             if (converter == null) {
                 converter = new EmptyConverter(type);
             }
+            // Handle generics from the input type
+            
             // Found. Put into map for faster look-up
-            converters.put(type, (Converter<Object>) converter);
+            converters.put(output, (Converter<Object>) converter);
         }
         return (Converter<T>) converter;
     }

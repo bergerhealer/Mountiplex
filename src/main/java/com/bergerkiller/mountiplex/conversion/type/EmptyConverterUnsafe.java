@@ -17,7 +17,7 @@ public final class EmptyConverterUnsafe<T> extends Converter<T> {
     public static final EmptyConverterUnsafe INSTANCE = new EmptyConverterUnsafe();
 
     private EmptyConverterUnsafe() {
-        super(null);
+        super(Object.class);
     }
 
     @Override
