@@ -1,19 +1,19 @@
-package com.bergerkiller.mountiplex.conversion;
+package com.bergerkiller.mountiplex.conversion.type;
 
 import java.util.Collection;
-import java.util.List;
 
-import com.bergerkiller.mountiplex.conversion.type.CollectionConverter;
+import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion.ConverterPair;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
 
 /**
- * A generic converter that converts the elements back and forth inside a List
+ * A generic converter that converts the elements back and forth inside a Collection
  */
 public class CollectionElementConverter<A, B> extends Converter<Collection<B>> {
 	private final ConverterPair<A, B> pair;
 
 	private CollectionElementConverter(ConverterPair<A, B> converterPair) {
-	    super(List.class);
+	    super(Collection.class);
 		this.pair = converterPair;
 	}
 

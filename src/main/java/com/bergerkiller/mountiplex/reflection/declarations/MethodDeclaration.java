@@ -75,14 +75,14 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
-    public String toString() {
+    public String toString(boolean longPaths) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        String m = modifiers.toString();
-        String t = returnType.toString();
-        String n = name.toString();
-        String p = parameters.toString();
+        String m = modifiers.toString(longPaths);
+        String t = returnType.toString(longPaths);
+        String n = name.toString(longPaths);
+        String p = parameters.toString(longPaths);
         if (m.length() > 0) {
             return m + " " + t + " " + n + p + ";";
         } else {

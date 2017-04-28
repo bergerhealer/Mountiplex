@@ -51,13 +51,13 @@ public class FieldDeclaration extends Declaration {
     }
 
     @Override
-    public String toString() {
+    public String toString(boolean longPaths) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        String m = modifiers.toString();
-        String t = type.toString();
-        String n = name.toString();
+        String m = modifiers.toString(longPaths);
+        String t = type.toString(longPaths);
+        String n = name.toString(longPaths);
         if (m.length() > 0) {
             return m + " " + t + " " + n + ";";
         } else {

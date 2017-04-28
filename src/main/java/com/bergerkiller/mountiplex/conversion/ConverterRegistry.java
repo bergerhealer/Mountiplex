@@ -7,6 +7,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.type.EmptyConverter;
 import com.bergerkiller.mountiplex.conversion.type.EnumConverter;
 import com.bergerkiller.mountiplex.conversion.type.ObjectArrayConverter;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 /**
@@ -46,6 +47,27 @@ public class ConverterRegistry {
         converters.put(converter.getOutputType(), (Converter<Object>) converter);
     }
 
+    /**
+     * Obtains the converter used to convert to the type declaration specified
+     * 
+     * @param input type to be converted
+     * @param output type to be converted to
+     * @return converter
+     */
+    public static Converter<?> getConverter(TypeDeclaration input, TypeDeclaration output) {
+        return getConverter(output.type).convertGenerics(input);
+    }
+
+    /**
+     * Obtains the converter pair used to convert between the two type declarations specified
+     * 
+     * @param typeA type declaration
+     * @param typeB type declaration
+     * @return converter pair between typeA and typeB
+     */
+    public static ConverterPair<?, ?> getConverterPair(TypeDeclaration typeA, TypeDeclaration typeB) {
+        return getConverter(typeA, typeB).formPair(getConverter(typeB, typeA));
+    }
 
     /**
      * Obtains the converter used to convert to the type specified<br>

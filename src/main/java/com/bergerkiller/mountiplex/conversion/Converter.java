@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.conversion;
 
 import com.bergerkiller.mountiplex.conversion.type.ArrayElementConverter;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 
 /**
@@ -43,6 +44,18 @@ public abstract class Converter<T> {
      */
     public Class<T> getOutputType() {
         return this._outputType;
+    }
+
+    /**
+     * Called for generic output types to convert the underlying generic type.
+     * By default 'this' converter is returned.
+     * For example, a List type converter will want to convert the underlying element type.
+     * 
+     * @param input type to be converted
+     * @return proper converter for this generic type
+     */
+    public Converter<?> convertGenerics(TypeDeclaration input) {
+        return this;
     }
 
     /**

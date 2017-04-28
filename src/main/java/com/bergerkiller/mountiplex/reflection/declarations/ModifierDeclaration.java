@@ -93,7 +93,7 @@ public class ModifierDeclaration extends Declaration {
     }
 
     @Override
-    public final String toString() {
+    public final String toString(boolean longPaths) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }

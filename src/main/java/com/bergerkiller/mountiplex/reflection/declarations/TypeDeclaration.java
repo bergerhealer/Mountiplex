@@ -20,11 +20,11 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
  * </ul>
  */
 public class TypeDeclaration extends Declaration {
-    private final boolean _isWildcard;
-    private final String _typeName;
-    private final String _typePath;
-    private final Class<?> _type;
-    private final TypeDeclaration[] _genericTypes;
+    public final boolean isWildcard;
+    public final String typeName;
+    public final String typePath;
+    public final Class<?> type;
+    public final TypeDeclaration[] genericTypes;
 
     /**
      * Turns a {@link Type} into a TypeDeclaration
@@ -36,8 +36,8 @@ public class TypeDeclaration extends Declaration {
         super(resolver);
 
         // Handle wildcard types, only support one upper bound for now ( ? extends <type> )
-        this._isWildcard = (type instanceof WildcardType);
-        if (this._isWildcard) {
+        this.isWildcard = (type instanceof WildcardType);
+        if (this.isWildcard) {
             type = ((WildcardType) type).getUpperBounds()[0];
         }
 
@@ -53,33 +53,33 @@ public class TypeDeclaration extends Declaration {
             // Example: Map<K, V>
             ParameterizedType ptype = (ParameterizedType) type;
             Type[] params = ptype.getActualTypeArguments();
-            this._type = MountiplexUtil.getArrayType((Class<?>) ptype.getRawType(), arrayLevels);
-            this._typePath = resolver.resolvePath(this._type);
-            this._typeName = resolver.resolveName(this._type);
-            this._genericTypes = new TypeDeclaration[params.length];
+            this.type = MountiplexUtil.getArrayType((Class<?>) ptype.getRawType(), arrayLevels);
+            this.typePath = resolver.resolvePath(this.type);
+            this.typeName = resolver.resolveName(this.type);
+            this.genericTypes = new TypeDeclaration[params.length];
             for (int i = 0; i < params.length; i++) {
-                this._genericTypes[i] = new TypeDeclaration(resolver, params[i]);
+                this.genericTypes[i] = new TypeDeclaration(resolver, params[i]);
             }
         } else if (type instanceof Class) {
             // Example: Entity
-            this._type = MountiplexUtil.getArrayType((Class<?>) type, arrayLevels);
-            this._typePath = resolver.resolvePath(this._type);
-            this._typeName = resolver.resolveName(this._type);
-            this._genericTypes = new TypeDeclaration[0];
+            this.type = MountiplexUtil.getArrayType((Class<?>) type, arrayLevels);
+            this.typePath = resolver.resolvePath(this.type);
+            this.typeName = resolver.resolveName(this.type);
+            this.genericTypes = new TypeDeclaration[0];
         } else if (type instanceof TypeVariable) {
             // Example: T
             TypeVariable<?> vtype = (TypeVariable<?>) type;
-            this._type = MountiplexUtil.getArrayType(Object.class, arrayLevels);
-            this._typePath = resolver.resolvePath(this._type);
-            this._typeName = vtype.getName();
-            this._genericTypes = new TypeDeclaration[0];
+            this.type = MountiplexUtil.getArrayType(Object.class, arrayLevels);
+            this.typePath = resolver.resolvePath(this.type);
+            this.typeName = vtype.getName();
+            this.genericTypes = new TypeDeclaration[0];
         } else {
             // ???
             MountiplexUtil.LOGGER.warning("Unsupported type in TypeDeclaration: " + type.getClass());
-            this._type = null;
-            this._typePath = "";
-            this._typeName = "";
-            this._genericTypes = new TypeDeclaration[0];
+            this.type = null;
+            this.typePath = "";
+            this.typeName = "";
+            this.genericTypes = new TypeDeclaration[0];
             this.setInvalid();
         }
     }
@@ -89,11 +89,11 @@ public class TypeDeclaration extends Declaration {
 
         // Invalid declarations are forced by passing null
         if (declaration == null) {
-            this._typeName = "";
-            this._typePath = "";
-            this._type = null;
-            this._genericTypes = new TypeDeclaration[0];
-            this._isWildcard = false;
+            this.typeName = "";
+            this.typePath = "";
+            this.type = null;
+            this.genericTypes = new TypeDeclaration[0];
+            this.isWildcard = false;
             this.setInvalid();
             return;
         }
@@ -155,22 +155,22 @@ public class TypeDeclaration extends Declaration {
         }
 
         // Types that start with [? extends] are 'any types'
-        this._isWildcard = anyType;
+        this.isWildcard = anyType;
 
         // Raw type name not found? Invalid!
         if (startIdx == -1) {
-            if (this._isWildcard) {
+            if (this.isWildcard) {
                 this.setPostfix(postfix);
-                this._typeName = "";
-                this._typePath = "java.lang.Object";
-                this._type = Object.class;
-                this._genericTypes = new TypeDeclaration[0];
+                this.typeName = "";
+                this.typePath = "java.lang.Object";
+                this.type = Object.class;
+                this.genericTypes = new TypeDeclaration[0];
             } else {
                 this.setInvalid();
-                this._typeName = "";
-                this._typePath = "";
-                this._type = null;
-                this._genericTypes = new TypeDeclaration[0];
+                this.typeName = "";
+                this.typePath = "";
+                this.type = null;
+                this.genericTypes = new TypeDeclaration[0];
             }
             return;
         }
@@ -191,10 +191,10 @@ public class TypeDeclaration extends Declaration {
                 // If one of the generic types is invalid, set the entire type declaration invalid
                 if (!gen.isValid()) {
                     this.setInvalid();
-                    this._typeName = "";
-                    this._typePath = "";
-                    this._type = null;
-                    this._genericTypes = new TypeDeclaration[0];
+                    this.typeName = "";
+                    this.typePath = "";
+                    this.type = null;
+                    this.genericTypes = new TypeDeclaration[0];
                     return;
                 }
 
@@ -216,10 +216,10 @@ public class TypeDeclaration extends Declaration {
             }
 
             // To array
-            this._genericTypes = types.toArray(new TypeDeclaration[types.size()]);
+            this.genericTypes = types.toArray(new TypeDeclaration[types.size()]);
         } else {
             // No generic types
-            this._genericTypes = new TypeDeclaration[0];
+            this.genericTypes = new TypeDeclaration[0];
         }
 
         // Check for array type declarations (put after the <> or type name)
@@ -240,13 +240,13 @@ public class TypeDeclaration extends Declaration {
         }
 
         // Resolve the raw type
-        this._type = resolver.resolveClass(rawType);
-        if (this._type == null) {
-            this._typePath = resolver.resolvePath(rawType);
-            this._typeName = rawType;
+        this.type = resolver.resolveClass(rawType);
+        if (this.type == null) {
+            this.typePath = resolver.resolvePath(rawType);
+            this.typeName = rawType;
         } else {
-            this._typePath = resolver.resolvePath(this._type);
-            this._typeName = rawType;
+            this.typePath = resolver.resolvePath(this.type);
+            this.typeName = rawType;
         }
     }
 
@@ -256,57 +256,52 @@ public class TypeDeclaration extends Declaration {
             return false;
         }
         TypeDeclaration type = (TypeDeclaration) declaration;
-        if (this._type == null || type._type == null) return false;
-        if (this._isWildcard != type._isWildcard) return false;
-        if (!this._type.equals(type._type)) return false;
-        if (this._genericTypes.length != type._genericTypes.length) return false;
-        for (int i = 0; i < this._genericTypes.length; i++) {
-            if (!this._genericTypes[i].match(type._genericTypes[i])) return false;
+        if (this.type == null || type.type == null) return false;
+        if (this.isWildcard != type.isWildcard) return false;
+        if (!this.type.equals(type.type)) return false;
+        if (this.genericTypes.length != type.genericTypes.length) return false;
+        for (int i = 0; i < this.genericTypes.length; i++) {
+            if (!this.genericTypes[i].match(type.genericTypes[i])) return false;
         }
         return true;
     }
 
-    /**
-     * Creates a String representation of this Type Declaration
-     * 
-     * @return simplified human-readable declaration String
-     */
     @Override
-    public final String toString() {
+    public final String toString(boolean longPaths) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        int arrIdx = _typeName.indexOf('[');
-        String typeName = _typeName;
+        String typeInfo = longPaths ? this.typePath : this.typeName;
+        int arrIdx = typeInfo.indexOf('[');
         String arrPart = "";
         if (arrIdx != -1) {
-            typeName = this._typeName.substring(0, arrIdx);
-            arrPart = this._typeName.substring(arrIdx);
+            typeInfo = typeInfo.substring(0, arrIdx);
+            arrPart = typeInfo.substring(arrIdx);
         }
-        if (this._type == null) {
-            typeName = "??" + typeName + "??";
+        if (this.type == null) {
+            typeInfo = "??" + typeInfo + "??";
         }
 
         String str;
-        if (this._isWildcard) {
-            if (typeName.length() == 0) {
+        if (this.isWildcard) {
+            if (typeInfo.length() == 0) {
                 str = "?";
             } else {
-                str = "? extends " + typeName;
+                str = "? extends " + typeInfo;
             }
         } else {
-            str = typeName;
+            str = typeInfo;
         }
-        if (this._genericTypes.length > 0) {
+        if (this.genericTypes.length > 0) {
             str += "<";
             boolean first = true;
-            for (TypeDeclaration genericType : _genericTypes) {
+            for (TypeDeclaration genericType : genericTypes) {
                 if (first) {
                     first = false;
                 } else {
                     str += ", ";
                 }
-                str += genericType.toString();
+                str += genericType.toString(longPaths);
             }
             str += ">";
         }
@@ -316,11 +311,11 @@ public class TypeDeclaration extends Declaration {
 
     @Override
     public boolean isResolved() {
-        if (this._type == null) {
+        if (this.type == null) {
             return false;
         }
-        for (int i = 0; i < _genericTypes.length; i++) {
-            if (!_genericTypes[i].isResolved()) {
+        for (int i = 0; i < genericTypes.length; i++) {
+            if (!genericTypes[i].isResolved()) {
                 return false;
             }
         }
@@ -332,11 +327,11 @@ public class TypeDeclaration extends Declaration {
         str.append(indent).append("Type {\n");
         str.append(indent).append("  declaration=").append(this._initialDeclaration).append('\n');
         str.append(indent).append("  postfix=").append(this.getPostfix()).append('\n');
-        str.append(indent).append("  typeName=").append(this._typeName).append('\n');
-        str.append(indent).append("  typePath=").append(this._typePath).append('\n');
-        str.append(indent).append("  type=").append(this._type).append('\n');
-        str.append(indent).append("  isWildcard=").append(this._isWildcard).append('\n');
-        for (TypeDeclaration t : this._genericTypes) {
+        str.append(indent).append("  typeName=").append(this.typeName).append('\n');
+        str.append(indent).append("  typePath=").append(this.typePath).append('\n');
+        str.append(indent).append("  type=").append(this.type).append('\n');
+        str.append(indent).append("  isWildcard=").append(this.isWildcard).append('\n');
+        for (TypeDeclaration t : this.genericTypes) {
             t.debugString(str, indent + "  ");
         }
         str.append(indent).append("}\n");

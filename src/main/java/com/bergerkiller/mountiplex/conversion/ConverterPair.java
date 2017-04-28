@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.conversion;
 
+import com.bergerkiller.mountiplex.conversion.type.CollectionElementConverter;
 import com.bergerkiller.mountiplex.conversion.type.ListElementConverter;
 import com.bergerkiller.mountiplex.conversion.type.SetElementConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;

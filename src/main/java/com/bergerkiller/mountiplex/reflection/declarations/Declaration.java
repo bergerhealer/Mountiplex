@@ -9,6 +9,7 @@ public abstract class Declaration {
     protected static final char[] invalid_name_chars;
     protected static final char[] space_chars;
     private String _postfix;
+    private String _longDeclare = null;
     protected final String _initialDeclaration;
     private final ClassResolver _resolver;
 
@@ -176,12 +177,24 @@ public abstract class Declaration {
     public abstract boolean match(Declaration declaration);
 
     /**
+     * Creates a stringified version of this Declaration.
+     * When longPaths is true, type names should be fully declared
+     * to prevent false ambiguity.
+     * 
+     * @param longPaths
+     * @return stringified version of this Declaration
+     */
+    public abstract String toString(boolean longPaths);
+
+    /**
      * Gets a human-readable String representation of this Declaration
      * 
      * @return declaration String
      */
     @Override
-    public abstract String toString(); // must implement
+    public final String toString() {
+        return toString(false);
+    }
 
     /**
      * Gets a debug String showing deep nested information about this parsed declaration.
@@ -196,4 +209,29 @@ public abstract class Declaration {
     }
 
     protected abstract void debugString(StringBuilder str, String indent); // must implement
+
+    @Override
+    public final boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        } else if (other instanceof Declaration) {
+            Declaration d = (Declaration) other;
+            if (d._longDeclare == null) {
+                d._longDeclare = d.toString(true);
+            }
+            if (this._longDeclare == null) {
+                this._longDeclare = this.toString(true);
+            }
+            return d._longDeclare.equals(this._longDeclare);
+        }
+        return false;
+    }
+
+    @Override
+    public final int hashCode() {
+        if (this._longDeclare == null) {
+            this._longDeclare = this.toString(true);
+        }
+        return this._longDeclare.hashCode();
+    }
 }

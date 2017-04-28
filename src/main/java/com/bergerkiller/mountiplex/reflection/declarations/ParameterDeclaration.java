@@ -31,11 +31,11 @@ public class ParameterDeclaration extends Declaration {
     }
 
     @Override
-    public String toString() {
+    public String toString(boolean longPaths) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        return type.toString() + " " + name.toString();
+        return type.toString(longPaths) + " " + name.toString(longPaths);
     }
 
     @Override

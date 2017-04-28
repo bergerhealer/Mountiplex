@@ -74,7 +74,7 @@ public class SourceDeclaration extends Declaration {
     }
 
     @Override
-    public String toString() {
+    public String toString(boolean longPaths) {
         String pkg = getResolver().getPackage();
         String str = "";
         if (pkg.length() > 0) {
@@ -85,7 +85,7 @@ public class SourceDeclaration extends Declaration {
         }
         str += "\n";
         for (ClassDeclaration c : classes) {
-            str += c.toString() + "\n";
+            str += c.toString(longPaths) + "\n";
         }
         return str;
     }

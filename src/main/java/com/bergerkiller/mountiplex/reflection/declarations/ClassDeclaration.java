@@ -119,17 +119,17 @@ public class ClassDeclaration extends Declaration {
     }
 
     @Override
-    public String toString() {
-        String str = this.modifiers.toString();
+    public String toString(boolean longPaths) {
+        String str = this.modifiers.toString(longPaths);
         if (str.length() > 0) {
             str += " ";
         }
         str += this.is_interface ? "interface " : "class ";
-        str += this.type.toString();
+        str += this.type.toString(longPaths);
         str += " {\n";
-        for (FieldDeclaration fdec : this.fields) str += "    " + fdec.toString() + "\n";
-        for (ConstructorDeclaration cdec : this.constructors) str += "    " + cdec.toString() + "\n";
-        for (MethodDeclaration mdec : this.methods) str += "    " + mdec.toString() + "\n";
+        for (FieldDeclaration fdec : this.fields) str += "    " + fdec.toString(longPaths) + "\n";
+        for (ConstructorDeclaration cdec : this.constructors) str += "    " + cdec.toString(longPaths) + "\n";
+        for (MethodDeclaration mdec : this.methods) str += "    " + mdec.toString(longPaths) + "\n";
         str += "}";
         return str;
     }
