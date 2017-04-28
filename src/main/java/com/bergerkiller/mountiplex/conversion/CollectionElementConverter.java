@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.conversion;
 import java.util.Collection;
 import java.util.List;
 
+import com.bergerkiller.mountiplex.conversion.type.CollectionConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
 
 /**

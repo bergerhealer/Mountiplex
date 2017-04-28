@@ -1,7 +1,9 @@
-package com.bergerkiller.mountiplex.conversion;
+package com.bergerkiller.mountiplex.conversion.type;
 
 import java.lang.reflect.Array;
 import java.util.*;
+
+import com.bergerkiller.mountiplex.conversion.BasicConverter;
 
 
 /**

@@ -4,7 +4,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import com.bergerkiller.mountiplex.conversion.ConverterPair;
-import com.bergerkiller.mountiplex.conversion.EntryConverter;
+import com.bergerkiller.mountiplex.conversion.type.EntryConverter;
 
 public class ConvertingEntrySet<K, V> extends ConvertingSet<Entry<K, V>> {
 

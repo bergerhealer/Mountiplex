@@ -1,7 +1,9 @@
-package com.bergerkiller.mountiplex.conversion;
+package com.bergerkiller.mountiplex.conversion.type;
 
 import java.util.Set;
 
+import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion.ConverterPair;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingSet;
 
 /**

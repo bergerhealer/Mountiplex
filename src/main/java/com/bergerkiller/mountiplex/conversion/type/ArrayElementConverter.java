@@ -1,9 +1,11 @@
-package com.bergerkiller.mountiplex.conversion;
+package com.bergerkiller.mountiplex.conversion.type;
 
 import java.util.Collection;
 import java.util.Iterator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.conversion.BasicConverter;
+import com.bergerkiller.mountiplex.conversion.Converter;
 
 /**
  * A generic converter that converts the elements inside of an array to another type
