@@ -20,7 +20,7 @@ public class ToStringConversion {
                 // Fallback: Object.toString()
                 converters.add(new Converter<Object, String>(Object.class, String.class) {
                     @Override
-                    public String convert(Object value) {
+                    public String convertInput(Object value) {
                         return value.toString();
                     }
 

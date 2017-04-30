@@ -17,26 +17,47 @@ public abstract class Converter<I, O> {
     }
 
     /**
+     * Converts the typed input value to the converted output.
+     * If conversion fails, null is returned instead.
+     * 
+     * @param value to be converted
+     * @return converted value, or null if failed
+     */
+    public abstract O convertInput(I value);
+
+    /**
      * Converts the input value to the converted output.
      * If conversion fails, null is returned instead.
+     * For primitive output types, their default value is returned. (0, false, etc.)
      * 
      * @param value to be converted
      * @return converted output value, null on failure
      */
-    public abstract O convert(I value);
+    @SuppressWarnings("unchecked")
+    public final O convert(Object value) {
+        O result = null;
+        if (value != null && this.input.type.isAssignableFrom(value.getClass())) {
+            result = convertInput((I) value);
+        }
+        if (result == null && this.output.type.isPrimitive()) {
+            result = (O) BoxedType.getDefaultValue(this.output.type);
+        }
+        return result;
+    }
 
     /**
      * Converts the input value to the converted output.
      * If conversion fails, the default value is returned instead.
+     * For primitive output types, their default value is returned for null. (0, false, etc.)
      * 
      * @param value to convert
      * @param defaultValue to return on failure
      * @return converted result
      */
     @SuppressWarnings("unchecked")
-    public final O convert(I value, O defaultValue) {
+    public final O convert(Object value, O defaultValue) {
         O result = null;
-        if (value != null) {
+        if (value != null && this.input.type.isAssignableFrom(value.getClass())) {
             result = convert(value);
         }
         if (result == null) {

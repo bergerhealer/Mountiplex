@@ -1,19 +1,29 @@
 package com.bergerkiller.mountiplex.conversion2;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion2.builtin.CollectionConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.EnumConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.NumberConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.ToStringConversion;
+import com.bergerkiller.mountiplex.conversion2.type.AnnotatedConverter;
 import com.bergerkiller.mountiplex.conversion2.type.ChainConverter;
 import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
 import com.bergerkiller.mountiplex.conversion2.type.NullConverter;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
@@ -35,6 +45,7 @@ public class Conversion {
         NumberConversion.register();
         ToStringConversion.register();
         EnumConversion.register();
+        CollectionConversion.register();
     }
 
     /**
@@ -44,12 +55,14 @@ public class Conversion {
      * @param converter to register
      */
     public static void registerConverter(Converter<?, ?> converter) {
-        if (!verifyConverter(converter)) {
-            return;
-        }
-        registerConverterImpl(converter);
-        if (converter instanceof DuplexConverter) {
-            registerConverterImpl(((DuplexConverter<?, ?>) converter).reverse());
+        try {
+            verifyConverter(converter);
+            registerConverterImpl(converter);
+            if (converter instanceof DuplexConverter) {
+                registerConverterImpl(((DuplexConverter<?, ?>) converter).reverse());
+            }
+        } catch (Throwable t) {
+            MountiplexUtil.LOGGER.warning(t.getMessage() + ": " + converter);
         }
     }
 
@@ -60,11 +73,52 @@ public class Conversion {
      * @param provider to register
      */
     public static void registerProvider(ConverterProvider provider) {
+        if (provider == null) {
+            throw new IllegalArgumentException("Provider is null");
+        }
         synchronized (lock) {
             providers.add(provider);
             OutputConverterList.resetAll();
             OutputConverterTree.resetAll();
             converters.clear();
+        }
+    }
+
+    /**
+     * Registers all annotated converter methods and converter constants,
+     * declared statically in a Class
+     * 
+     * @param converterListClass containing the annotated static methods
+     */
+    public static void registerConverters(Class<?> converterListClass) {
+        for (Method method : converterListClass.getDeclaredMethods()) {
+            if (method.getAnnotation(ConverterMethod.class) != null) {
+                try {
+                    registerConverter(new AnnotatedConverter(method));
+                } catch (Throwable t) {
+                    MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
+                    System.err.println("Failed to register static converter method " + m.toString());
+                    t.printStackTrace();
+                }
+            }
+        }
+        for (Field field : converterListClass.getDeclaredFields()) {
+            if (!Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            if (!Converter.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            Converter<?, ?> converter = null;
+            try {
+                field.setAccessible(true);
+                converter = (Converter<?, ?>) field.get(null);
+            } catch (Throwable t) {
+                FieldDeclaration f = new FieldDeclaration(ClassResolver.DEFAULT, field);
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to register static converter field " + f.toString(), t);
+                continue;
+            }
+            registerConverter(converter);
         }
     }
 
@@ -97,10 +151,38 @@ public class Conversion {
 
                 // Generate a conversion tree to find it
                 result = OutputConverterTree.get(output).find(input);
+
+                // Store in the map for quick future lookup
+                // Special case for duplex converters; they can be stored twice!
                 converters.put(key, result);
+                if (result instanceof DuplexConverter) {
+                    converters.put(key.reverse(), ((DuplexConverter<Object, Object>) result).reverse());
+                }
             }
             return result;
         }
+    }
+
+    /**
+     * Creates a duplex converter between two types, allowing both input -> output and output -> input conversion
+     * 
+     * @param inputType
+     * @param outputType
+     * @return duplex converter
+     */
+    public static <I, O> DuplexConverter<I, O> findDuplex(Class<I> inputType, Class<O> outputType) {
+        return DuplexConverter.create(find(inputType, outputType), find(outputType, inputType));
+    }
+
+    /**
+     * Creates a duplex converter between two types, allowing both input -> output and output -> input conversion
+     * 
+     * @param input type
+     * @param output type
+     * @return duplex converter
+     */
+    public static DuplexConverter<Object, Object> findDuplex(TypeDeclaration input, TypeDeclaration output) {
+        return DuplexConverter.create(find(input, output), find(output, input));
     }
 
     /**
@@ -142,24 +224,22 @@ public class Conversion {
     }
 
     // verifies the converter input and output are properly defined
-    private static boolean verifyConverter(Converter<?, ?> converter) {
+    private static void verifyConverter(Converter<?, ?> converter) throws IllegalArgumentException {
+        if (converter == null) {
+            throw new IllegalArgumentException("Converter is null");
+        }
         if (!converter.input.isValid()) {
-            MountiplexUtil.LOGGER.warning("Converter has invalid input: " + converter.toString());
-            return false;
+            throw new IllegalArgumentException("Converter has invalid input");
         }
         if (!converter.output.isValid()) {
-            MountiplexUtil.LOGGER.warning("Converter has invalid output: " + converter.toString());
-            return false;
+            throw new IllegalArgumentException("Converter has invalid output");
         }
         if (!converter.input.isResolved()) {
-            MountiplexUtil.LOGGER.warning("Converter has unresolved input: " + converter.toString());
-            return false;
+            throw new IllegalArgumentException("Converter has unresolved input");
         }
         if (!converter.output.isResolved()) {
-            MountiplexUtil.LOGGER.warning("Converter has unresolved output: " + converter.toString());
-            return false;
+            throw new IllegalArgumentException("Converter has unresolved output");
         }
-        return true;
     }
 
     // maintains the converter tree from all input types that can be converted to the output type
@@ -219,18 +299,40 @@ public class Conversion {
             if (node == null) {
                 return null; // not found
             } else if (node == this.root || node.previous == this.root) {
-                return node.converter; // direct neighbor or self does not need a chain converter
+                return resolveInput(node.converter, input); // direct neighbor or self does not need a chain converter
             }
 
             // work down the chain of nodes to create a chain converter
+            TypeDeclaration currInput = input;
             ArrayList<Converter<?, ?>> converters = new ArrayList<Converter<?, ?>>();
             do {
-                if (!(node.converter instanceof NullConverter)) {
-                    converters.add(node.converter);
-                }
+                Converter<?, ?> nextConv = resolveInput(node.converter, currInput);
+                converters.add(nextConv);
+                currInput = nextConv.output;
                 node = node.previous;
             } while (node != this.root);
+
+            if (converters.isEmpty()) {
+                return null;
+            }
+
             return new ChainConverter<Object, Object>(converters);
+        }
+
+        /*
+         * We want to make sure that InputConverters in the chain are resolved immediately
+         * This allows for performance benefits, and enables use of converters without specifying input
+         * type when the input type was specified in find()
+         */
+        @SuppressWarnings("unchecked")
+        private static final Converter<Object, Object> resolveInput(Converter<?, ?> converter, TypeDeclaration input) {
+            if (converter instanceof InputConverter) {
+                Converter<?, ?> forInput = ((InputConverter<?>) converter).getConverter(input);
+                if (forInput != null) {
+                    return (Converter<Object, Object>) forInput;
+                }
+            }
+            return (Converter<Object, Object>) converter;
         }
 
         // resets, causing regeneration at a later time
@@ -380,8 +482,11 @@ public class Conversion {
                     if (!tmp.isEmpty()) {
                         for (Converter<?, ?> converter : tmp) {
                             if (!this.converters.containsKey(converter.input)) {
-                                if (verifyConverter(converter)) {
+                                try {
+                                    verifyConverter(converter);
                                     this.converters.put(converter.input, converter);
+                                } catch (Throwable t) {
+                                    MountiplexUtil.LOGGER.warning(t.getMessage() + ": " + converter);
                                 }
                             }
                         }
@@ -438,6 +543,10 @@ public class Conversion {
             this.t1 = t1;
             this.t2 = t2;
             this.hashcode = (961 + (31 * t1.hashCode()) + t2.hashCode());
+        }
+
+        public final TypeTuple reverse() {
+            return new TypeTuple(t2, t1);
         }
 
         @Override

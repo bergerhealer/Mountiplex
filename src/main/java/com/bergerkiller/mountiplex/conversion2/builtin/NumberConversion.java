@@ -83,7 +83,7 @@ public class NumberConversion {
         // Cast Number to Byte
         Conversion.registerConverter(new NumberCaster<Byte>(Byte.class) {
             @Override
-            public Byte convert(Number value) {
+            public Byte convertInput(Number value) {
                 return value.byteValue();
             }
         });
@@ -91,7 +91,7 @@ public class NumberConversion {
         // Cast Number to Short
         Conversion.registerConverter(new NumberCaster<Short>(Short.class) {
             @Override
-            public Short convert(Number value) {
+            public Short convertInput(Number value) {
                 return value.shortValue();
             }
         });
@@ -99,7 +99,7 @@ public class NumberConversion {
         // Cast Number to Integer
         Conversion.registerConverter(new NumberCaster<Integer>(Integer.class) {
             @Override
-            public Integer convert(Number value) {
+            public Integer convertInput(Number value) {
                 return value.intValue();
             }
         });
@@ -107,7 +107,7 @@ public class NumberConversion {
         // Cast Number to Long
         Conversion.registerConverter(new NumberCaster<Long>(Long.class) {
             @Override
-            public Long convert(Number value) {
+            public Long convertInput(Number value) {
                 return value.longValue();
             }
         });
@@ -115,7 +115,7 @@ public class NumberConversion {
         // Cast Number to Float
         Conversion.registerConverter(new NumberCaster<Float>(Float.class) {
             @Override
-            public Float convert(Number value) {
+            public Float convertInput(Number value) {
                 return value.floatValue();
             }
         });
@@ -123,7 +123,7 @@ public class NumberConversion {
         // Cast Number to Double
         Conversion.registerConverter(new NumberCaster<Double>(Double.class) {
             @Override
-            public Double convert(Number value) {
+            public Double convertInput(Number value) {
                 return value.doubleValue();
             }
         });
@@ -138,7 +138,7 @@ public class NumberConversion {
         public abstract T parse(String value, boolean isFloatingPoint) throws NumberFormatException;
 
         @Override
-        public T convert(String value) {
+        public T convertInput(String value) {
             try {
                 // Filter non-numeric contents from the String, and then parse it
                 StringBuilder rval = new StringBuilder(value.length());

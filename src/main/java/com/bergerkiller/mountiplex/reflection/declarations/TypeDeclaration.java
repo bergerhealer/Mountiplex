@@ -270,6 +270,15 @@ public class TypeDeclaration extends Declaration {
         }
     }
 
+    private TypeDeclaration(TypeDeclaration mainType, TypeDeclaration[] genericTypes) {
+        super(mainType.getResolver());
+        this.isWildcard = mainType.isWildcard;
+        this.typeName = mainType.typeName;
+        this.typePath = mainType.typePath;
+        this.type = mainType.type;
+        this.genericTypes = genericTypes;
+    }
+
     /**
      * Gets the Type Declaration of the superclass of this type. If this type has no superclass,
      * this function returns null. Generic type information is resolved for the super type.<br>
@@ -321,6 +330,86 @@ public class TypeDeclaration extends Declaration {
         return this.superTypes;
     }
 
+    public boolean isAssignableFrom(Object value) {
+        return value != null && this.type.isAssignableFrom(value.getClass());
+    }
+
+    public boolean isAssignableFrom(TypeDeclaration other) {
+        return other != null && other.isInstanceOf(this);
+    }
+
+    public boolean isInstanceOf(TypeDeclaration other) {
+        if (other != null && other.type.isAssignableFrom(this.type)) {
+            if (other.genericTypes.length == 0) {
+                return true;
+            }
+
+            TypeDeclaration selfType = this.castAsType(other.type);
+            if (selfType == null || other.genericTypes.length != selfType.genericTypes.length) {
+                return false; // should never happen!
+            }
+
+            for (int i = 0; i < selfType.genericTypes.length; i++) {
+                if (other.genericTypes[i].isWildcard) {
+                    // ? extends TYPE
+                    if (!selfType.genericTypes[i].isInstanceOf(other.genericTypes[i])) {
+                        return false;
+                    }
+                } else {
+                    // TYPE must be exactly the same
+                    if (!other.genericTypes[i].equals(selfType.genericTypes[i])) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Finds the generic type information for the given Class type, as if this
+     * type has been casted to the Class specified.
+     * 
+     * @param classType to cast as
+     * @return type declaration when casted as that type, or null if casting is impossible
+     */
+    public TypeDeclaration castAsType(Class<?> classType) {
+        if (classType.equals(this.type)) {
+            return this;
+        }
+        if (classType.isAssignableFrom(this.type)) {
+            for (TypeDeclaration type : this.getSuperTypes()) {
+                if (type.type.equals(classType)) {
+                    return type;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns a new Type Declaration of this type, with the generic parameter types changed
+     * 
+     * @param genericTypes to set to
+     * @return new type declaration
+     */
+    public TypeDeclaration setGenericTypes(TypeDeclaration... genericTypes) {
+        return new TypeDeclaration(this, genericTypes);
+    }
+
+    /**
+     * Finds a generic type parameter for this Type. If this is a raw type,
+     * OBJECT is returned.
+     * 
+     * @param index to get
+     * @return type declaration
+     */
+    public TypeDeclaration getGenericType(int index) {
+        return (index >= 0 && index < this.genericTypes.length) ? this.genericTypes[index] : OBJECT;
+    }
+
     private final TypeDeclaration resolveSuperType(Type superClass) {
         TypeDeclaration superType = new TypeDeclaration(this.getResolver(), superClass);
         if (superType.genericTypes.length > 0 && this.genericTypes.length > 0) {
@@ -341,10 +430,6 @@ public class TypeDeclaration extends Declaration {
             }
         }
         return superType;
-    }
-
-    public boolean isInstanceOf(TypeDeclaration other) {
-        return other.type.isAssignableFrom(this.type);
     }
 
     @Override
@@ -450,5 +535,15 @@ public class TypeDeclaration extends Declaration {
             byClass.put(classType, type);
         }
         return type;
+    }
+
+    /**
+     * Parses a Type Declaration using the default Class Resolver
+     * 
+     * @param declaration to parse
+     * @return type declaration
+     */
+    public static TypeDeclaration parse(String declaration) {
+        return new TypeDeclaration(ClassResolver.DEFAULT, declaration);
     }
 }

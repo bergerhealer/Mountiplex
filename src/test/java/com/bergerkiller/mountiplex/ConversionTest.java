@@ -2,12 +2,30 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.conversion2.Conversion;
+import com.bergerkiller.mountiplex.conversion2.Converter;
+import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.types.CustomType;
 
 public class ConversionTest {
+
+    @Test
+    public void testCustomType() {
+        Conversion.registerConverters(ConversionTest.class);
+
+        CustomType type = Conversion.find(String.class, CustomType.class).convert("test");
+        assertNotNull(type);
+        assertEquals(type.member, "test");
+    }
 
     @Test
     public void testNumber() {
@@ -62,6 +80,53 @@ public class ConversionTest {
         testConversion((short) 2, Day.class, Day.TUESDAY); // should understand short -> int
     }
 
+    @Test
+    public void testList() {
+        TypeDeclaration tStringList = new TypeDeclaration(ClassResolver.DEFAULT, "List<String>");
+        TypeDeclaration tIntegerList = new TypeDeclaration(ClassResolver.DEFAULT, "List<Integer>");
+
+        List<String> numberStrings = new ArrayList<String>();
+        numberStrings.add("12");
+        numberStrings.add("24");
+
+        List<Integer> result = assertTypedConvert(tStringList, tIntegerList, numberStrings);
+        assertEquals(result.size(), 2);
+        assertEquals(result.get(0).intValue(), 12);
+        assertEquals(result.get(1).intValue(), 24);
+    }
+
+    @Test
+    public void testListToSet() {
+        TypeDeclaration tStringList = TypeDeclaration.parse("List<String>");
+        TypeDeclaration tStringSet = TypeDeclaration.parse("Set<String>");
+
+        List<String> numberStrings = new ArrayList<String>();
+        numberStrings.add("30");
+        numberStrings.add("50");
+        numberStrings.add("50");
+
+        Set<String> result = assertTypedConvert(tStringList, tStringSet, numberStrings);
+        assertEquals(result.size(), 2);
+        assertTrue(result.contains("30"));
+        assertTrue(result.contains("50"));
+    }
+
+    @Test
+    public void testStringListToIntegerSet() {
+        TypeDeclaration tStringList = TypeDeclaration.parse("List<String>");
+        TypeDeclaration tIntegerSet = TypeDeclaration.parse("Set<Integer>");
+
+        List<String> numberStrings = new ArrayList<String>();
+        numberStrings.add("30");
+        numberStrings.add("50");
+        numberStrings.add("50");
+
+        Set<Integer> result = assertTypedConvert(tStringList, tIntegerSet, numberStrings);
+        assertEquals(result.size(), 2);
+        assertTrue(result.contains(30));
+        assertTrue(result.contains(50));
+    }
+
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 
@@ -83,5 +148,31 @@ public class ConversionTest {
 
         // Log successes too
         //Conversion.debugTree(input.getClass(), toType);
+    }
+
+    @ConverterMethod
+    public static CustomType stringToCustom(String input) {
+        return new CustomType(input);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T assertTypedConvert(TypeDeclaration input, TypeDeclaration output, Object value) {
+        Converter<Object, Object> converter = Conversion.find(input, output);
+        if (converter == null) {
+            Conversion.debugTree(input, output);
+            fail("Failed to find converter from " + input + " to " + output);
+        }
+        Object result = converter.convert(value);
+        if (result == null) {
+            Conversion.debugTree(input, output);
+            fail("Failed to convert from " + input + " to " + output);
+        }
+        if (!output.isAssignableFrom(result)) {
+            Conversion.debugTree(input, output);
+            fail("Converter produced an output that is incorrect!: " + result.getClass().getName());
+        }
+
+        //Conversion.debugTree(input, output);
+        return (T) result;
     }
 }

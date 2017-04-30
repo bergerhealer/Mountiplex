@@ -18,10 +18,10 @@ public final class ChainConverter<I, O> extends Converter<I, O> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public O convert(I value) {
+    public O convertInput(I value) {
         Object v = value;
-        for (int i = 0; i < converters.length; i++) {
-            v = converters[i].convert(v);
+        for (Converter<Object, Object> converter : this.converters) {
+            v = converter.convertInput(v);
             if (v == null) {
                 break;
             }

@@ -9,6 +9,7 @@ import com.bergerkiller.mountiplex.conversion2.ConverterProvider;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 public class EnumConversion {
+
     public static void register() {
         Conversion.registerProvider(new ConverterProvider() {
             @Override
@@ -24,7 +25,7 @@ public class EnumConversion {
                 // Parsing an Enumeration from an Integer (by ordinal)
                 converters.add(new Converter<Integer, Enum>(Integer.class, Enum.class) {
                     @Override
-                    public Enum convert(Integer value) {
+                    public Enum convertInput(Integer value) {
                         int idx = value.intValue();
                         if (idx >= 0 && idx < constants.length) {
                             return constants[idx];
@@ -37,7 +38,7 @@ public class EnumConversion {
                 // Parsing an Enumeration from a String
                 converters.add(new Converter<String, Enum>(String.class, Enum.class) {
                     @Override
-                    public Enum convert(String value) {
+                    public Enum convertInput(String value) {
                         return MountiplexUtil.parseArray(constants, value, null);
                     }
                 });

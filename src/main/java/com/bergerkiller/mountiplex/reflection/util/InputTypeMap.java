@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
 
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
@@ -77,13 +79,42 @@ public class InputTypeMap<T> {
         Bin bin = map.get(type);
         if (bin == null) {
             bin = new Bin();
+            for (Entry<TypeDeclaration, Bin> entry : map.entrySet()) {
+                if (entry.getKey().isInstanceOf(type)) {
+                    entry.getValue().link(bin);
+                } else if (type.isInstanceOf(entry.getKey())) {
+                    bin.link(entry.getValue());
+                }
+            }
             map.put(type, bin);
+
+            //for (TypeDeclaration superType : type.getSuperTypes()) {
+            //    bin.link(getBin(superType));
+            //}
+
+
+
+
+
+            
+            /*
             for (TypeDeclaration superType : type.getSuperTypes()) {
                 Bin superBin = getBin(superType);
                 bin.parents.add(superBin);
                 superBin.children.add(bin);
                 superBin.clearCache();
             }
+            if (type.type.equals(List.class)) {
+                TypeDeclaration superType = TypeDeclaration.parse("List<?>");
+                if (!type.equals(superType)) {
+                    Bin superBin = getBin(superType);
+                    bin.parents.add(superBin);
+                    superBin.children.add(bin);
+                    superBin.clearCache();
+                }
+
+            }
+            */
         }
         return bin;
     }
@@ -94,6 +125,12 @@ public class InputTypeMap<T> {
         public final ArrayList<Bin> children = new ArrayList<Bin>(1);
         private ArrayList<T> cache = null;
 
+        public void link(Bin other) {
+            this.parents.add(other);
+            other.children.add(this);
+            other.clearCache();
+        }
+        
         public void clearCache() {
             this.cache = null;
             for (Bin parent : this.children) {

@@ -19,7 +19,7 @@ public final class NullConverter extends RawConverter {
     }
 
     @Override
-    public final Object convert(Object value) {
+    public final Object convertInput(Object value) {
         return value;
     }
 }

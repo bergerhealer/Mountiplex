@@ -14,5 +14,5 @@ public abstract class RawConverter extends Converter<Object, Object> {
     }
 
     @Override
-    public abstract Object convert(Object value);
+    public abstract Object convertInput(Object value);
 }

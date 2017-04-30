@@ -10,6 +10,10 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  */
 public abstract class InputConverter <T> extends Converter<Object, T> {
 
+    public InputConverter(TypeDeclaration input, TypeDeclaration output) {
+        super(input, output);
+    }
+
     public InputConverter(TypeDeclaration output) {
         super(TypeDeclaration.OBJECT, output);
     }
@@ -21,7 +25,7 @@ public abstract class InputConverter <T> extends Converter<Object, T> {
      * @param input type to be converted
      * @return converter to use, or null if not possible
      */
-    public abstract Converter<Object, T> getConverter(TypeDeclaration input);
+    public abstract Converter<?, T> getConverter(TypeDeclaration input);
 
     /**
      * Gets the Converter used to convert from the input Class type specified, to the output
@@ -58,10 +62,11 @@ public abstract class InputConverter <T> extends Converter<Object, T> {
     }
 
     @Override
-    public final T convert(Object value) {
-        Converter<Object, T> converter = this.getConverter(TypeDeclaration.fromClass(value.getClass()));
+    @SuppressWarnings("unchecked")
+    public final T convertInput(Object value) {
+        Converter<Object, T> converter = (Converter<Object, T>) this.getConverter(TypeDeclaration.fromClass(value.getClass()));
         if (converter != null) {
-            return converter.convert(value);
+            return converter.convertInput(value);
         } else {
             return null;
         }
