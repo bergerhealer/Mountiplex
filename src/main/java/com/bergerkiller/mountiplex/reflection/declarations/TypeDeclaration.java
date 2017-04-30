@@ -6,6 +6,8 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
@@ -20,7 +22,10 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
  * </ul>
  */
 public class TypeDeclaration extends Declaration {
-    public static final TypeDeclaration OBJECT = new TypeDeclaration(ClassResolver.DEFAULT, Object.class);
+    private static final Map<Class<?>, TypeDeclaration> byClass = new ConcurrentHashMap<Class<?>, TypeDeclaration>();
+    public static final TypeDeclaration INVALID = new TypeDeclaration(ClassResolver.DEFAULT, (Type) null);
+    public static final TypeDeclaration OBJECT = fromClass(Object.class);
+    public static final TypeDeclaration ENUM = fromClass(Enum.class);
     public final boolean isWildcard;
     public final String typeName;
     public final String typePath;
@@ -262,6 +267,27 @@ public class TypeDeclaration extends Declaration {
         }
     }
 
+    public TypeDeclaration[] getSuperTypes() {
+        if (this.type == null) {
+            return new TypeDeclaration[0];
+        }
+        Class<?> superClass = this.type.getSuperclass();
+        if (superClass == null) {
+            return new TypeDeclaration[0];
+        }
+        Class<?>[] interfaces = this.type.getInterfaces();
+        TypeDeclaration[] result = new TypeDeclaration[interfaces.length + 1];
+        result[0] = fromClass(superClass);
+        for (int i = 0; i < interfaces.length; i++) {
+            result[i + 1] = fromClass(interfaces[i]);
+        }
+        return result;
+    }
+
+    public boolean isInstanceOf(TypeDeclaration other) {
+        return other.type.isAssignableFrom(this.type);
+    }
+
     @Override
     public final boolean match(Declaration declaration) {
         if (!(declaration instanceof TypeDeclaration)) {
@@ -349,4 +375,21 @@ public class TypeDeclaration extends Declaration {
         str.append(indent).append("}\n");
     }
 
+    /**
+     * Gets the Type Declaration of a standard Class type
+     * 
+     * @param classType to turn into a Type Declaration
+     * @return Type Declaration
+     */
+    public static TypeDeclaration fromClass(Class<?> classType) {
+        if (classType == null) {
+            return INVALID;
+        }
+        TypeDeclaration type = byClass.get(classType);
+        if (type == null) {
+            type = new TypeDeclaration(ClassResolver.DEFAULT, classType);
+            byClass.put(classType, type);
+        }
+        return type;
+    }
 }

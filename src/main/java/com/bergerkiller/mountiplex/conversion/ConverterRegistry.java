@@ -15,7 +15,8 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
  * Tracks all the converters that are in use
  */
 public class ConverterRegistry {
-    private static final Map<TypeDeclaration, Converter<Object>> converters = new ConcurrentHashMap<TypeDeclaration, Converter<Object>>();
+    private static final Map<TypeDeclaration, Converter<Object>> convertersReg = new ConcurrentHashMap<TypeDeclaration, Converter<Object>>();
+    private static final Map<TypeTuple, Converter<Object>> converters = new ConcurrentHashMap<TypeTuple, Converter<Object>>();
 
     /**
      * Registers all available static convertor constants found in the Class or
@@ -48,7 +49,7 @@ public class ConverterRegistry {
         if (converter.getOutputType() == null) {
             return;
         }
-        converters.put(converter.getOutput(), (Converter<Object>) converter);
+        convertersReg.put(converter.getOutput(), (Converter<Object>) converter);
     }
 
     /**
@@ -83,41 +84,50 @@ public class ConverterRegistry {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> Converter<T> getConverter(TypeDeclaration input, TypeDeclaration output) {
-        Converter<T> converter = (Converter<T>) converters.get(output);
+        TypeTuple key = new TypeTuple(input, output);
+        Converter<T> converter = (Converter<T>) converters.get(key);
         if (converter == null) {
-            Class<?> type = output.type;
-            if (type.isPrimitive()) {
-                type = (Class<T>) BoxedType.getBoxedType(type);
-            }
-            if (type.isArray()) {
-                // Maybe converting to an Object array of a certain component type?
-                // Note: Primitives are already dealt with and registered in the map
-                final Class<?> componentType = type.getComponentType();
-                if (!componentType.isPrimitive()) {
-                    // Use the ObjectArrayConvertor to deal with this
-                    converter = new ObjectArrayConverter(componentType);
+            // Find this converter in the conversion output type registry
+            converter = (Converter<T>) convertersReg.get(output);
+
+            // Handle standard Java types such as arrays and enumerations
+            if (converter == null) {
+                Class<?> type = output.type;
+                if (type.isPrimitive()) {
+                    type = (Class<T>) BoxedType.getBoxedType(type);
                 }
-            } else if (type.isEnum()) {
-                // Converting to an enum type - construct a new EnumConverter
-                converter = new EnumConverter<T>(type);
-            } else {
-                // Maybe the requested type is an extension?
-                // If so, put a new casting converter in place to deal with it
-                for (Converter<Object> conv : converters.values()) {
-                    if (conv.isCastingSupported() && conv.getOutputType().isAssignableFrom(type)) {
-                        converter = new CastingConverter(type, conv);
-                        break;
+                if (type.isArray()) {
+                    // Maybe converting to an Object array of a certain component type?
+                    // Note: Primitives are already dealt with and registered in the map
+                    final Class<?> componentType = type.getComponentType();
+                    if (!componentType.isPrimitive()) {
+                        // Use the ObjectArrayConvertor to deal with this
+                        converter = new ObjectArrayConverter(componentType);
+                    }
+                } else if (type.isEnum()) {
+                    // Converting to an enum type - construct a new EnumConverter
+                    converter = new EnumConverter<T>(type);
+                } else {
+                    // Maybe the requested type is an extension?
+                    // If so, put a new casting converter in place to deal with it
+                    for (Converter<Object> conv : convertersReg.values()) {
+                        if (conv.isCastingSupported() && conv.getOutputType().isAssignableFrom(type)) {
+                            converter = new CastingConverter(type, conv);
+                            break;
+                        }
                     }
                 }
+                // Resolve to the default casting-based converter if not found
+                if (converter == null) {
+                    converter = new EmptyConverter(type);
+                }
             }
-            // Resolve to the default casting-based converter if not found
-            if (converter == null) {
-                converter = new EmptyConverter(type);
-            }
-            // Handle generics from the input type
-            
+
+            // Process child-converters that can further handle the input as demanded
+            converter = converter.getConverter(input, output);
+
             // Found. Put into map for faster look-up
-            converters.put(output, (Converter<Object>) converter);
+            converters.put(key, (Converter<Object>) converter);
         }
         return (Converter<T>) converter;
     }
@@ -166,5 +176,30 @@ public class ConverterRegistry {
         }
         return getConverter(type).convert(value, def);
     }
-    
+
+    private static final class TypeTuple {
+        public final TypeDeclaration t1, t2;
+
+        public TypeTuple(TypeDeclaration t1, TypeDeclaration t2) {
+            this.t1 = t1;
+            this.t2 = t2;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other == this) {
+                return true;
+            } else if (other instanceof TypeTuple) {
+                TypeTuple tuple = (TypeTuple) other;
+                return tuple.t1.equals(this.t1) && tuple.t2.equals(this.t2); 
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return (t1.hashCode() >> 1) + (t2.hashCode() >> 1);
+        }
+    }
 }

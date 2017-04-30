@@ -13,14 +13,15 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 public class ArrayElementConverter<T> extends BasicConverter<T[]> {
 	private final Converter<T> elementConverter;
 
-	@Override
+    @Override
+	@SuppressWarnings("unchecked")
 	protected T[] convertSpecial(Object value, Class<?> valueType, T[] def) {
 		Collection<?> input = CollectionConverter.toCollection.convert(value);
 		if (input == null) {
 			return def;
 		}
 		final int length = input.size();
-		T[] result = MountiplexUtil.createArray(elementConverter.getOutputType(), length);
+		T[] result = MountiplexUtil.createArray((Class<T>) elementConverter.getOutputType(), length);
 		Iterator<?> iter = input.iterator();
 		for (int i = 0; i < length; i++) {
 			result[i] = elementConverter.convert(iter.next());

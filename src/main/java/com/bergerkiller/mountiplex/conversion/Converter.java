@@ -86,14 +86,15 @@ public abstract class Converter<T> {
     }
 
     /**
-     * Called for generic output types to convert the underlying generic type.
-     * By default 'this' converter is returned.
-     * For example, a List type converter will want to convert the underlying element type.
+     * Gets a child converter used to convert a narrowed input type to an output type.
+     * Conversion type narrowing optimization can be performed here. If the converted type
+     * uses generics, the generic type information should be further handled here.
+     * By default this function returns 'this'.
      * 
      * @param input type to be converted
      * @return proper converter for this generic type
      */
-    public Converter<?> convertGenerics(TypeDeclaration input) {
+    public Converter<T> getConverter(TypeDeclaration input, TypeDeclaration output) {
         return this;
     }
 

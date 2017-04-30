@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterPair;
+import com.bergerkiller.mountiplex.conversion.ConverterRegistry;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
 
 /**
