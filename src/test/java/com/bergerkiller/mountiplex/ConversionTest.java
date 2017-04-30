@@ -10,21 +10,6 @@ import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
 public class ConversionTest {
 
     @Test
-    public void testEnum() {
-        testConversion("SUNDAY", Day.class, Day.SUNDAY);
-        testConversion("MONDAY", Day.class, Day.MONDAY);
-        testConversion("MON", Day.class, Day.MONDAY);
-        testConversion("TUESDAYNIGHT", Day.class, Day.TUESDAY);
-        testConversion("WRONG", Day.class, null);
-        testConversion(0, Day.class, Day.SUNDAY);
-        testConversion(1, Day.class, Day.MONDAY);
-        testConversion(5, Day.class, Day.FRIDAY);
-        testConversion(-1, Day.class, null);
-        testConversion(10, Day.class, null);
-        testConversion((short) 2, Day.class, Day.TUESDAY); // should understand short -> int
-    }
-
-    @Test
     public void testNumber() {
         // Casting numbers to other number types
         testConversion(12.5, int.class, 12);
@@ -60,6 +45,21 @@ public class ConversionTest {
         testConversion("Text: 12", int.class, 12);
         testConversion("Awesome 15 66 33", int.class, 15);
         testConversion("Awesome 17 Test", int.class, 17);
+    }
+
+    @Test
+    public void testEnum() {
+        testConversion("SUNDAY", Day.class, Day.SUNDAY);
+        testConversion("MONDAY", Day.class, Day.MONDAY);
+        testConversion("MON", Day.class, Day.MONDAY);
+        testConversion("TUESDAYNIGHT", Day.class, Day.TUESDAY);
+        testConversion("WRONG", Day.class, null);
+        testConversion(0, Day.class, Day.SUNDAY);
+        testConversion(1, Day.class, Day.MONDAY);
+        testConversion(5, Day.class, Day.FRIDAY);
+        testConversion(-1, Day.class, null);
+        testConversion(10, Day.class, null);
+        testConversion((short) 2, Day.class, Day.TUESDAY); // should understand short -> int
     }
 
     private static enum Day {

@@ -184,7 +184,7 @@ public class ClassResolver {
         if (type.isArray()) {
             return resolvePath(type.getComponentType()) + "[]";
         } else {
-            return type.getName();
+            return type.getName().replace('$', '.');
         }
     }
 
@@ -206,7 +206,7 @@ public class ClassResolver {
         }
 
         // See if the class type was imported
-        String name = type.getName();
+        String name = type.getName().replace('$', '.');
         for (String imp : this.imports) {
             if (imp.equals(name)) {
                 return type.getSimpleName();

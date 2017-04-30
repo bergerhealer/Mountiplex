@@ -129,12 +129,12 @@ public class Resolver {
     }
 
     private static class ClassMeta {
-        public final String path;
+        //public final String path;
         public Class<?> type;
         public boolean loaded;
 
         public ClassMeta(String path, Class<?> type, boolean loaded) {
-            this.path = path;
+            //this.path = path;
             this.type = type;
             this.loaded = loaded;
         }

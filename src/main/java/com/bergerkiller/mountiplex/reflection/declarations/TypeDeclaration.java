@@ -6,6 +6,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,7 +90,7 @@ public class TypeDeclaration extends Declaration {
             // Example: T
             TypeVariable<?> vtype = (TypeVariable<?>) type;
             this.type = MountiplexUtil.getArrayType(Object.class, arrayLevels);
-            this.typePath = resolver.resolvePath(this.type);
+            this.typePath = vtype.getName();
             this.typeName = vtype.getName();
             this.genericTypes = new TypeDeclaration[0];
         } else {
@@ -270,30 +271,76 @@ public class TypeDeclaration extends Declaration {
     }
 
     /**
+     * Gets the Type Declaration of the superclass of this type. If this type has no superclass,
+     * this function returns null. Generic type information is resolved for the super type.<br>
+     * <br>
+     * For example, the Type Declaration for <b>HashMap&lt;String, Integer&gt;</b>
+     * will have the super Type Declaration:<br>
+     * <ul><li>AbstractMap&lt;String, Integer&gt;</li></ul>
+     * 
+     * @return Superclass type information
+     */
+    public TypeDeclaration getSuperType() {
+        Type superClass = this.type.getGenericSuperclass();
+        return (superClass == null) ? null : resolveSuperType(superClass);
+    }
+
+    /**
      * Gets all super classes and interfaces extended/implemented by this Type.
      * All Type Declarations returned can be assigned with object of this Type.
+     * Generic type information is resolved for all super types.<br>
+     * <br>
+     * For example, the Type Declaration for <b>HashMap&lt;String, Integer&gt;</b>
+     * will have the super Type Declarations:<br>
+     * <ul>
+     * <li>AbstractMap&lt;String, Integer&gt;</li>
+     * <li>Object</li>
+     * <li>Map&lt;String, Integer&gt;</li>
+     * <li>Cloneable</li>
+     * <li>java.io.Serializable</li>
+     * </ul>
      * 
      * @return super types (classes and interfaces)
      */
     public TypeDeclaration[] getSuperTypes() {
         if (this.superTypes == null) {
-            //TODO! This should really have generics enabled!
-            // For example, a HashMap<String, Integer> should have super type Map<String, Integer>
-            // Right now, it would have super type Map. This is actually incorrect!
-            // These things can be resolved in the constructor where Type information is available
-            // Alternatively, the Generic types defined here can be used to figure things out...
             ArrayList<TypeDeclaration> types = new ArrayList<TypeDeclaration>();
-            Class<?> superClass = this.type.getSuperclass();
-            while (superClass != null) {
-                types.add(fromClass(superClass));
-                superClass = superClass.getSuperclass();
+            TypeDeclaration superType = this.getSuperType();
+            if (superType != null) {
+                types.add(superType);
+                types.addAll(Arrays.asList(superType.getSuperTypes()));
             }
-            for (Class<?> iif : this.type.getInterfaces()) {
-                types.add(fromClass(iif));
+            for (Type iif : this.type.getGenericInterfaces()) {
+                TypeDeclaration iifType = resolveSuperType(iif);
+                if (!types.contains(iifType)) {
+                    types.add(iifType);
+                }
             }
             this.superTypes = types.toArray(new TypeDeclaration[types.size()]);
         }
         return this.superTypes;
+    }
+
+    private final TypeDeclaration resolveSuperType(Type superClass) {
+        TypeDeclaration superType = new TypeDeclaration(this.getResolver(), superClass);
+        if (superType.genericTypes.length > 0 && this.genericTypes.length > 0) {
+            // Correct super type generic types to use the types declared in this type
+            // For example, HashMap<Integer, ?> should turn into AbstractMap<Integer, ?>
+            // Without this, it would turn into AbstractMap<K, V>
+            TypeVariable<?>[] params = this.type.getTypeParameters();
+            if (params.length == this.genericTypes.length) {
+                for (int i = 0; i < superType.genericTypes.length; i++) {
+                    String name = superType.genericTypes[i].typePath;
+                    for (int j = 0; j < params.length; j++) {
+                        if (params[j].getName().equals(name)) {
+                            superType.genericTypes[i] = this.genericTypes[j];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return superType;
     }
 
     public boolean isInstanceOf(TypeDeclaration other) {
