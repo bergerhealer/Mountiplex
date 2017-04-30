@@ -64,10 +64,9 @@ public class InputTypeMap<T> {
             return false;
         }
     }
-    
+
     public boolean containsKey(TypeDeclaration type) {
-        Bin bin = map.get(type);
-        return bin != null && !bin.isEmpty();
+        return !getBin(type).isEmpty();
     }
 
     public void clear() {

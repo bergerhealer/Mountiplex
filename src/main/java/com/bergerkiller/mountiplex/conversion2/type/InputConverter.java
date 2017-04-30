@@ -59,7 +59,12 @@ public abstract class InputConverter <T> extends Converter<Object, T> {
 
     @Override
     public final T convert(Object value) {
-        return getConverter(TypeDeclaration.fromClass(value.getClass())).convert(value);
+        Converter<Object, T> converter = this.getConverter(TypeDeclaration.fromClass(value.getClass()));
+        if (converter != null) {
+            return converter.convert(value);
+        } else {
+            return null;
+        }
     }
 
 }

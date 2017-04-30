@@ -5,6 +5,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +32,7 @@ public class TypeDeclaration extends Declaration {
     public final String typePath;
     public final Class<?> type;
     public final TypeDeclaration[] genericTypes;
+    private TypeDeclaration[] superTypes = null;
 
     /**
      * Turns a {@link Type} into a TypeDeclaration
@@ -267,21 +269,31 @@ public class TypeDeclaration extends Declaration {
         }
     }
 
+    /**
+     * Gets all super classes and interfaces extended/implemented by this Type.
+     * All Type Declarations returned can be assigned with object of this Type.
+     * 
+     * @return super types (classes and interfaces)
+     */
     public TypeDeclaration[] getSuperTypes() {
-        if (this.type == null) {
-            return new TypeDeclaration[0];
+        if (this.superTypes == null) {
+            //TODO! This should really have generics enabled!
+            // For example, a HashMap<String, Integer> should have super type Map<String, Integer>
+            // Right now, it would have super type Map. This is actually incorrect!
+            // These things can be resolved in the constructor where Type information is available
+            // Alternatively, the Generic types defined here can be used to figure things out...
+            ArrayList<TypeDeclaration> types = new ArrayList<TypeDeclaration>();
+            Class<?> superClass = this.type.getSuperclass();
+            while (superClass != null) {
+                types.add(fromClass(superClass));
+                superClass = superClass.getSuperclass();
+            }
+            for (Class<?> iif : this.type.getInterfaces()) {
+                types.add(fromClass(iif));
+            }
+            this.superTypes = types.toArray(new TypeDeclaration[types.size()]);
         }
-        Class<?> superClass = this.type.getSuperclass();
-        if (superClass == null) {
-            return new TypeDeclaration[0];
-        }
-        Class<?>[] interfaces = this.type.getInterfaces();
-        TypeDeclaration[] result = new TypeDeclaration[interfaces.length + 1];
-        result[0] = fromClass(superClass);
-        for (int i = 0; i < interfaces.length; i++) {
-            result[i + 1] = fromClass(interfaces[i]);
-        }
-        return result;
+        return this.superTypes;
     }
 
     public boolean isInstanceOf(TypeDeclaration other) {

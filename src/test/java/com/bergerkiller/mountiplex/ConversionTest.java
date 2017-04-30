@@ -80,5 +80,8 @@ public class ConversionTest {
             Conversion.debugTree(input.getClass(), toType);
             fail("Expected " + expectedResult + ", but was " + result);
         }
+
+        // Log successes too
+        //Conversion.debugTree(input.getClass(), toType);
     }
 }
