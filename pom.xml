@@ -2,7 +2,7 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.bergerkiller</groupId>
+    <groupId>com.bergerkiller.mountiplex</groupId>
     <artifactId>Mountiplex</artifactId>
     <version>1.0</version>
     <packaging>maven-plugin</packaging>
@@ -72,6 +72,41 @@
 
         <!-- Plugins -->
         <plugins>
+            <!-- Needed for shading in CGLib and Objenesis, performing relocations -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <relocations>
+                                <relocation>
+                                    <pattern>net.sf</pattern>
+                                    <shadedPattern>com.bergerkiller.mountiplex.dep.net.sf</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.objenesis</pattern>
+                                    <shadedPattern>com.bergerkiller.mountiplex.dep.org.objenesis</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <artifactSet>
+                                <includes>
+                                    <include>cglib</include>
+                                    <include>org.objenesis</include>
+                                </includes>
+                            </artifactSet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Compiler plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
