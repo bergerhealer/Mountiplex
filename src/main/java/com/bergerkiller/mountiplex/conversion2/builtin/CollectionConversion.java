@@ -91,6 +91,9 @@ public class CollectionConversion {
         public final Converter<?, T> getConverter(TypeDeclaration input) {
             TypeDeclaration inputElementType = input.getGenericType(0);
             TypeDeclaration outputElementType = this.output.getGenericType(0);
+            if (inputElementType.equals(outputElementType)) {
+                return null;
+            }
             DuplexConverter<Object, Object> elementConverter = Conversion.findDuplex(inputElementType, outputElementType);
             if (elementConverter != null) {
                 return new ElementConverter(input, this.output, elementConverter);
@@ -126,6 +129,6 @@ public class CollectionConversion {
                 return result;
             }
         }
-    };
+    }
 
 }

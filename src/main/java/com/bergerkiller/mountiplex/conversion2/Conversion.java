@@ -14,6 +14,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion2.builtin.CollectionConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.EnumConversion;
+import com.bergerkiller.mountiplex.conversion2.builtin.MapConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.NumberConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.ToStringConversion;
 import com.bergerkiller.mountiplex.conversion2.type.AnnotatedConverter;
@@ -46,6 +47,7 @@ public class Conversion {
         ToStringConversion.register();
         EnumConversion.register();
         CollectionConversion.register();
+        MapConversion.register();
     }
 
     /**

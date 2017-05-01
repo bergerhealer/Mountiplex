@@ -56,10 +56,10 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
      * @return converted value (A)
      */
     @SuppressWarnings("unchecked")
-    public final A convertReverse(B value) {
+    public final A convertReverse(Object value) {
         A result = null;
         if (value != null && this.output.type.isAssignableFrom(value.getClass())) {
-            result = convertOutput(value);
+            result = convertOutput((B) value);
         }
         if (result == null && this.input.type.isPrimitive()) {
             result = (A) BoxedType.getDefaultValue(this.input.type);
@@ -117,6 +117,19 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
 
         // Fallback: An adapter that calls the convert() method on the converters
         return new DuplexAdapter<A, B>(converter, reverse);
+    }
+
+    /**
+     * Creates a new duplex null converter, where both input<>output return the same input value
+     * 
+     * @param typeA input type
+     * @param typeB output type
+     * @return duplex null converter
+     */
+    @SuppressWarnings("unchecked")
+    public static <A, B> DuplexConverter<A, B> createNull(TypeDeclaration type) {
+        NullConverter conv = new NullConverter(type, type);
+        return (DuplexConverter<A, B>) create(conv, conv);
     }
 
     private final class ReverseDuplexConverter extends DuplexConverter<B, A> {

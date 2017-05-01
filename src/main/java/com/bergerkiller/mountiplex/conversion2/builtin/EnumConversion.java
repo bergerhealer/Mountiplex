@@ -23,7 +23,7 @@ public class EnumConversion {
                 final Enum[] constants = (Enum[]) outputType.type.getEnumConstants();
 
                 // Parsing an Enumeration from an Integer (by ordinal)
-                converters.add(new Converter<Integer, Enum>(Integer.class, Enum.class) {
+                converters.add(new Converter<Integer, Enum>(TypeDeclaration.fromClass(Integer.class), outputType) {
                     @Override
                     public Enum convertInput(Integer value) {
                         int idx = value.intValue();
@@ -36,7 +36,7 @@ public class EnumConversion {
                 });
 
                 // Parsing an Enumeration from a String
-                converters.add(new Converter<String, Enum>(String.class, Enum.class) {
+                converters.add(new Converter<String, Enum>(TypeDeclaration.fromClass(String.class), outputType) {
                     @Override
                     public Enum convertInput(String value) {
                         return MountiplexUtil.parseArray(constants, value, null);

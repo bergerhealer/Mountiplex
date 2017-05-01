@@ -3,7 +3,11 @@ package com.bergerkiller.mountiplex;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
@@ -106,9 +110,7 @@ public class ConversionTest {
         numberStrings.add("50");
 
         Set<String> result = assertTypedConvert(tStringList, tStringSet, numberStrings);
-        assertEquals(result.size(), 2);
-        assertTrue(result.contains("30"));
-        assertTrue(result.contains("50"));
+        assertCollectionSame(result, "30", "50");
     }
 
     @Test
@@ -122,11 +124,63 @@ public class ConversionTest {
         numberStrings.add("50");
 
         Set<Integer> result = assertTypedConvert(tStringList, tIntegerSet, numberStrings);
-        assertEquals(result.size(), 2);
-        assertTrue(result.contains(30));
-        assertTrue(result.contains(50));
+        assertCollectionSame(result, 30, 50);
     }
 
+    @Test
+    public void testMapValues() {
+        TypeDeclaration tIntegerStringMap = TypeDeclaration.parse("Map<Integer, String>");
+        TypeDeclaration tIntegerIntegerMap = TypeDeclaration.parse("Map<Integer, Integer>");
+
+        Map<Integer, String> testMap = new HashMap<Integer, String>();
+        testMap.put(12, "45");
+        testMap.put(13, "55");
+        testMap.put(0, "66");
+
+        Map<Integer, Integer> result = assertTypedConvert(tIntegerStringMap, tIntegerIntegerMap, testMap);
+        assertEquals(3, result.size());
+        assertTrue(result.containsKey(12));
+        assertTrue(result.containsKey(13));
+        assertTrue(result.containsKey(0));
+        assertFalse(result.containsKey(55));
+        assertTrue(result.containsValue(45));
+        assertTrue(result.containsValue(55));
+        assertTrue(result.containsValue(66));
+        assertFalse(result.containsValue(12));
+        assertEquals(45, result.get(12).intValue());
+        assertEquals(55, result.get(13).intValue());
+        assertEquals(66, result.get(0).intValue());
+        assertCollectionSame(result.keySet(), 0, 12, 13);
+        assertCollectionSame(result.values(), 45, 55, 66);
+    }
+
+    @Test
+    public void testMapKeys() {
+        TypeDeclaration tStringStringMap = TypeDeclaration.parse("Map<String, String>");
+        TypeDeclaration tIntegerStringMap = TypeDeclaration.parse("Map<Integer, String>");
+
+        Map<String, String> testMap = new HashMap<String, String>();
+        testMap.put("44", "55");
+        testMap.put("60", "62");
+        testMap.put("80", "39");
+
+        Map<Integer, String> result = assertTypedConvert(tStringStringMap, tIntegerStringMap, testMap);
+        assertEquals(3, result.size());
+        assertTrue(result.containsKey(44));
+        assertTrue(result.containsKey(60));
+        assertTrue(result.containsKey(80));
+        assertFalse(result.containsKey(90));
+        assertTrue(result.containsValue("55"));
+        assertTrue(result.containsValue("62"));
+        assertTrue(result.containsValue("39"));
+        assertFalse(result.containsValue("44"));
+        assertEquals(result.get(44), "55");
+        assertEquals(result.get(60), "62");
+        assertEquals(result.get(80), "39");
+        assertCollectionSame(result.keySet(), 44, 60, 80);
+        assertCollectionSame(result.values(), "55", "62", "39");
+    }
+    
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 
@@ -174,5 +228,22 @@ public class ConversionTest {
 
         //Conversion.debugTree(input, output);
         return (T) result;
+    }
+
+    private static void assertCollectionSame(Collection<?> collection, Object... values) {
+        assertEquals(collection.size(), values.length);
+        for (Object value : values) {
+            assertTrue(collection.contains(value));
+        }
+        for (Object value : collection) {
+            assertTrue(Arrays.asList(values).contains(value));
+        }
+        assertTrue(collection.containsAll(Arrays.asList(values)));
+        assertTrue(Arrays.asList(values).containsAll(collection));
+        ArrayList<Object> items = new ArrayList<Object>(collection);
+        for (Object value : values) {
+            assertTrue(items.remove(value));
+        }
+        assertEquals(0, items.size());
     }
 }
