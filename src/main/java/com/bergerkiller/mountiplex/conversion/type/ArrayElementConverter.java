@@ -10,11 +10,11 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 /**
  * A generic converter that converts the elements inside of an array to another type
  */
+@Deprecated
 public class ArrayElementConverter<T> extends BasicConverter<T[]> {
 	private final Converter<T> elementConverter;
 
     @Override
-	@SuppressWarnings("unchecked")
 	protected T[] convertSpecial(Object value, Class<?> valueType, T[] def) {
 		Collection<?> input = CollectionConverter.toCollection.convert(value);
 		if (input == null) {
@@ -29,7 +29,7 @@ public class ArrayElementConverter<T> extends BasicConverter<T[]> {
 		return result;
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
+	@SuppressWarnings({"rawtypes"})
 	private ArrayElementConverter(Converter<T> elementConverter) {
 		super((Class) MountiplexUtil.getArrayType(elementConverter.getOutputType()));
 		this.elementConverter = elementConverter;

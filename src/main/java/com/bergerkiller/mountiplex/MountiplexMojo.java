@@ -37,7 +37,7 @@ public class MountiplexMojo extends AbstractMojo {
      */
     public void execute() throws MojoExecutionException {
         // List all template files
-        
+        System.out.println(source_dir); // just so it doesnt warning.
         
         // Done!
         getLog().info("PLUGIN EXECUTED AYY LMAO");
@@ -53,7 +53,4 @@ public class MountiplexMojo extends AbstractMojo {
         }
     }
 
-    private void loadTemplates(File directory) {
-        
-    }
 }

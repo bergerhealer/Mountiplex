@@ -4,7 +4,7 @@ import java.lang.reflect.Constructor;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion2.Converter;
 
 /**
  * A safe version of the Constructor
@@ -63,7 +63,7 @@ public class SafeConstructor<T> {
      * @return translated output
      */
     @SuppressWarnings("unchecked")
-    public <K> SafeConstructor<K> translateOutput(final Converter<K> converter) {
+    public <K> SafeConstructor<K> translateOutput(final Converter<?, K> converter) {
         return new SafeConstructor<K>((Constructor<K>) this.constructor) {
             @Override
             public K newInstance(Object... parameters) {

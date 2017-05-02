@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import com.bergerkiller.mountiplex.conversion.ConverterPair;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 
 /**
  * Defines the methods to access a certain field
@@ -47,5 +47,5 @@ public interface FieldAccessor<T> {
      * @param converterPair to use for the translation
      * @return translated Field accessor
      */
-    <K> TranslatorFieldAccessor<K> translate(ConverterPair<?, K> converterPair);
+    <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair);
 }

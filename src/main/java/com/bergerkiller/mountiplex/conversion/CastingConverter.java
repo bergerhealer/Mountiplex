@@ -5,6 +5,7 @@ package com.bergerkiller.mountiplex.conversion;
  *
  * @param <T> - type to cast the output to
  */
+@Deprecated
 public class CastingConverter<T> extends Converter<T> {
 
     private final Converter<?> baseConvertor;

@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  *
  * @param <T> output type
  */
+@Deprecated
 public abstract class Converter<T> {
     private final TypeDeclaration _output;
 
@@ -154,5 +155,10 @@ public abstract class Converter<T> {
      */
     public Converter<T[]> toArray() {
     	return ArrayElementConverter.create(this);
+    }
+
+    @Deprecated
+    public com.bergerkiller.mountiplex.conversion2.Converter<Object, T> toNew() {
+        return com.bergerkiller.mountiplex.conversion2.Converter.fromLegacy(this);
     }
 }

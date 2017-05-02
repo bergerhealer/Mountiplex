@@ -13,6 +13,7 @@ import java.util.Map;
 /**
  * Converter for converting objects into various kinds of Object[] arrays
  */
+@Deprecated
 public class ObjectArrayConverter<T> extends BasicConverter<T> {
 
     public static final ObjectArrayConverter<Object[]> toObjectArr = new ObjectArrayConverter<Object[]>(Object.class);

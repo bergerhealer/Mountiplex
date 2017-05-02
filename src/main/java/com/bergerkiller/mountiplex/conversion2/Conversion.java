@@ -176,7 +176,7 @@ public class Conversion {
      * @return duplex converter
      */
     public static <I, O> DuplexConverter<I, O> findDuplex(Class<I> inputType, Class<O> outputType) {
-        return DuplexConverter.create(find(inputType, outputType), find(outputType, inputType));
+        return DuplexConverter.pair(find(inputType, outputType), find(outputType, inputType));
     }
 
     /**
@@ -187,7 +187,7 @@ public class Conversion {
      * @return duplex converter
      */
     public static DuplexConverter<Object, Object> findDuplex(TypeDeclaration input, TypeDeclaration output) {
-        return DuplexConverter.create(find(input, output), find(output, input));
+        return DuplexConverter.pair(find(input, output), find(output, input));
     }
 
     /**

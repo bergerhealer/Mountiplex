@@ -7,7 +7,7 @@ import org.objenesis.ObjenesisHelper;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion2.Converter;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
@@ -81,14 +81,6 @@ public class ClassTemplate<T> {
      */
     protected ClassTemplate<T> setClass(String className) {
         return setClassAndLog(Resolver.loadClass(className, false), "", className);
-    }
-
-    /**
-     * TODO: Gotta get rid of this!!!
-     */
-    @Deprecated
-    public ClassResolver getResolver() {
-        return this.resolver;
     }
 
     /**
@@ -368,7 +360,7 @@ public class ClassTemplate<T> {
      * @param converter to use
      * @return Converted static field value
      */
-    public <K> K getStaticFieldValue(String name, Converter<K> converter) {
+    public <K> K getStaticFieldValue(String name, Converter<?, K> converter) {
         return converter.convert(getStaticFieldValue(name, (Class<Object>) null));
     }
 

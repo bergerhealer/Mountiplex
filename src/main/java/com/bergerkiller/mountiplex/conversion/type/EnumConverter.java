@@ -9,6 +9,7 @@ import com.bergerkiller.mountiplex.conversion.BasicConverter;
  *
  * @param <T> - type of Enum
  */
+@Deprecated
 public class EnumConverter<T> extends BasicConverter<T> {
 
     public EnumConverter(Class<?> outputType) {

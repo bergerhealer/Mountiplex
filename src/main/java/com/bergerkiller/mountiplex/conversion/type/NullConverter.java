@@ -5,6 +5,7 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 /**
  * A converter that always fails
  */
+@Deprecated
 @SuppressWarnings("rawtypes")
 public class NullConverter extends Converter {
 

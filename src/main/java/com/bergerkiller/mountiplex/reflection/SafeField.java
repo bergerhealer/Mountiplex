@@ -5,7 +5,7 @@ import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion.ConverterPair;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 
 /**
@@ -180,7 +180,7 @@ public class SafeField<T> implements FieldAccessor<T> {
     }
 
     @Override
-    public <K> TranslatorFieldAccessor<K> translate(ConverterPair<?, K> converterPair) {
+    public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
         return new TranslatorFieldAccessor<K>(this, converterPair);
     }
 
@@ -259,8 +259,8 @@ public class SafeField<T> implements FieldAccessor<T> {
      * @param converterPair - used to convert between exposed and stored types
      * @return new TranslatorFieldAccessor backed by a SafeField
      */
-    public static <T> TranslatorFieldAccessor<T> create(Class<?> type, String name, ConverterPair<?, T> converterPair) {
-        return create(type, name, converterPair.getOutputTypeB()).translate(converterPair);
+    public static <T> TranslatorFieldAccessor<T> create(Class<?> type, String name, DuplexConverter<?, T> converterPair) {
+        return create(type, name, converterPair.output.type).translate(converterPair);
     }
 
     /**

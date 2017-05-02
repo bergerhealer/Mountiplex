@@ -113,4 +113,14 @@ public abstract class Converter<I, O> {
             }
         };
     }
+
+    @Deprecated
+    public static <T> Converter<Object, T> fromLegacy(final com.bergerkiller.mountiplex.conversion.Converter<T> converter) {
+        return new Converter<Object, T>(Object.class, converter.getOutputType()) {
+            @Override
+            public T convertInput(Object value) {
+                return converter.convert(value);
+            }
+        };
+    }
 }

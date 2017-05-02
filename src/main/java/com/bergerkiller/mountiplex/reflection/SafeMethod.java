@@ -1,7 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -16,18 +15,18 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 public class SafeMethod<T> implements MethodAccessor<T> {
 
     private Method method;
-    private Class<?>[] parameterTypes;
-    private boolean isStatic = false;
+    //private Class<?>[] parameterTypes;
+    //private boolean isStatic = false;
 
     public SafeMethod(Method method) {
         if (method == null) {
             this.method = null;
-            this.parameterTypes = null;
-            this.isStatic = false;
+            //this.parameterTypes = null;
+            //this.isStatic = false;
         } else {
             this.method = method;
-            this.parameterTypes = this.method.getParameterTypes();
-            this.isStatic = Modifier.isStatic(this.method.getModifiers());
+            //this.parameterTypes = this.method.getParameterTypes();
+            //this.isStatic = Modifier.isStatic(this.method.getModifiers());
         }
     }
 
@@ -77,8 +76,8 @@ public class SafeMethod<T> implements MethodAccessor<T> {
             this.method = findRaw(source, fixedName, parameterTypes);
             if (this.method != null) {
                 this.method.setAccessible(true);
-                this.isStatic = Modifier.isStatic(this.method.getModifiers());
-                this.parameterTypes = parameterTypes;
+                //this.isStatic = Modifier.isStatic(this.method.getModifiers());
+                //this.parameterTypes = parameterTypes;
                 return;
             }
         } catch (SecurityException ex) {

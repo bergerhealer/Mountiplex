@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 
 import net.sf.cglib.proxy.MethodProxy;
@@ -29,13 +30,15 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     @Override
     protected Invokable getCallback(Method method) {
         Class<?> method_class = method.getDeclaringClass();
-        
+
         ClassTemplate<?> typeTemplate = ClassTemplate.create(method_class);
-        MethodDeclaration methodDec = new MethodDeclaration(typeTemplate.getResolver(), method);
+        ClassResolver resolver = new ClassResolver();
+        resolver.addClassImports(method_class);
+        MethodDeclaration methodDec = new MethodDeclaration(resolver, method);
 
         for (HookMethodEntry entry : methods.entries) {
             // Check if signature matches with method
-            MethodDeclaration m = new MethodDeclaration(typeTemplate.getResolver(), entry.name);
+            MethodDeclaration m = new MethodDeclaration(resolver, entry.name);
             if (!m.isValid() || !m.isResolved()) {
                 continue;
             }

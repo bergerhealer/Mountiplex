@@ -4,7 +4,8 @@ import java.util.Map.Entry;
 
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterPair;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingEntry;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingEntry;
 
 /**
  * Converter that uses a separate key and value converter to convert incoming
@@ -13,6 +14,7 @@ import com.bergerkiller.mountiplex.conversion.util.ConvertingEntry;
  * @param <K> - entry converter key type
  * @param <V> - entry converter value type
  */
+@Deprecated
 public class EntryConverter<K, V> extends Converter<Entry<K, V>> {
 
     private final ConverterPair<Object, K> keyConverter;
@@ -28,7 +30,9 @@ public class EntryConverter<K, V> extends Converter<Entry<K, V>> {
     @Override
     public Entry<K, V> convert(Object value, Entry<K, V> def) {
         if (value instanceof Entry) {
-            return new ConvertingEntry<K, V>((Entry<?, ?>) value, keyConverter, valueConverter);
+            return new ConvertingEntry<K, V>((Entry<?, ?>) value,
+                    DuplexConverter.fromLegacy(keyConverter), 
+                    DuplexConverter.fromLegacy(valueConverter));
         } else {
             return def;
         }

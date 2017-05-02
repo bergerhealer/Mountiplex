@@ -3,9 +3,10 @@ package com.bergerkiller.mountiplex.conversion;
 import com.bergerkiller.mountiplex.conversion.type.CollectionElementConverter;
 import com.bergerkiller.mountiplex.conversion.type.ListElementConverter;
 import com.bergerkiller.mountiplex.conversion.type.SetElementConverter;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingSet;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingCollection;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingList;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingSet;
 
 import java.util.Collection;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.Set;
  * @param <A> - output type A
  * @param <B> - output type B
  */
+@Deprecated
 public class ConverterPair<A, B> {
 
     private final Converter<A> converterA;
@@ -121,7 +123,7 @@ public class ConverterPair<A, B> {
      * @return converting collection
      */
     public Collection<B> convertAll(Collection<?> collection) {
-        return new ConvertingCollection<B>(collection, this);
+        return new ConvertingCollection<B>(collection, toNew());
     }
 
     /**
@@ -131,7 +133,7 @@ public class ConverterPair<A, B> {
      * @return converting list
      */
     public List<B> convertAll(List<?> list) {
-        return new ConvertingList<B>(list, this);
+        return new ConvertingList<B>(list, toNew());
     }
 
     /**
@@ -141,7 +143,7 @@ public class ConverterPair<A, B> {
      * @return converting set
      */
     public Set<B> convertAll(Set<?> set) {
-        return new ConvertingSet<B>(set, this);
+        return new ConvertingSet<B>(set, toNew());
     }
 
     /**
@@ -178,5 +180,10 @@ public class ConverterPair<A, B> {
      */
     public ConverterPair<A[], B[]> toArray() {
     	return converterA.toArray().formPair(converterB.toArray());
+    }
+
+    @Deprecated
+    public DuplexConverter<A, B> toNew() {
+        return DuplexConverter.fromLegacy(this);
     }
 }

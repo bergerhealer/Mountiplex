@@ -4,11 +4,13 @@ import java.util.Collection;
 
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterPair;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingCollection;
 
 /**
  * A generic converter that converts the elements back and forth inside a Collection
  */
+@Deprecated
 public class CollectionElementConverter<A, B> extends Converter<Collection<B>> {
 	private final ConverterPair<A, B> pair;
 
@@ -33,7 +35,7 @@ public class CollectionElementConverter<A, B> extends Converter<Collection<B>> {
 		if (inputList == null) {
 			return null;
 		} else {
-			return new ConvertingCollection<B>(inputList, pair);
+			return new ConvertingCollection<B>(inputList, DuplexConverter.fromLegacy(pair));
 		}
 	}
 

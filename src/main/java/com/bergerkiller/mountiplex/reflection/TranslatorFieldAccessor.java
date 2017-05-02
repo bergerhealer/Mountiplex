@@ -1,7 +1,7 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import com.bergerkiller.mountiplex.conversion.Converter;
-import com.bergerkiller.mountiplex.conversion.ConverterPair;
+import com.bergerkiller.mountiplex.conversion2.Converter;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 
 /**
  * A field accessor that can translate from one type to another to expose a
@@ -12,15 +12,15 @@ import com.bergerkiller.mountiplex.conversion.ConverterPair;
 public class TranslatorFieldAccessor<T> implements FieldAccessor<T> {
 
     private final FieldAccessor<Object> base;
-    private final ConverterPair<Object, T> converterPair;
+    private final DuplexConverter<Object, T> converterPair;
 
     @SuppressWarnings("unchecked")
-    public TranslatorFieldAccessor(FieldAccessor<?> base, Converter<?> setConverter, Converter<T> getConverter) {
-        this(base, new ConverterPair<Object, T>((Converter<Object>) setConverter, getConverter));
+    public TranslatorFieldAccessor(FieldAccessor<?> base, Converter<?, ?> setConverter, Converter<?, T> getConverter) {
+        this(base, DuplexConverter.pair((Converter<Object, T>) getConverter, (Converter<T, Object>) setConverter));
     }
 
     @SuppressWarnings("unchecked")
-    public TranslatorFieldAccessor(FieldAccessor<?> base, ConverterPair<?, T> converterPair) {
+    public TranslatorFieldAccessor(FieldAccessor<?> base, DuplexConverter<?, T> converterPair) {
         if (base == null) {
             throw new IllegalArgumentException("Can not construct using a null base");
         }
@@ -28,7 +28,7 @@ public class TranslatorFieldAccessor<T> implements FieldAccessor<T> {
             throw new IllegalArgumentException("Can not construct using a null converter pair");
         }
         this.base = (FieldAccessor<Object>) base;
-        this.converterPair = (ConverterPair<Object, T>) converterPair;
+        this.converterPair = (DuplexConverter<Object, T>) converterPair;
     }
 
     @Override
@@ -59,21 +59,21 @@ public class TranslatorFieldAccessor<T> implements FieldAccessor<T> {
 
     @Override
     public T get(Object instance) {
-        return converterPair.convertB(getInternal(instance));
+        return converterPair.convert(getInternal(instance));
     }
 
     @Override
     public boolean set(Object instance, T value) {
-        return setInternal(instance, converterPair.convertA(value));
+        return setInternal(instance, converterPair.convertReverse(value));
     }
 
     @Override
     public T transfer(Object from, Object to) {
-        return converterPair.convertB(base.transfer(from, to));
+        return converterPair.convert(base.transfer(from, to));
     }
 
     @Override
-    public <K> TranslatorFieldAccessor<K> translate(ConverterPair<?, K> converterPair) {
+    public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
         return new TranslatorFieldAccessor<K>(this, converterPair);
     }
 }

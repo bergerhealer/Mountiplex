@@ -14,6 +14,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 /**
  * Tracks all the converters that are in use
  */
+@Deprecated
 public class ConverterRegistry {
     private static final Map<TypeDeclaration, Converter<Object>> convertersReg = new ConcurrentHashMap<TypeDeclaration, Converter<Object>>();
     private static final Map<TypeTuple, Converter<Object>> converters = new ConcurrentHashMap<TypeTuple, Converter<Object>>();

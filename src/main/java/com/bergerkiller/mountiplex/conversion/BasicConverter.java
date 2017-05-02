@@ -8,6 +8,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  *
  * @param <T> - output type
  */
+@Deprecated
 public abstract class BasicConverter<T> extends Converter<T> {
 
     public BasicConverter(TypeDeclaration outputType) {

@@ -8,6 +8,7 @@ import com.bergerkiller.mountiplex.conversion.BasicConverter;
  *
  * @param <T> - type of output
  */
+@Deprecated
 public class EmptyConverter<T> extends BasicConverter<T> {
 
     public EmptyConverter(Class<T> outputType) {

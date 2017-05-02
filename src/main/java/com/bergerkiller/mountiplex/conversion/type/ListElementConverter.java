@@ -4,12 +4,13 @@ import java.util.List;
 
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterPair;
-import com.bergerkiller.mountiplex.conversion.ConverterRegistry;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingList;
 
 /**
  * A generic converter that converts the elements back and forth inside a List
  */
+@Deprecated
 public class ListElementConverter<A, B> extends Converter<List<B>> {
 	private final ConverterPair<A, B> pair;
 
@@ -34,7 +35,7 @@ public class ListElementConverter<A, B> extends Converter<List<B>> {
 		if (inputList == null) {
 			return null;
 		} else {
-			return new ConvertingList<B>(inputList, pair);
+			return new ConvertingList<B>(inputList, DuplexConverter.fromLegacy(pair));
 		}
 	}
 

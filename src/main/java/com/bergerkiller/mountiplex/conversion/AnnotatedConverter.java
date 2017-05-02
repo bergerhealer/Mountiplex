@@ -6,6 +6,7 @@ package com.bergerkiller.mountiplex.conversion;
  *
  * @param <T>
  */
+@Deprecated
 public class AnnotatedConverter<T> extends Converter<T> {
 
     public AnnotatedConverter(Class<?> outputType) {

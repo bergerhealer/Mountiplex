@@ -11,6 +11,7 @@ import com.bergerkiller.mountiplex.conversion.ConverterPair;
  *
  * @param <T> - type of the converter
  */
+@Deprecated
 public final class EmptyConverterUnsafe<T> extends Converter<T> {
 
     @SuppressWarnings("rawtypes")

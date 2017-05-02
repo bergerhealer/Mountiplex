@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import com.bergerkiller.mountiplex.conversion.ConverterPair;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 
 /**
  * A field implementation that allows direct getting and setting
@@ -20,7 +20,7 @@ public abstract class SafeDirectField<T> implements FieldAccessor<T> {
     }
 
     @Override
-    public <K> TranslatorFieldAccessor<K> translate(ConverterPair<?, K> converterPair) {
+    public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
         return new TranslatorFieldAccessor<K>(this, converterPair);
     }
 }

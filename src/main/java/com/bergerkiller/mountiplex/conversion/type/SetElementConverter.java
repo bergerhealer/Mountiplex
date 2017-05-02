@@ -4,11 +4,13 @@ import java.util.Set;
 
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterPair;
-import com.bergerkiller.mountiplex.conversion.util.ConvertingSet;
+import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion2.util.ConvertingSet;
 
 /**
  * A generic converter that converts the elements back and forth inside a Set
  */
+@Deprecated
 public class SetElementConverter<A, B> extends Converter<Set<B>> {
 	private final ConverterPair<A, B> pair;
 
@@ -33,7 +35,7 @@ public class SetElementConverter<A, B> extends Converter<Set<B>> {
 		if (inputSet == null) {
 			return null;
 		} else {
-			return new ConvertingSet<B>(inputSet, pair);
+			return new ConvertingSet<B>(inputSet, DuplexConverter.fromLegacy(pair));
 		}
 	}
 

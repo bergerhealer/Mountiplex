@@ -17,7 +17,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     private DuplexConverter<B, A> reverse;
 
-    public DuplexConverter(Class<A> typeA, Class<B> typeB) {
+    public DuplexConverter(Class<?> typeA, Class<?> typeB) {
         super(typeA, typeB);
         this.reverse = new ReverseDuplexConverter();
     }
@@ -83,7 +83,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
      * @param reverse converter for converting from B back to A
      * @return duplex converter
      */
-    public static <A, B> DuplexConverter<A, B> create(Converter<A, B> converter, Converter<B, A> reverse) {
+    public static <A, B> DuplexConverter<A, B> pair(Converter<A, B> converter, Converter<B, A> reverse) {
         // Verify the converters are not null
         if (converter == null || reverse == null) {
             return null;
@@ -129,7 +129,22 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     @SuppressWarnings("unchecked")
     public static <A, B> DuplexConverter<A, B> createNull(TypeDeclaration type) {
         NullConverter conv = new NullConverter(type, type);
-        return (DuplexConverter<A, B>) create(conv, conv);
+        return (DuplexConverter<A, B>) pair(conv, conv);
+    }
+
+    @Deprecated
+    public static <A, B> DuplexConverter<A, B> fromLegacy(final com.bergerkiller.mountiplex.conversion.ConverterPair<A, B> pair) {
+        return new DuplexConverter<A, B>(pair.getOutputTypeA(), pair.getOutputTypeB()) {
+            @Override
+            public B convertInput(A value) {
+                return pair.convertB(value);
+            }
+
+            @Override
+            public A convertOutput(B value) {
+                return pair.convertA(value);
+            }
+        };
     }
 
     private final class ReverseDuplexConverter extends DuplexConverter<B, A> {

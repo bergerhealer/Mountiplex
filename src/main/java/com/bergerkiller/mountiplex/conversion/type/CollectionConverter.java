@@ -11,6 +11,7 @@ import com.bergerkiller.mountiplex.conversion.BasicConverter;
  *
  * @param <T> - type of collection
  */
+@Deprecated
 public abstract class CollectionConverter<T extends Collection<?>> extends BasicConverter<T> {
 
     public static final CollectionConverter<List<?>> toList = new CollectionConverter<List<?>>(List.class) {
