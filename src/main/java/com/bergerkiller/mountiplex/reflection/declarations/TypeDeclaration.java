@@ -457,8 +457,8 @@ public class TypeDeclaration extends Declaration {
         int arrIdx = typeInfo.indexOf('[');
         String arrPart = "";
         if (arrIdx != -1) {
-            typeInfo = typeInfo.substring(0, arrIdx);
             arrPart = typeInfo.substring(arrIdx);
+            typeInfo = typeInfo.substring(0, arrIdx);
         }
         if (this.type == null) {
             typeInfo = "??" + typeInfo + "??";

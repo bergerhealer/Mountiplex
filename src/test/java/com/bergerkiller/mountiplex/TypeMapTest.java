@@ -50,6 +50,13 @@ public class TypeMapTest {
     }
 
     @Test
+    public void testArrayTypes() {
+        TypeDeclaration tInt = TypeDeclaration.fromClass(int.class);
+        TypeDeclaration tIntArr = TypeDeclaration.fromClass(int[].class);
+        assertFalse(tInt.equals(tIntArr));
+    }
+
+    @Test
     public void testGenericInstanceOf() {
         TypeDeclaration tObject = TypeDeclaration.fromClass(Object.class);
         TypeDeclaration tList = TypeDeclaration.parse("List");

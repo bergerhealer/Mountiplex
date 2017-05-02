@@ -7,11 +7,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion2.builtin.ArrayConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.CollectionConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.EnumConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.MapConversion;
@@ -48,6 +50,7 @@ public class Conversion {
         EnumConversion.register();
         CollectionConversion.register();
         MapConversion.register();
+        ArrayConversion.register();
     }
 
     /**
@@ -433,7 +436,7 @@ public class Conversion {
         private static final Map<TypeDeclaration, OutputConverterList> mapping = new HashMap<TypeDeclaration, OutputConverterList>();
         private final TypeDeclaration output;
         private final HashMap<TypeDeclaration, Converter<?, ?>> single = new HashMap<TypeDeclaration, Converter<?, ?>>();
-        private final HashMap<TypeDeclaration, Converter<?, ?>> converters = new HashMap<TypeDeclaration, Converter<?, ?>>();
+        private final LinkedHashMap<TypeDeclaration, Converter<?, ?>> converters = new LinkedHashMap<TypeDeclaration, Converter<?, ?>>();
         private final ArrayList<OutputConverterList> parents = new ArrayList<OutputConverterList>();
         private final HashSet<OutputConverterList> children = new HashSet<OutputConverterList>();
         private boolean regen;

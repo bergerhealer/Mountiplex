@@ -7,7 +7,7 @@ public abstract class Converter<I, O> {
     public final TypeDeclaration input;
     public final TypeDeclaration output;
 
-    public Converter(Class<I> input, Class<O> output) {
+    public Converter(Class<?> input, Class<?> output) {
         this(TypeDeclaration.fromClass(input), TypeDeclaration.fromClass(output));
     }
 
@@ -88,5 +88,29 @@ public abstract class Converter<I, O> {
     @Override
     public String toString() {
         return this.getClass().getName() + "[" + input.toString() + " -> " + output.toString() + "]";
+    }
+
+    /**
+     * Turns this Converter into the old legacy format for temporary backportability and stuff
+     */
+    @Deprecated
+    public <T> com.bergerkiller.mountiplex.conversion.Converter<T> legacy() {
+        return new com.bergerkiller.mountiplex.conversion.Converter<T>(this.output.type) {
+            @Override
+            @SuppressWarnings("unchecked")
+            public T convert(Object value, T def) {
+                return (T) Converter.this.convert(value, (O) def);
+            }
+
+            @Override
+            public boolean isCastingSupported() {
+                return false;
+            }
+
+            @Override
+            public boolean isRegisterSupported() {
+                return false;
+            }
+        };
     }
 }

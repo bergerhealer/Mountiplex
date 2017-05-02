@@ -57,8 +57,6 @@ public class MapConversion {
                 valueConverter = DuplexConverter.createNull(outputValueType);
             }
 
-            System.out.println("KEY: " + keyConverter);
-            System.out.println("VALUE: " + valueConverter);
             if (keyConverter != null && valueConverter != null) {
                 return new ElementConverter(input, this.output, keyConverter, valueConverter);
             } else {
