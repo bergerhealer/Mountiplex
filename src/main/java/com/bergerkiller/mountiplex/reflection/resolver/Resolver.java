@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 /**
@@ -15,6 +16,7 @@ public class Resolver {
     private static final ArrayList<ClassPathResolver> classPathResolvers = new ArrayList<ClassPathResolver>();
     private static final ArrayList<FieldNameResolver> fieldNameResolvers = new ArrayList<FieldNameResolver>();
     private static final ArrayList<MethodNameResolver> methodNameResolvers = new ArrayList<MethodNameResolver>();
+    private static final ArrayList<ClassDeclarationResolver> classDeclarationResolvers = new ArrayList<ClassDeclarationResolver>();
     private static final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
 
     /**
@@ -92,6 +94,10 @@ public class Resolver {
         }
     }
 
+    public static void registerClassDeclarationResolver(ClassDeclarationResolver resolver) {
+        classDeclarationResolvers.add(resolver);
+    }
+
     public static void registerClassResolver(ClassPathResolver resolver) {
         classPathResolvers.add(resolver);
         classCache.clear();
@@ -126,6 +132,16 @@ public class Resolver {
             methodName = resolver.resolveMethodName(declaredClass, methodName, parameterTypes);
         }
         return methodName;
+    }
+
+    public static ClassDeclaration resolveClassDeclaration(Class<?> classType) {
+        for (ClassDeclarationResolver resolver : classDeclarationResolvers) {
+            ClassDeclaration dec = resolver.resolveClassDeclaration(classType);
+            if (dec != null) {
+                return dec;
+            }
+        }
+        return null;
     }
 
     private static class ClassMeta {

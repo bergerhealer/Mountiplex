@@ -6,7 +6,7 @@ public class FieldDeclaration extends Declaration {
     public final ModifierDeclaration modifiers;
     public final NameDeclaration name;
     public final TypeDeclaration type;
-    public final Field field;
+    public Field field;
 
     public FieldDeclaration(ClassResolver resolver, Field field) {
         super(resolver);
@@ -80,4 +80,5 @@ public class FieldDeclaration extends Declaration {
         this.name.debugString(str, indent + "  ");
         str.append(indent).append("}\n");
     }
+
 }

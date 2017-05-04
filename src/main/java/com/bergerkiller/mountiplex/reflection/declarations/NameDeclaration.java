@@ -115,6 +115,15 @@ public class NameDeclaration extends Declaration {
     }
 
     /**
+     * Returns the {@link #alias} if an alias is specified, otherwise returns the normal {@link #value()}
+     * 
+     * @return real name
+     */
+    public final String real() {
+        return _alias != null ? _alias : _name;
+    }
+
+    /**
      * Gets whether this Name Declaration has an alias defined
      * 
      * @return True if an alias is set, False if not

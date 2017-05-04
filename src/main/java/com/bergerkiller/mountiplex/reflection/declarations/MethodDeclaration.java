@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
 public class MethodDeclaration extends Declaration {
-    public final Method method;
+    public Method method;
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration returnType;
     public final NameDeclaration name;

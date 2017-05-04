@@ -1,6 +1,8 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
@@ -106,6 +108,35 @@ public class ClassDeclaration extends Declaration {
         this.constructors = constructors.toArray(new ConstructorDeclaration[constructors.size()]);
         this.methods = methods.toArray(new MethodDeclaration[methods.size()]);
         this.fields = fields.toArray(new FieldDeclaration[fields.size()]);
+
+        // Verify all the fields exist
+        if (this.type.isResolved()) {
+            java.lang.reflect.Field[] realRefFields = this.type.type.getFields();
+            FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
+            for (int i = 0; i < realFields.length; i++) {
+                realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
+            }
+            List<FieldLCSResolver.Pair> pairs = FieldLCSResolver.lcs(this.fields, realFields);
+
+            // Register all successful pairs
+            Iterator<FieldLCSResolver.Pair> succIter = pairs.iterator();
+            while (succIter.hasNext()) {
+                FieldLCSResolver.Pair pair = succIter.next();
+                if (pair.a != null && pair.b != null) {
+                    pair.a.field = pair.b.field;
+                    System.out.println("FOUND: " + pair.a);
+                    succIter.remove();
+                }
+            }
+
+            // Log all fields we could not find in our template
+            // The fields in the underlying Class are not important (yet)
+            for (FieldLCSResolver.Pair failPair : pairs) {
+                if (failPair.b == null) {
+                    MountiplexUtil.LOGGER.warning("Failed to find field " + failPair.a);
+                }
+            }
+        }
     }
 
     @Override
