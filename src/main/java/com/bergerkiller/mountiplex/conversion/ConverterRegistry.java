@@ -7,7 +7,6 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.type.EmptyConverter;
 import com.bergerkiller.mountiplex.conversion.type.EnumConverter;
 import com.bergerkiller.mountiplex.conversion.type.ObjectArrayConverter;
-import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
@@ -72,7 +71,7 @@ public class ConverterRegistry {
      * @return converter
      */
     public static <T> Converter<T> getConverter(Class<T> type) {
-        return getConverter(TypeDeclaration.OBJECT, new TypeDeclaration(ClassResolver.DEFAULT, type));
+        return getConverter(TypeDeclaration.OBJECT, TypeDeclaration.fromClass(type));
     }
 
     /**

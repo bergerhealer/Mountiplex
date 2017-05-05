@@ -239,12 +239,12 @@ public class Template {
 
         public static final class Integer extends Field<Integer> {
             /** @see Field#get(instance) */
-            public int getInt(Object instance) {
+            public int getInteger(Object instance) {
                 try{return field.getInt(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
-            public void setInt(Object instance, int value) {
+            public void setInteger(Object instance, int value) {
                 try{field.setInt(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
@@ -273,12 +273,12 @@ public class Template {
 
         public static final class Character extends Field<Character> {
             /** @see Field#get(instance) */
-            public char getChar(Object instance) {
+            public char getCharacter(Object instance) {
                 try{return field.getChar(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
-            public void setChar(Object instance, char value) {
+            public void setCharacter(Object instance, char value) {
                 try{field.setChar(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 

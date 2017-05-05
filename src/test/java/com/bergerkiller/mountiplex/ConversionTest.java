@@ -16,7 +16,6 @@ import com.bergerkiller.mountiplex.conversion2.Conversion;
 import com.bergerkiller.mountiplex.conversion2.Converter;
 import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
-import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.CustomType;
 
@@ -86,8 +85,8 @@ public class ConversionTest {
 
     @Test
     public void testList() {
-        TypeDeclaration tStringList = new TypeDeclaration(ClassResolver.DEFAULT, "List<String>");
-        TypeDeclaration tIntegerList = new TypeDeclaration(ClassResolver.DEFAULT, "List<Integer>");
+        TypeDeclaration tStringList = TypeDeclaration.parse("List<String>");
+        TypeDeclaration tIntegerList = TypeDeclaration.parse("List<Integer>");
 
         List<String> numberStrings = new ArrayList<String>();
         numberStrings.add("12");
@@ -233,6 +232,14 @@ public class ConversionTest {
     private static void assertCollectionSame(Collection<?> collection, Object... values) {
         assertEquals(collection.size(), values.length);
         for (Object value : values) {
+            if (!collection.contains(value)) {
+                for (Object v : values) {
+                    System.out.println("VALUES: " + v + " " + v.getClass());
+                }
+                for (Object c : collection) {
+                    System.out.println("COLLECTION: " + c + " " + c.getClass());
+                }
+            }
             assertTrue(collection.contains(value));
         }
         for (Object value : collection) {

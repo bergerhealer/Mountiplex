@@ -12,7 +12,7 @@ public class ParameterDeclaration extends Declaration {
 
     public ParameterDeclaration(ClassResolver resolver, Type type, String name) {
         super(resolver);
-        this.type = new TypeDeclaration(resolver, type);
+        this.type = TypeDeclaration.fromType(resolver, type);
         this.name = new NameDeclaration(resolver, name, null);
     }
 

@@ -76,6 +76,15 @@ public class ModifierDeclaration extends Declaration {
     }
 
     /**
+     * Gets whether the final modifier is set
+     * 
+     * @return True if final, False if not
+     */
+    public final boolean isFinal() {
+        return Modifier.isFinal(this._modifiers);
+    }
+
+    /**
      * Gets whether the static modifier is set
      * 
      * @return True if static, False if not

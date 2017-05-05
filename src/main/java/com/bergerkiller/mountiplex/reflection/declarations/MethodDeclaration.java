@@ -15,7 +15,7 @@ public class MethodDeclaration extends Declaration {
         super(resolver);
         this.method = method;
         this.modifiers = new ModifierDeclaration(resolver, method.getModifiers());
-        this.returnType = new TypeDeclaration(resolver, method.getGenericReturnType());
+        this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
         this.name = new NameDeclaration(resolver, method.getName(), null);
         this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
     }

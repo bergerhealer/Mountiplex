@@ -12,7 +12,7 @@ public class ConstructorDeclaration extends Declaration {
         super(resolver);
         this.constructor = constructor;
         this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers());
-        this.type = new TypeDeclaration(resolver, constructor.getDeclaringClass());
+        this.type = TypeDeclaration.fromType(resolver, constructor.getDeclaringClass());
         this.parameters = new ParameterListDeclaration(resolver, constructor.getGenericParameterTypes());
     }
 

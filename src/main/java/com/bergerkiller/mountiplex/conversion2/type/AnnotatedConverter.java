@@ -55,7 +55,7 @@ public class AnnotatedConverter extends RawConverter {
         String typeStr = (annot == null) ? "" : (input ? annot.input() : annot.output());
         if (typeStr.length() > 0) {
             // Parse from the annotation
-            TypeDeclaration type = new TypeDeclaration(resolver, typeStr);
+            TypeDeclaration type = TypeDeclaration.parse(resolver, typeStr);
             if (!type.isValid()) {
                 throw new IllegalArgumentException("Type is invalid: " + type.toString());
             }
@@ -65,7 +65,7 @@ public class AnnotatedConverter extends RawConverter {
             return type;
         } else {
             // Parse from the method signature
-            return new TypeDeclaration(resolver, input ? 
+            return TypeDeclaration.fromType(resolver, input ? 
                     method.getGenericParameterTypes()[0] : method.getGenericReturnType());
         }
     }

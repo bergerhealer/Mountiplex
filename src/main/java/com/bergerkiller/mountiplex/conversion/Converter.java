@@ -18,11 +18,11 @@ public abstract class Converter<T> {
     private final TypeDeclaration _output;
 
     public Converter(Class<?> outputType) {
-        this(new TypeDeclaration(ClassResolver.DEFAULT, outputType));
+        this(TypeDeclaration.fromClass(outputType));
     }
 
     public Converter(ClassResolver resolver, String declaration) {
-        this(new TypeDeclaration(resolver, declaration));
+        this(TypeDeclaration.parse(resolver, declaration));
     }
 
     public Converter(TypeDeclaration outputType) {

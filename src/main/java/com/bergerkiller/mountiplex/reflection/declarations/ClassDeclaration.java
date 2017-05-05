@@ -124,7 +124,6 @@ public class ClassDeclaration extends Declaration {
                 FieldLCSResolver.Pair pair = succIter.next();
                 if (pair.a != null && pair.b != null) {
                     pair.a.field = pair.b.field;
-                    System.out.println("FOUND: " + pair.a);
                     succIter.remove();
                 }
             }

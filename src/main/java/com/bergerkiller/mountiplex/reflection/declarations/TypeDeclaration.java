@@ -41,7 +41,7 @@ public class TypeDeclaration extends Declaration {
      * @param resolver that is used with this type
      * @param type to read the declaration from
      */
-    public TypeDeclaration(ClassResolver resolver, Type type) {
+    private TypeDeclaration(ClassResolver resolver, Type type) {
         super(resolver);
 
         // Null types are invalid
@@ -104,7 +104,7 @@ public class TypeDeclaration extends Declaration {
         }
     }
 
-    public TypeDeclaration(ClassResolver resolver, String declaration) {
+    private TypeDeclaration(ClassResolver resolver, String declaration) {
         super(resolver, declaration);
 
         // Invalid declarations are forced by passing null
@@ -538,12 +538,34 @@ public class TypeDeclaration extends Declaration {
     }
 
     /**
+     * Creates a Type Declaration by inspecting a type, resolving using a set Class Resolver
+     * 
+     * @param classResolver to use
+     * @param type to use for initialization
+     * @return Type Declaration
+     */
+    public static TypeDeclaration fromType(ClassResolver classResolver, Type type) {
+        return new TypeDeclaration(classResolver, type);
+    }
+
+    /**
      * Parses a Type Declaration using the default Class Resolver
      * 
      * @param declaration to parse
-     * @return type declaration
+     * @return Type Declaration
      */
     public static TypeDeclaration parse(String declaration) {
         return new TypeDeclaration(ClassResolver.DEFAULT, declaration);
+    }
+
+    /**
+     * Parses a Type Declaration using a Class Resolver
+     * 
+     * @param classResolver to use
+     * @param declaration to parse
+     * @return Type Declaration
+     */
+    public static TypeDeclaration parse(ClassResolver classResolver, String declaration) {
+        return new TypeDeclaration(classResolver, declaration);
     }
 }

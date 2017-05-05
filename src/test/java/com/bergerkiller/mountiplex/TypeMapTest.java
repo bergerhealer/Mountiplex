@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 import com.bergerkiller.mountiplex.types.IntegerMapOfString;
@@ -160,7 +159,7 @@ public class TypeMapTest {
     }
 
     private static void assertTypesEqual(String declaration, String selfName, String... superTypeNames) {
-        TypeDeclaration type = new TypeDeclaration(ClassResolver.DEFAULT, declaration);
+        TypeDeclaration type = TypeDeclaration.parse(declaration);
         assertTrue(type.isValid());
         assertTrue(type.isResolved());
         assertTypesEqual(type, selfName, superTypeNames);
@@ -194,7 +193,7 @@ public class TypeMapTest {
     }
 
     private static void testTypeParsing(String declaration) {
-        TypeDeclaration type = new TypeDeclaration(ClassResolver.DEFAULT, declaration);
+        TypeDeclaration type = TypeDeclaration.parse(declaration);
         assertTrue(type.isValid());
         assertTrue(type.isResolved());
         assertEquals(declaration, type.toString());

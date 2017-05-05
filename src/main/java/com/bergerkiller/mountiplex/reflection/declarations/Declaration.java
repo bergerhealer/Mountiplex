@@ -56,7 +56,7 @@ public abstract class Declaration {
     }
 
     protected final TypeDeclaration nextType() {
-        return updatePostfix(new TypeDeclaration(this._resolver, this._postfix));
+        return updatePostfix(TypeDeclaration.parse(this._resolver, this._postfix));
     }
 
     protected final ParameterDeclaration nextParameter(int paramIdx) {

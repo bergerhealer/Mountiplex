@@ -12,7 +12,7 @@ public class FieldDeclaration extends Declaration {
         super(resolver);
         this.field = field;
         this.modifiers = new ModifierDeclaration(resolver, field.getModifiers());
-        this.type = new TypeDeclaration(resolver, field.getGenericType());
+        this.type = TypeDeclaration.fromType(resolver, field.getGenericType());
         this.name = new NameDeclaration(resolver, field.getName(), null);
     }
 
