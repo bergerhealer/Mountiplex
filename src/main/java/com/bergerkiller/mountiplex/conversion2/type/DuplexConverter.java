@@ -186,25 +186,20 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     private static final class DuplexAnnotatedConverter<A, B> extends DuplexConverter<A, B> {
-        private final Method method;
+        private final Method converterMethod;
+        private final Method reverseMethod;
 
         public DuplexAnnotatedConverter(AnnotatedConverter converter, AnnotatedConverter reverse) {
             super(reverse.output, converter.output);
-            this.method = converter.method;
-            super.reverse = new DuplexAnnotatedConverter<B, A>(reverse, converter, this);
-        }
-
-        private DuplexAnnotatedConverter(AnnotatedConverter converter, AnnotatedConverter reverse, DuplexAnnotatedConverter<B, A> reverseConv) {
-            super(reverse.output, converter.output, null);
-            this.method = converter.method;
-            super.reverse = reverseConv;
+            this.converterMethod = converter.method;
+            this.reverseMethod = reverse.method;
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public B convertInput(A value) {
             try {
-                return (B) this.method.invoke(null, value);
+                return (B) this.converterMethod.invoke(null, value);
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             } catch (IllegalArgumentException e) {
@@ -216,8 +211,18 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public A convertOutput(B value) {
-            return super.reverse.convertInput(value);
+            try {
+                return (A) this.reverseMethod.invoke(null, value);
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            }
+            return null;
         }
 
     }

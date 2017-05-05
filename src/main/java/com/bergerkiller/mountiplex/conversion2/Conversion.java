@@ -20,6 +20,8 @@ import com.bergerkiller.mountiplex.conversion2.builtin.MapConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.NumberConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.ToStringConversion;
 import com.bergerkiller.mountiplex.conversion2.type.AnnotatedConverter;
+import com.bergerkiller.mountiplex.conversion2.type.AnnotatedProvider;
+import com.bergerkiller.mountiplex.conversion2.type.CastingConverter;
 import com.bergerkiller.mountiplex.conversion2.type.ChainConverter;
 import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
@@ -99,7 +101,11 @@ public class Conversion {
         for (Method method : converterListClass.getDeclaredMethods()) {
             if (method.getAnnotation(ConverterMethod.class) != null) {
                 try {
-                    registerConverter(new AnnotatedConverter(method));
+                    if (method.getTypeParameters().length > 0) {
+                        registerProvider(new AnnotatedProvider(method));
+                    } else {
+                        registerConverter(new AnnotatedConverter(method));
+                    }
                 } catch (Throwable t) {
                     MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
                     System.err.println("Failed to register static converter method " + m.toString());
@@ -150,12 +156,17 @@ public class Conversion {
             if (result == null) {
                 // Check if the input type can be assigned to the output type
                 // In that case, simply return a null converter
+                // Otherwise use the conversion tree to find it
                 if (input.isInstanceOf(output)) {
                     result = new NullConverter(input, output);
+                } else {
+                    result = OutputConverterTree.get(output).find(input);
                 }
 
-                // Generate a conversion tree to find it
-                result = OutputConverterTree.get(output).find(input);
+                // If no converter was found, attempt to cast to the type using an upcast if possible
+                if (result == null && output.isInstanceOf(input)) {
+                    result = new CastingConverter<Object>(input, output);
+                }
 
                 // Store in the map for quick future lookup
                 // Special case for duplex converters; they can be stored twice!
@@ -511,6 +522,9 @@ public class Conversion {
 
         // gets the mapping for a particular output type
         public static OutputConverterList get(TypeDeclaration output) {
+            if (!output.isResolved()) {
+                throw new IllegalArgumentException("Requested type is not resolved: " + output);
+            }
             OutputConverterList list = mapping.get(output);
             if (list == null) {
                 list = new OutputConverterList(output);

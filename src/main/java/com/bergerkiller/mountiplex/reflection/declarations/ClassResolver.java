@@ -127,15 +127,22 @@ public class ClassResolver {
             return resolvePath(type);
         }
 
+        // retrieve the first word of the class, before the .
+        int nameFirstEnd = name.indexOf('.');
+        String nameFirst = (nameFirstEnd == -1) ? name : name.substring(0, nameFirstEnd);
+        String nameAfter = (nameFirstEnd == -1) ? "" : name.substring(nameFirstEnd);
+
         // check if this is one of our imports
         for (String imp : this.manualImports) {
-            if (imp.endsWith("." + name)) {
-                return imp;
+            String impName = imp.substring(imp.lastIndexOf('.') + 1);
+            if (impName.equals(nameFirst)) {
+                return imp + nameAfter;
             }
         }
 
         // 'assume' the class can be found at the package path
-        if (packagePath.isEmpty()) {
+        // only do this when no package path portion is declared
+        if (packagePath.isEmpty() || name.contains(".")) {
             return name;
         } else {
             return packagePath + "." + name;

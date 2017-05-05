@@ -34,15 +34,15 @@ public class ConstructorDeclaration extends Declaration {
     }
 
     @Override
-    public String toString(boolean longPaths) {
+    public String toString(boolean identity) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        String m = modifiers.toString(longPaths);
+        String m = modifiers.toString(identity);
         if (m.length() > 0) {
-            return m + " " + type.toString(longPaths) + parameters.toString(longPaths) + ";";
+            return m + " " + type.toString(identity) + parameters.toString(identity) + ";";
         } else {
-            return type.toString() + parameters.toString(longPaths) + ";";
+            return type.toString() + parameters.toString(identity) + ";";
         }
     }
 

@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
@@ -111,10 +112,15 @@ public class ClassDeclaration extends Declaration {
 
         // Verify all the fields exist
         if (this.type.isResolved()) {
-            java.lang.reflect.Field[] realRefFields = this.type.type.getFields();
+            java.lang.reflect.Field[] realRefFields = this.type.type.getDeclaredFields();
             FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
             for (int i = 0; i < realFields.length; i++) {
-                realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
+                try {
+                    realRefFields[i].setAccessible(true);
+                    realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
+                } catch (Throwable t) {
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
+                }
             }
             List<FieldLCSResolver.Pair> pairs = FieldLCSResolver.lcs(this.fields, realFields);
 
@@ -149,17 +155,17 @@ public class ClassDeclaration extends Declaration {
     }
 
     @Override
-    public String toString(boolean longPaths) {
-        String str = this.modifiers.toString(longPaths);
+    public String toString(boolean identity) {
+        String str = this.modifiers.toString(identity);
         if (str.length() > 0) {
             str += " ";
         }
         str += this.is_interface ? "interface " : "class ";
-        str += this.type.toString(longPaths);
+        str += this.type.toString(identity);
         str += " {\n";
-        for (FieldDeclaration fdec : this.fields) str += "    " + fdec.toString(longPaths) + "\n";
-        for (ConstructorDeclaration cdec : this.constructors) str += "    " + cdec.toString(longPaths) + "\n";
-        for (MethodDeclaration mdec : this.methods) str += "    " + mdec.toString(longPaths) + "\n";
+        for (FieldDeclaration fdec : this.fields) str += "    " + fdec.toString(identity) + "\n";
+        for (ConstructorDeclaration cdec : this.constructors) str += "    " + cdec.toString(identity) + "\n";
+        for (MethodDeclaration mdec : this.methods) str += "    " + mdec.toString(identity) + "\n";
         str += "}";
         return str;
     }

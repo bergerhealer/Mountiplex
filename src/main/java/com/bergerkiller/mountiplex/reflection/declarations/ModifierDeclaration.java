@@ -11,6 +11,8 @@ public class ModifierDeclaration extends Declaration {
     private static final int _token_mask = (Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.STATIC | Modifier.FINAL | Modifier.VOLATILE | Modifier.TRANSIENT);
     private final int _modifiers;
     private final String _modifiersStr;
+    private final boolean _constant;
+    private final boolean _unknown;
 
     static {
         int[] modifiers = new int[] {
@@ -27,6 +29,8 @@ public class ModifierDeclaration extends Declaration {
         super(resolver);
         this._modifiers = modifiers;
         this._modifiersStr = Modifier.toString(modifiers);
+        this._constant = false;
+        this._unknown = false;
     }
 
     public ModifierDeclaration(ClassResolver resolver, String declaration) {
@@ -36,10 +40,14 @@ public class ModifierDeclaration extends Declaration {
         if (declaration == null) {
             this._modifiers = 0;
             this._modifiersStr = "";
+            this._constant = false;
+            this._unknown = false;
             this.setInvalid();
             return;
         }
 
+        boolean isConstant = false;
+        boolean isUnknown = false;
         int modifiers = 0;
         String modifiersStr = "";
         String postfix = declaration;
@@ -55,14 +63,24 @@ public class ModifierDeclaration extends Declaration {
             if (spaceIdx != -1) {
                 String token = postfix.substring(startIdx, spaceIdx);
                 Integer m = _tokens.get(token);
+                boolean validToken = false;
                 if (m != null) {
                     modifiers |= m.intValue();
+                    validToken = true;
+                } else if (token.equals("unknown")) {
+                    isUnknown = true;
+                    validToken = true;
+                } else if (token.equals("constant")) {
+                    //isConstant = true;
+                    //validToken = true;
+                }
+                if (validToken) {
                     if (modifiersStr.length() > 0) {
                         modifiersStr += " ";
                     }
                     modifiersStr += token;
                     postfix = postfix.substring(spaceIdx + 1);
-                    continue; // next modifier token
+                    continue;
                 }
             }
 
@@ -70,9 +88,23 @@ public class ModifierDeclaration extends Declaration {
             postfix = postfix.substring(startIdx);
             break;
         }
+        isConstant = Modifier.isFinal(modifiers); // do we need a 'constant' modifier?
         this._modifiers = modifiers;
         this._modifiersStr = modifiersStr;
+        this._constant = isConstant;
+        this._unknown = isUnknown;
         this.setPostfix(postfix);
+    }
+
+    /**
+     * Gets whether the custom 'unknown' modifier is set.
+     * This modifier indicates that the upcoming declaration has no known purpose,
+     * and should be omitted from the exposed API.
+     * 
+     * @return True if unknown, False if not
+     */
+    public final boolean isUnknown() {
+        return this._unknown;
     }
 
     /**
@@ -93,6 +125,16 @@ public class ModifierDeclaration extends Declaration {
         return Modifier.isStatic(this._modifiers);
     }
 
+    /**
+     * Gets whether the custom 'constant' modifier is set.
+     * This modifier indicates that the value is not supposed to be changed at runtime.
+     * It is a level up from 'final'
+     * @return
+     */
+    public final boolean isConstant() {
+        return this._constant;
+    }
+
     @Override
     public final boolean match(Declaration modifier) {
         if (modifier instanceof ModifierDeclaration) {
@@ -102,7 +144,7 @@ public class ModifierDeclaration extends Declaration {
     }
 
     @Override
-    public final String toString(boolean longPaths) {
+    public final String toString(boolean identity) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }

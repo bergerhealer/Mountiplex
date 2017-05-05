@@ -20,6 +20,11 @@ public class AnnotatedConverter extends RawConverter {
         this.method = method;
     }
 
+    public AnnotatedConverter(Method method, TypeDeclaration input, TypeDeclaration output) {
+        super(input, output);
+        this.method = method;
+    }
+
     @Override
     public Object convertInput(Object value) {
         try {
@@ -34,7 +39,7 @@ public class AnnotatedConverter extends RawConverter {
         return null;
     }
 
-    private static TypeDeclaration parseType(Method method, boolean input) {
+    public static TypeDeclaration parseType(Method method, boolean input) {
         ClassResolver resolver = ClassResolver.DEFAULT; // should this be different?
 
         // Verify the method signature: static, one parameter, non-void return type

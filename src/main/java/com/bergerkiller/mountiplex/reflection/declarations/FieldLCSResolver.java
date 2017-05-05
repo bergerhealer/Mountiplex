@@ -67,6 +67,7 @@ public class FieldLCSResolver {
                 skipped = new Sequence();
             }
         }
+        skipped.b.addAll(mainSequence.b);
 
         // Handle skipped cases with nonexistent pairing
         if (skipped.a.size() > 0 && skipped.b.size() == 0) {
@@ -82,8 +83,17 @@ public class FieldLCSResolver {
         }
 
         // Now we have a bunch of sequences we must perform non-exact LCS on
-        //TODO!
-        
+        //TODO! Make this more resillient!
+        for (Sequence seq : sequences) {
+            for (FieldDeclaration fa : seq.a) {
+                for (FieldDeclaration fb : seq.b) {
+                    if (fa.name.value().equals(fb.name.value())) {
+                        pairs.add(new Pair(fa, fb));
+                        break;
+                    }
+                }
+            }
+        }
 
         return pairs;
     }

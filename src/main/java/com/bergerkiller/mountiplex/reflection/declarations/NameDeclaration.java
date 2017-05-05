@@ -141,11 +141,11 @@ public class NameDeclaration extends Declaration {
     }
 
     @Override
-    public String toString(boolean longPaths) {
+    public String toString(boolean identity) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        if (_alias == null || longPaths) {
+        if (_alias == null || identity) {
             return _name;
         } else {
             return _alias + ":" + _name;

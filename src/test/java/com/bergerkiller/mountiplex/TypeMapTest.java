@@ -56,6 +56,17 @@ public class TypeMapTest {
     }
 
     @Test
+    public void testGenericType() {
+        TypeDeclaration testa = TypeDeclaration.parse("List<?>");
+        TypeDeclaration testb = TypeDeclaration.parse("List<T>");
+        TypeDeclaration testc = TypeDeclaration.parse("List<Integer>");
+        assertTrue(testb.isInstanceOf(testa));
+        assertTrue(testc.isInstanceOf(testa));
+        assertTrue(testc.isInstanceOf(testb));
+        assertFalse(testb.isInstanceOf(testc));
+    }
+
+    @Test
     public void testGenericInstanceOf() {
         TypeDeclaration tObject = TypeDeclaration.fromClass(Object.class);
         TypeDeclaration tList = TypeDeclaration.parse("List");

@@ -105,7 +105,7 @@ public class ParameterListDeclaration extends Declaration {
     }
 
     @Override
-    public String toString(boolean longPaths) {
+    public String toString(boolean identity) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
@@ -114,7 +114,7 @@ public class ParameterListDeclaration extends Declaration {
             if (i > 0) {
                 str += ", ";
             }
-            str += parameters[i].toString(longPaths);
+            str += parameters[i].toString(identity);
         }
         return str + ")";
     }

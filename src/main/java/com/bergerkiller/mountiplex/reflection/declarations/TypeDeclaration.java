@@ -33,6 +33,7 @@ public class TypeDeclaration extends Declaration {
     public final String typePath;
     public final Class<?> type;
     public final TypeDeclaration[] genericTypes;
+    public final TypeDeclaration cast;
     private TypeDeclaration[] superTypes = null;
 
     /**
@@ -43,6 +44,9 @@ public class TypeDeclaration extends Declaration {
      */
     private TypeDeclaration(ClassResolver resolver, Type type) {
         super(resolver);
+
+        // Casting never used when parsing from Type
+        this.cast = null;
 
         // Null types are invalid
         if (type == null) {
@@ -114,6 +118,7 @@ public class TypeDeclaration extends Declaration {
             this.type = null;
             this.genericTypes = new TypeDeclaration[0];
             this.isWildcard = false;
+            this.cast = null;
             this.setInvalid();
             return;
         }
@@ -126,6 +131,7 @@ public class TypeDeclaration extends Declaration {
         int startIdx = -1;
         boolean anyType = false;
         boolean foundExtends = false;
+        TypeDeclaration castType = null;
         for (int cidx = 0; cidx < declaration.length(); cidx++) {
             char c = declaration.charAt(cidx);
 
@@ -138,13 +144,26 @@ public class TypeDeclaration extends Declaration {
                     anyType = true;
                     continue;
                 }
+                if (c == ')' && castType != null) {
+                    continue;
+                }
             }
 
             boolean validNameChar = !MountiplexUtil.containsChar(c, invalid_name_chars);
 
             // Verify the first character of the name is valid, and set it
             if (startIdx == -1) {
-                if (validNameChar) {
+                if (c == '(') {
+                    // Type cast is declared; parse this type now
+                    castType = new TypeDeclaration(resolver, declaration.substring(cidx + 1));
+                    if (!castType.isValid()) {
+                        break; // invalid
+                    }
+
+                    // Continue onwards from past the declared type
+                    declaration = declaration.substring(0, cidx) + castType.getPostfix();
+                    continue;
+                } else if (validNameChar) {
                     startIdx = cidx; 
                 } else {
                     postfix = declaration.substring(cidx);
@@ -185,12 +204,14 @@ public class TypeDeclaration extends Declaration {
                 this.typePath = "java.lang.Object";
                 this.type = Object.class;
                 this.genericTypes = new TypeDeclaration[0];
+                this.cast = castType;
             } else {
                 this.setInvalid();
                 this.typeName = "";
                 this.typePath = "";
                 this.type = null;
                 this.genericTypes = new TypeDeclaration[0];
+                this.cast = castType;
             }
             return;
         }
@@ -215,6 +236,7 @@ public class TypeDeclaration extends Declaration {
                     this.typePath = "";
                     this.type = null;
                     this.genericTypes = new TypeDeclaration[0];
+                    this.cast = null;
                     return;
                 }
 
@@ -260,6 +282,7 @@ public class TypeDeclaration extends Declaration {
         }
 
         // Resolve the raw type
+        this.cast = castType;
         this.type = resolver.resolveClass(rawType);
         if (this.type == null) {
             this.typePath = resolver.resolvePath(rawType);
@@ -272,6 +295,7 @@ public class TypeDeclaration extends Declaration {
 
     private TypeDeclaration(TypeDeclaration mainType, TypeDeclaration[] genericTypes) {
         super(mainType.getResolver());
+        this.cast = mainType.cast;
         this.isWildcard = mainType.isWildcard;
         this.typeName = mainType.typeName;
         this.typePath = mainType.typePath;
@@ -339,7 +363,7 @@ public class TypeDeclaration extends Declaration {
     }
 
     public boolean isInstanceOf(TypeDeclaration other) {
-        if (other != null && other.type.isAssignableFrom(this.type)) {
+        if (other != null && other.type != null && this.type != null && other.type.isAssignableFrom(this.type)) {
             if (other.genericTypes.length == 0) {
                 return true;
             }
@@ -350,14 +374,21 @@ public class TypeDeclaration extends Declaration {
             }
 
             for (int i = 0; i < selfType.genericTypes.length; i++) {
+                TypeDeclaration t = other.genericTypes[i];
+                if (t.type == null) {
+                    return false; // unresolved.
+                }
                 if (other.genericTypes[i].isWildcard) {
                     // ? extends TYPE
-                    if (!selfType.genericTypes[i].isInstanceOf(other.genericTypes[i])) {
+                    if (!t.isInstanceOf(other.genericTypes[i])) {
                         return false;
                     }
+                } else if (t.type.equals(Object.class) && (t.typeName.length() == 1)) {
+                    // T matches all other generic types
+                    continue;
                 } else {
                     // TYPE must be exactly the same
-                    if (!other.genericTypes[i].equals(selfType.genericTypes[i])) {
+                    if (!t.equals(selfType.genericTypes[i])) {
                         return false;
                     }
                 }
@@ -449,11 +480,11 @@ public class TypeDeclaration extends Declaration {
     }
 
     @Override
-    public final String toString(boolean longPaths) {
+    public final String toString(boolean identity) {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        String typeInfo = longPaths ? this.typePath : this.typeName;
+        String typeInfo = identity ? this.typePath : this.typeName;
         int arrIdx = typeInfo.indexOf('[');
         String arrPart = "";
         if (arrIdx != -1) {
@@ -464,15 +495,18 @@ public class TypeDeclaration extends Declaration {
             typeInfo = "??" + typeInfo + "??";
         }
 
-        String str;
+        String str = "";
+        if (this.cast != null && !identity) {
+            str += "(" + this.cast.toString(identity) + ") ";
+        }
         if (this.isWildcard) {
             if (typeInfo.length() == 0) {
-                str = "?";
+                str += "?";
             } else {
-                str = "? extends " + typeInfo;
+                str += "? extends " + typeInfo;
             }
         } else {
-            str = typeInfo;
+            str += typeInfo;
         }
         if (this.genericTypes.length > 0) {
             str += "<";
@@ -483,7 +517,7 @@ public class TypeDeclaration extends Declaration {
                 } else {
                     str += ", ";
                 }
-                str += genericType.toString(longPaths);
+                str += genericType.toString(identity);
             }
             str += ">";
         }
@@ -496,6 +530,9 @@ public class TypeDeclaration extends Declaration {
         if (this.type == null) {
             return false;
         }
+        if (this.cast != null && !this.cast.isResolved()) {
+            return false;
+        }
         for (int i = 0; i < genericTypes.length; i++) {
             if (!genericTypes[i].isResolved()) {
                 return false;
@@ -504,6 +541,32 @@ public class TypeDeclaration extends Declaration {
         return true;
     }
 
+    /**
+     * Gets whether this Type is a builtin Java type that does not require any imports.
+     * Examples are primitives and their array counterparts.
+     * 
+     * @return True if built-in, False if not
+     */
+    public boolean isBuiltin() {
+        return isBuiltin(this.type);
+    }
+
+    private static boolean isBuiltin(Class<?> type) {
+        if (type != null) {
+            if (type.isPrimitive()) {
+                return true;
+            }
+            if (type.isArray()) {
+                return isBuiltin(type.getComponentType());
+            }
+            String path = type.getName();
+            if (path.startsWith("java.lang.")) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     @Override
     protected void debugString(StringBuilder str, String indent) {
         str.append(indent).append("Type {\n");

@@ -178,13 +178,14 @@ public abstract class Declaration {
 
     /**
      * Creates a stringified version of this Declaration.
-     * When longPaths is true, type names should be fully declared
-     * to prevent false ambiguity.
+     * When identity is true, all names should be fully declared to
+     * allow for identity ( {@link #equals(Object)} ) checks. Extra metadata
+     * information such as aliases and casting should be omitted.
      * 
-     * @param longPaths
+     * @param identity whether to create an identity representation
      * @return stringified version of this Declaration
      */
-    public abstract String toString(boolean longPaths);
+    public abstract String toString(boolean identity);
 
     /**
      * Gets a human-readable String representation of this Declaration

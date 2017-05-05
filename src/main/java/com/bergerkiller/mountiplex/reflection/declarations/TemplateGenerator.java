@@ -3,12 +3,14 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.util.HashMap;
 
 public class TemplateGenerator {
     private ClassDeclaration classDec = null;
     private File rootDir = null;
     private String path = "";
     private StringBuilder builder = new StringBuilder();
+    private HashMap<String, String> imports = new HashMap<String, String>();
     private int indent = 0;
 
     public void setClass(ClassDeclaration classDec) {
@@ -25,32 +27,71 @@ public class TemplateGenerator {
 
     public void generate() {
         this.builder = new StringBuilder();
+        this.imports = new HashMap<String, String>();
+        this.imports.put("Template", Template.class.getName());
         this.indent = 0;
         String packagePath = this.path;
         String extendedHandleType = "Template.Handle";
         String extendedClassType = "Template.Class";
 
-        addLine("package " + packagePath);
-        addLine();
-        addLine("import " + Template.class.getName());
         addLine("public class " + handleName() + " extends " + extendedHandleType + " {");
         {
             addLine("public static final " + className() + " T = new " + className() + "()");
+            addLine();
 
-            for (FieldDeclaration fDec : this.classDec.fields) {
-                String primTypeStr = getPrimFieldType(fDec);
-                String typeStr = getFieldTypeStr(fDec);
-                String fName = getPropertyName(fDec);
+            {
+                // Static constant fields
+                for (FieldDeclaration fDec : this.classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isConstant()) {
+                        continue;
+                    }
 
-                // Getter
-                addLine("public " + typeStr + " get" + fName + "() {");
-                addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(instance)");
-                addLine("}");
+                    String primTypeStr = getPrimFieldType(fDec);
+                    String typeStr = getFieldTypeStr(fDec);
+                    String fName = fDec.name.real();
 
-                // Setter
-                addLine("public void set" + fName + "(" + typeStr + " value) {");
-                addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(instance, value)");
-                addLine("}");
+                    addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".get" + primTypeStr + "Safe()");
+                }
+
+                // Static fields
+                for (FieldDeclaration fDec : this.classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isConstant()) {
+                        continue;
+                    }
+                    String primTypeStr = getPrimFieldType(fDec);
+                    String typeStr = getFieldTypeStr(fDec);
+                    String fName = fDec.name.real();
+
+                    // Getter
+                    addLine("public static " + typeStr + " " + fName + "() {");
+                    addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "()");
+                    addLine("}");
+
+                    // Setter
+                    addLine("public static void " + fName + "_set(" + typeStr + " value) {");
+                    addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(value)");
+                    addLine("}");
+                }
+
+                // Local fields
+                for (FieldDeclaration fDec : this.classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    String primTypeStr = getPrimFieldType(fDec);
+                    String typeStr = getFieldTypeStr(fDec);
+                    String fName = getPropertyName(fDec);
+
+                    // Getter
+                    addLine("public " + typeStr + " get" + fName + "() {");
+                    addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(instance)");
+                    addLine("}");
+
+                    // Setter
+                    addLine("public void set" + fName + "(" + typeStr + " value) {");
+                    addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(instance, value)");
+                    addLine("}");
+                }
             }
 
             addLine("public static class " + className() + " extends " + extendedClassType + " {");
@@ -61,14 +102,47 @@ public class TemplateGenerator {
                 addLine("}");
                 addLine();
 
-                // Fields
+                // Static Fields
+                boolean hasStaticFields = false;
                 for (FieldDeclaration fDec : this.classDec.fields) {
-                    String fieldTypeStr = "Template.Field";
-                    String primTypeStr = getPrimFieldType(fDec);
-                    if (!primTypeStr.isEmpty()) {
-                        fieldTypeStr += "." + primTypeStr;
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    String fieldTypeStr = "Template.StaticField";
+                    if (fDec.type.cast != null) {
+                        fieldTypeStr += ".Converted";
+                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
                     } else {
-                        fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
+                        String primTypeStr = getPrimFieldType(fDec);
+                        if (!primTypeStr.isEmpty()) {
+                            fieldTypeStr += "." + primTypeStr;
+                        } else {
+                            fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
+                        }
+                    }
+                    addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
+                    hasStaticFields = true;
+                }
+                if (hasStaticFields) {
+                    addLine();
+                }
+
+                // Local fields
+                for (FieldDeclaration fDec : this.classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    String fieldTypeStr = "Template.Field";
+                    if (fDec.type.cast != null) {
+                        fieldTypeStr += ".Converted";
+                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
+                    } else {
+                        String primTypeStr = getPrimFieldType(fDec);
+                        if (!primTypeStr.isEmpty()) {
+                            fieldTypeStr += "." + primTypeStr;
+                        } else {
+                            fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
+                        }
                     }
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                 }
@@ -77,6 +151,16 @@ public class TemplateGenerator {
         }
 
         addLine("}");
+
+        // Insert package path and imports at the top
+        String resultStr = this.builder.toString();
+        this.builder.setLength(0);
+        addLine("package " + packagePath);
+        addLine();
+        for (String importPath : this.imports.values()) {
+            addLine("import " + importPath);
+        }
+        this.builder.append(resultStr);
 
         try {
             File sourceFileDir = new File(this.rootDir, packagePath.replace('.', File.separatorChar));
@@ -94,11 +178,55 @@ public class TemplateGenerator {
         }
     }
 
-    private String getFieldTypeStr(FieldDeclaration fDec) {
-        String typeStr = (fDec.type.isResolved() ? fDec.type.typePath : "Object");
-        return typeStr;
+    private TypeDeclaration getFieldType(FieldDeclaration fDec) {
+        if (fDec.type.cast != null) {
+            return fDec.type.cast;
+        } else {
+            return fDec.type;
+        }
     }
-    
+
+    private String getFieldTypeStr(FieldDeclaration fDec) {
+        return getTypeStr(getFieldType(fDec));
+    }
+
+    // gets the type string while automatically adding/resolving imports
+    private String getTypeStr(TypeDeclaration type) {
+        if (type.isBuiltin()) {
+            return type.typeName;
+        }
+        String typeName = type.typePath.substring(type.typePath.lastIndexOf('.') + 1);
+        String oldImport = this.imports.get(typeName);
+        String fullType;
+        if (oldImport != null) {
+            if (oldImport.equals(type.typePath)) {
+                fullType = typeName;
+            } else {
+                fullType = type.typePath;
+            }
+        } else {
+            this.imports.put(typeName, type.typePath);
+            fullType = typeName;
+        }
+        if (type.isWildcard) {
+            fullType = "? extends " + fullType;
+        }
+        if (type.genericTypes.length > 0) {
+            fullType += "<";
+            boolean first = true;
+            for (TypeDeclaration gen : type.genericTypes) {
+                if (first) {
+                    first = false;
+                } else {
+                    fullType += ", ";
+                }
+                fullType += getTypeStr(gen);
+            }
+            fullType += ">";
+        }
+        return fullType;
+    }
+
     private String getPropertyName(FieldDeclaration fDec) {
         String name = fDec.name.real();
         if (name.isEmpty()) {
@@ -109,8 +237,8 @@ public class TemplateGenerator {
     }
 
     private String getPrimFieldType(FieldDeclaration fDec) {
-        if (fDec.type.isResolved()) {
-            Class<?> fType = fDec.type.type;
+        Class<?> fType = getFieldType(fDec).type;
+        if (fType != null) {
             if (fType.equals(byte.class)) {
                 return "Byte";
             } else if (fType.equals(short.class)) {
