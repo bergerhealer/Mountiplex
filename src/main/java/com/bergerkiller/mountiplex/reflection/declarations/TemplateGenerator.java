@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.HashMap;
 
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+
 public class TemplateGenerator {
     private ClassDeclaration classDec = null;
     private File rootDir = null;
@@ -73,6 +75,22 @@ public class TemplateGenerator {
                     addLine("}");
                 }
 
+                // Static methods
+                for (MethodDeclaration mDec : this.classDec.methods) {
+                    if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    addMethodBody(mDec);
+                }
+
+                // Local methods
+                for (MethodDeclaration mDec : this.classDec.methods) {
+                    if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    addMethodBody(mDec);
+                }
+
                 // Local fields
                 for (FieldDeclaration fDec : this.classDec.fields) {
                     if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic()) {
@@ -128,6 +146,7 @@ public class TemplateGenerator {
                 }
 
                 // Local fields
+                boolean hasLocalFields = false;
                 for (FieldDeclaration fDec : this.classDec.fields) {
                     if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic()) {
                         continue;
@@ -145,6 +164,38 @@ public class TemplateGenerator {
                         }
                     }
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
+                    hasLocalFields = true;
+                }
+                if (hasLocalFields) {
+                    addLine();
+                }
+
+                // Static methods
+                boolean hasStaticMethods = false;
+                for (MethodDeclaration mDec : this.classDec.methods) {
+                    if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    String methodTypeStr = "Template.StaticMethod" + getMethodAppend(mDec);
+                    addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
+                    hasStaticMethods = true;
+                }
+                if (hasStaticMethods) {
+                    addLine();
+                }
+
+                // Local methods
+                boolean hasLocalMethods = false;
+                for (MethodDeclaration mDec : this.classDec.methods) {
+                    if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic()) {
+                        continue;
+                    }
+                    String methodTypeStr = "Template.Method" + getMethodAppend(mDec);
+                    addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
+                    hasLocalMethods = true;
+                }
+                if (hasLocalMethods) {
+                    addLine();
                 }
             }
             addLine("}");
@@ -178,6 +229,64 @@ public class TemplateGenerator {
         }
     }
 
+    private void addMethodBody(MethodDeclaration mDec) {
+        String methodStr = "public ";
+        if (mDec.modifiers.isStatic()) {
+            methodStr += "static ";
+        }
+        methodStr += getTypeStrCast(mDec.returnType);
+        methodStr += " " + mDec.name.real() + "(";
+        for (int i = 0; i < mDec.parameters.parameters.length; i++) {
+            if (i > 0) {
+                methodStr += ", ";
+            }
+            methodStr += getTypeStrCast(mDec.parameters.parameters[i].type);
+            methodStr += " " + mDec.parameters.parameters[i].name.real();
+        }
+        addLine(methodStr + ") {");
+
+        String bodyStr = "";
+        if (!mDec.returnType.type.equals(void.class)) {
+            bodyStr += "return ";
+        }
+        bodyStr += "T." + mDec.name.real() + ".invoke(";
+        if (!mDec.modifiers.isStatic()) {
+            bodyStr += "instance, ";
+        }
+        for (int i = 0; i < mDec.parameters.parameters.length; i++) {
+            if (i > 0) {
+                bodyStr += ", ";
+            }
+            bodyStr += mDec.parameters.parameters[i].name.real();
+        }
+        bodyStr += ")";
+        addLine(bodyStr);
+        addLine("}");
+    }
+    
+    private String getMethodAppend(MethodDeclaration mDec) {
+        String app = "";
+        boolean hasConversion = false;
+        if (mDec.returnType.cast != null) {
+            hasConversion = true;
+        }
+        for (int i = 0; i < mDec.parameters.parameters.length; i++) {
+            if (mDec.parameters.parameters[i].type.cast != null) {
+                hasConversion = true;
+                break;
+            }
+        }
+        if (hasConversion) {
+            app += ".Converted";
+        }
+        if (mDec.returnType.type.isPrimitive()) {
+            app += "<" + BoxedType.getBoxedType(mDec.returnType.type).getSimpleName() + ">"; 
+        } else {
+            app += "<" + getTypeStr(mDec.returnType) + ">";
+        }
+        return app;
+    }
+
     private TypeDeclaration getFieldType(FieldDeclaration fDec) {
         if (fDec.type.cast != null) {
             return fDec.type.cast;
@@ -190,6 +299,10 @@ public class TemplateGenerator {
         return getTypeStr(getFieldType(fDec));
     }
 
+    private String getTypeStrCast(TypeDeclaration type) {
+        return (type.cast != null) ? getTypeStr(type.cast) : getTypeStr(type);
+    }
+    
     // gets the type string while automatically adding/resolving imports
     private String getTypeStr(TypeDeclaration type) {
         if (type.isBuiltin()) {

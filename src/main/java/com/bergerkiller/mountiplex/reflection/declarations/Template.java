@@ -4,6 +4,7 @@ import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion2.Conversion;
+import com.bergerkiller.mountiplex.conversion2.Converter;
 import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 
@@ -41,8 +42,19 @@ public class Template {
         }
     }
 
+    /**
+     * Base class for objects that refer to a hidden type
+     */
+    public static class Handle {
+        protected Object instance = null;
+
+        public void setInstance(Object instance) {
+            this.instance = instance;
+        }
+    }
+
     // provides a default 'init' method to use when initializing the Template
-    // all declared field types must extend this type
+    // all declared class element types must extend this type
     public static abstract class TemplateElement<T extends Declaration> {
         protected abstract T init(ClassDeclaration dec, String name);
     }
@@ -50,12 +62,37 @@ public class Template {
     public static class AbstractField extends TemplateElement<FieldDeclaration> {
         protected java.lang.reflect.Field field = null;
 
+        // throws an exception when the field is not found
+        protected final void failNotFound() {
+            if (this.field == null) {
+                throw new RuntimeException("Field not found");
+            }
+        }
+
+        // throws an exception when the value is of invalid type for the field
+        protected final void failInvalidValue(Object value) {
+            java.lang.Class<?> valueType = field.getType();
+            if (valueType.isPrimitive() && value == null) {
+                throw new IllegalArgumentException("Field primitive type " + valueType.getName() + " can not be assigned null");
+            }
+            if (value != null && valueType.isAssignableFrom(value.getClass())) {
+                throw new IllegalArgumentException("value type " + value.getClass().getName() +
+                        " can not be assigned to field type " + valueType.getName());
+            }
+        }
+
         @Override
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
             for (FieldDeclaration fieldDec : dec.fields) {
                 if (fieldDec.field != null && fieldDec.name.real().equals(name)) {
-                    this.field = fieldDec.field;
-                    return fieldDec;
+                    try {
+                        fieldDec.field.setAccessible(true);
+                        this.field = fieldDec.field;
+                        return fieldDec;
+                    } catch (Throwable t) {
+                        MountiplexUtil.LOGGER.warning("Field '" + name + "' in template for " + dec.type.typePath + " not accessible");
+                        return null;
+                    }
                 }
             }
             MountiplexUtil.LOGGER.warning("Field '" + name + "' not found in template for " + dec.type.typePath);
@@ -66,22 +103,35 @@ public class Template {
     public static class AbstractMethod extends TemplateElement<MethodDeclaration> {
         protected java.lang.reflect.Method method = null;
 
+        // throws an exception when the method is not found
+        protected final void failNotFound() {
+            if (this.method == null) {
+                throw new RuntimeException("Method not found");
+            }
+        }
+
+        // throws an exception when arguments differ
+        protected final void failInvalidArgs(Object[] arguments) {
+            
+        }
+        
         @Override
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
             for (MethodDeclaration methodDec : dec.methods) {
                 if (methodDec.method != null && methodDec.name.real().equals(name)) {
-                    this.method = methodDec.method;
-                    return methodDec;
+                    try {
+                        methodDec.method.setAccessible(true);
+                        this.method = methodDec.method;
+                        return methodDec;
+                    } catch (Throwable t) {
+                        MountiplexUtil.LOGGER.warning("Method '" + name + "' in template for " + dec.type.typePath + " not accessible");
+                        return null;
+                    }
                 }
             }
-            MountiplexUtil.LOGGER.warning("Method '" + name + "' not found in " + dec.type.typePath);
+            MountiplexUtil.LOGGER.warning("Method '" + name + "' not found in template for " + dec.type.typePath);
             return null;
         }
-    }
-
-    public static class Handle {
-        protected Object instance = null;
-
     }
 
     public static class AbstractFieldConverter<F extends AbstractField, T> extends TemplateElement<FieldDeclaration> {
@@ -92,11 +142,11 @@ public class Template {
             this.raw = raw;
         }
 
-        protected final RuntimeException failConv(RuntimeException ex) {
+        // throws an exception when the converter was not initialized
+        protected final void failNoConverter() {
             if (converter == null) {
                 throw new UnsupportedOperationException("Field converter was not found");
             }
-            return ex;
         }
 
         @Override
@@ -111,6 +161,64 @@ public class Template {
                 }
             }
             return fDec;
+        }
+    }
+
+    public static class AbstractMethodConverter<M extends AbstractMethod, T> extends TemplateElement<MethodDeclaration> {
+        public final M raw;
+        protected Converter<?, T> resultConverter = null;
+        protected Converter<?, ?>[] argConverters = null;
+        protected boolean isConvertersInitialized = false;
+
+        protected AbstractMethodConverter(M raw) {
+            this.raw = raw;
+        }
+
+        protected final void failNoConverter() {
+            if (!isConvertersInitialized) {
+                throw new UnsupportedOperationException("Method converters could not be initialized");
+            }
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        protected MethodDeclaration init(ClassDeclaration dec, String name) {
+            MethodDeclaration mDec = this.raw.init(dec, name);
+            if (mDec != null) {
+                this.isConvertersInitialized = true;
+                this.resultConverter = null;
+                this.argConverters = null;
+
+                // Initialize the converter for the return value
+                if (mDec.returnType.cast != null) {
+                    this.resultConverter = (Converter<?, T>) Conversion.find(mDec.returnType, mDec.returnType.cast);
+                    if (this.resultConverter == null) {
+                        this.isConvertersInitialized = false;
+                        MountiplexUtil.LOGGER.warning("Converter for method " + mDec.name.toString() + 
+                                " return type not found: " + mDec.returnType.toString());
+                    }
+                }
+
+                // Converters for the arguments of the method
+                ParameterDeclaration[] params = mDec.parameters.parameters;
+                this.argConverters = new Converter<?, ?>[params.length];
+                boolean hasArgumentConversion = false;
+                for (int i = 0; i < params.length; i++) {
+                    if (params[i].type.cast != null) {
+                        hasArgumentConversion = true;
+                        this.argConverters[i] = Conversion.find(params[i].type.cast, params[i].type);
+                        if (this.argConverters[i] == null) {
+                            this.isConvertersInitialized = false;
+                            MountiplexUtil.LOGGER.warning("Converter for method " + mDec.name.toString() + 
+                                    " argument " + params[i].name.toString() + " not found: " + params[i].type.toString());
+                        }
+                    }
+                }
+                if (!hasArgumentConversion) {
+                    this.argConverters = null;
+                }
+            }
+            return mDec;
         }
     }
 
@@ -132,6 +240,76 @@ public class Template {
         }
     }
 
+    public static final class StaticMethod<T> extends AbstractMethod {
+
+        /**
+         * Invokes this static method
+         * 
+         * @param arguments to pass along with the method
+         * @return return value, null for void methods
+         */
+        @SuppressWarnings("unchecked")
+        public T invoke(Object... arguments) {
+            try {
+                return (T) this.method.invoke(null, arguments);
+            } catch (Throwable t) {
+                this.failNotFound();
+                this.failInvalidArgs(arguments);
+                throw new RuntimeException("Failed to invoke static method", t);
+            }
+        }
+
+        public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
+ 
+            public Converted() {
+                super(new StaticMethod<Object>());
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arguments to pass along with the method
+             * @return return value, null for void methods
+             */
+            @SuppressWarnings("unchecked")
+            public final T invoke(Object... arguments) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                    return null; // never reached
+                }
+
+                Object rawResult;
+                if (this.argConverters != null) {
+                    // Verify correct number of arguments
+                    if (this.argConverters.length != (arguments.length)) {
+                        throw new IllegalArgumentException("Invalid number of arguments (" +
+                                (this.argConverters.length - 1) + " expected, but got " + arguments.length + ")");
+                    }
+
+                    // Got to convert the parameters
+                    Object[] convertedArgs = arguments.clone();
+                    for (int i = 0; i < convertedArgs.length; i++) {
+                        if (this.argConverters[i] != null) {
+                            convertedArgs[i] = this.argConverters[i].convert(convertedArgs[i]);
+                        }
+                    }
+                    rawResult = this.raw.invoke(convertedArgs);
+                } else {
+                    // Only result is converted
+                    rawResult = this.raw.invoke(arguments);
+                }
+
+                if (this.resultConverter != null) {
+                    return this.resultConverter.convert(rawResult);
+                } else {
+                    return (T) rawResult;
+                }
+            }
+        }
+    }
+
     public static final class Method<T> extends AbstractMethod {
 
         /**
@@ -146,25 +324,63 @@ public class Template {
             try {
                 return (T) this.method.invoke(instance, arguments);
             } catch (Throwable t) {
-                throw new RuntimeException("WUH OH!");
+                this.failNotFound();
+                if (instance == null) {
+                    throw new IllegalArgumentException("Instance is null");
+                }
+                this.failInvalidArgs(arguments);
+                throw new RuntimeException("Failed to invoke method", t);
             }
         }
-    }
 
-    public static final class StaticMethod<T> extends AbstractMethod {
+        public static final class Converted<T> extends AbstractMethodConverter<Method<Object>, T> {
+ 
+            public Converted() {
+                super(new Method<Object>());
+            }
 
-        /**
-         * Invokes this static method
-         * 
-         * @param arguments to pass along with the method
-         * @return return value, null for void methods
-         */
-        @SuppressWarnings("unchecked")
-        public T invoke(Object... arguments) {
-            try {
-                return (T) this.method.invoke(null, arguments);
-            } catch (Throwable t) {
-                throw new RuntimeException("WUH OH!");
+            /**
+             * Invokes this method on the instance specified, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param instance to invoke the method on
+             * @param arguments to pass along with the method
+             * @return return value, null for void methods
+             */
+            @SuppressWarnings("unchecked")
+            public final T invoke(Object instance, Object... arguments) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                    return null; // never reached
+                }
+
+                Object rawResult;
+                if (this.argConverters != null) {
+                    // Verify correct number of arguments
+                    if (this.argConverters.length != (arguments.length)) {
+                        throw new IllegalArgumentException("Invalid number of arguments (" +
+                                (this.argConverters.length - 1) + " expected, but got " + arguments.length + ")");
+                    }
+
+                    // Got to convert the parameters
+                    Object[] convertedArgs = arguments.clone();
+                    for (int i = 0; i < convertedArgs.length; i++) {
+                        if (this.argConverters[i] != null) {
+                            convertedArgs[i] = this.argConverters[i].convert(convertedArgs[i]);
+                        }
+                    }
+                    rawResult = this.raw.invoke(instance, convertedArgs);
+                } else {
+                    // Only result is converted
+                    rawResult = this.raw.invoke(instance, arguments);
+                }
+
+                if (this.resultConverter != null) {
+                    return this.resultConverter.convert(rawResult);
+                } else {
+                    return (T) rawResult;
+                }
             }
         }
     }
@@ -214,23 +430,13 @@ public class Template {
         }
 
         protected final RuntimeException failGet(Throwable t) {
-            if (field == null) {
-                throw new UnsupportedOperationException("Field was not resolved");
-            }
+            this.failNotFound();
             return new RuntimeException("Failed to get field", t);
         }
 
         protected final RuntimeException failSet(Throwable t, Object value) {
-            if (field == null) {
-                throw new UnsupportedOperationException("Field was not resolved");
-            }
-            java.lang.Class<?> valueType = field.getType();
-            if (valueType.isPrimitive() && value == null) {
-                throw new IllegalArgumentException("Failed to set field: primitive fields can not be assigned null");
-            }
-            if (value != null && valueType.isAssignableFrom(value.getClass())) {
-                throw new IllegalArgumentException("Failed to set field: value can not be assigned to " + valueType.getName());
-            }
+            this.failNotFound();
+            this.failInvalidValue(value);
             return new RuntimeException("Failed to set field", t);
         }
 
@@ -262,10 +468,12 @@ public class Template {
              * @return converted static field value
              */
             public final T get() {
+                Object value = raw.get();
                 try {
-                    return converter.convert(raw.get());
+                    return converter.convert(value);
                 } catch (RuntimeException t) {
-                    throw failConv(t);
+                    failNoConverter();
+                    throw t;
                 }
             }
 
@@ -275,11 +483,15 @@ public class Template {
              * @param value to convert and set the static field to
              */
             public final void set(T value) {
+                Object rawValue;
                 try {
-                    raw.set(converter.convertReverse(value));
+                    rawValue = converter.convertReverse(value);
                 } catch (RuntimeException t) {
-                    throw failConv(t);
+                    raw.failNotFound();
+                    failNoConverter();
+                    throw t;
                 }
+                raw.set(rawValue);
             }
         }
 
@@ -471,55 +683,33 @@ public class Template {
             }
         }
 
-        protected final RuntimeException failGet(Throwable t, Object instance) {
-            if (field == null) {
-                throw new UnsupportedOperationException("Field was not resolved");
-            }
+        protected final void failInvalidInstance(Object instance) {
             if (instance == null) {
-                throw new IllegalArgumentException("Failed to get field: instance is null");
+                throw new IllegalArgumentException("Instance is null");
             }
             java.lang.Class<?> type = field.getDeclaringClass();
             if (!type.isAssignableFrom(instance.getClass())) {
                 throw new IllegalArgumentException("Failed to get field: instance is not an instance of " + type.getName());
             }
+        }
+
+        protected final RuntimeException failGet(Throwable t, Object instance) {
+            this.failNotFound();
+            this.failInvalidInstance(instance);
             return new RuntimeException("Failed to get field", t);
         }
 
         protected final RuntimeException failSet(Throwable t, Object instance, Object value) {
-            if (field == null) {
-                throw new UnsupportedOperationException("Field was not resolved");
-            }
-            if (instance == null) {
-                throw new IllegalArgumentException("Failed to set field: instance is null");
-            }
-            java.lang.Class<?> type = field.getDeclaringClass();
-            if (!type.isAssignableFrom(instance.getClass())) {
-                throw new IllegalArgumentException("Failed to set field: instance is not an instance of " + type.getName());
-            }
-            java.lang.Class<?> valueType = field.getType();
-            if (valueType.isPrimitive() && value == null) {
-                throw new IllegalArgumentException("Failed to set field: primitive fields can not be assigned null");
-            }
-            if (value != null && valueType.isAssignableFrom(value.getClass())) {
-                throw new IllegalArgumentException("Failed to set field: value can not be assigned to " + valueType.getName());
-            }
+            this.failNotFound();
+            this.failInvalidInstance(instance);
+            this.failInvalidValue(value);
             return new RuntimeException("Failed to set field", t);
         }
 
         protected final RuntimeException failCopy(Throwable t, Object instanceFrom, Object instanceTo) {
-            if (instanceFrom == null) {
-                throw new IllegalArgumentException("Failed to copy: instanceFrom is null");
-            }
-            if (instanceTo == null) {
-                throw new IllegalArgumentException("Failed to copy: instanceTo is null");
-            }
-            java.lang.Class<?> type = field.getDeclaringClass();
-            if (!type.isAssignableFrom(instanceFrom.getClass())) {
-                throw new IllegalArgumentException("Failed to copy: instanceFrom is not an instance of " + type.getName());
-            }
-            if (!type.isAssignableFrom(instanceTo.getClass())) {
-                throw new IllegalArgumentException("Failed to copy: instanceTo is not an instance of " + type.getName());
-            }
+            this.failNotFound();
+            this.failInvalidInstance(instanceFrom);
+            this.failInvalidInstance(instanceTo);
             return new RuntimeException("Failed to copy", t);
         }
 
@@ -541,10 +731,12 @@ public class Template {
              * @return converted field value
              */
             public final T get(Object instance) {
+                Object rawValue = raw.get(instance);
                 try {
-                    return converter.convert(raw.get(instance));
+                    return converter.convert(rawValue);
                 } catch (RuntimeException t) {
-                    throw failConv(t);
+                    failNoConverter();
+                    throw t;
                 }
             }
 
@@ -555,11 +747,15 @@ public class Template {
              * @param value to convert and set the field to
              */
             public final void set(Object instance, T value) {
+                Object rawValue;
                 try {
-                    raw.set(instance, converter.convertReverse(value));
+                    rawValue = converter.convertReverse(value);
                 } catch (RuntimeException t) {
-                    throw failConv(t);
+                    raw.failNotFound();
+                    failNoConverter();
+                    throw t;
                 }
+                raw.set(instance, rawValue);
             }
 
             /**

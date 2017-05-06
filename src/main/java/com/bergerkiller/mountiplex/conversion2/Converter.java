@@ -36,7 +36,11 @@ public abstract class Converter<I, O> {
     @SuppressWarnings("unchecked")
     public final O convert(Object value) {
         O result = null;
-        if (value != null && this.input.type.isAssignableFrom(value.getClass())) {
+        Class<?> inputType = this.input.type;
+        if (inputType.isPrimitive()) {
+            inputType = BoxedType.getBoxedType(inputType);
+        }
+        if (value != null && inputType.isAssignableFrom(value.getClass())) {
             result = convertInput((I) value);
         }
         if (result == null && this.output.type.isPrimitive()) {

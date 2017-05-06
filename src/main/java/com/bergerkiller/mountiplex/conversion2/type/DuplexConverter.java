@@ -58,7 +58,11 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     @SuppressWarnings("unchecked")
     public final A convertReverse(Object value) {
         A result = null;
-        if (value != null && this.output.type.isAssignableFrom(value.getClass())) {
+        Class<?> outputType = this.output.type;
+        if (outputType.isPrimitive()) {
+            outputType = BoxedType.getBoxedType(outputType);
+        }
+        if (value != null && outputType.isAssignableFrom(value.getClass())) {
             result = convertOutput((B) value);
         }
         if (result == null && this.input.type.isPrimitive()) {

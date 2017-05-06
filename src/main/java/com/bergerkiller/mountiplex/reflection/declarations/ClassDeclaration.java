@@ -18,6 +18,31 @@ public class ClassDeclaration extends Declaration {
     public final FieldDeclaration[] fields;
     public final boolean is_interface;
 
+    public ClassDeclaration(ClassResolver resolver, Class<?> type) {
+        super(resolver.clone());
+        this.is_interface = type.isInterface();
+        this.type = TypeDeclaration.fromClass(type);
+        this.modifiers = new ModifierDeclaration(getResolver(), type.getModifiers());
+
+        LinkedList<ConstructorDeclaration> constructors = new LinkedList<ConstructorDeclaration>();
+        LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
+        LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
+
+        for (java.lang.reflect.Constructor<?> constructor : type.getDeclaredConstructors()) {
+            constructors.add(new ConstructorDeclaration(getResolver(), constructor));
+        }
+        for (java.lang.reflect.Field field : type.getDeclaredFields()) {
+            fields.add(new FieldDeclaration(getResolver(), field));
+        }
+        for (java.lang.reflect.Method method : type.getDeclaredMethods()) {
+            methods.add(new MethodDeclaration(getResolver(), method));
+        }
+
+        this.constructors = constructors.toArray(new ConstructorDeclaration[constructors.size()]);
+        this.methods = methods.toArray(new MethodDeclaration[methods.size()]);
+        this.fields = fields.toArray(new FieldDeclaration[fields.size()]);
+    }
+
     public ClassDeclaration(ClassResolver resolver, String declaration) {
         super(resolver.clone(), declaration);
 
@@ -112,34 +137,68 @@ public class ClassDeclaration extends Declaration {
 
         // Verify all the fields exist
         if (this.type.isResolved()) {
-            java.lang.reflect.Field[] realRefFields = this.type.type.getDeclaredFields();
-            FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
-            for (int i = 0; i < realFields.length; i++) {
-                try {
-                    realRefFields[i].setAccessible(true);
-                    realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
-                } catch (Throwable t) {
-                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
+            resolveFields();
+            resolveMethods();
+        }
+    }
+
+    private void resolveFields() {
+        java.lang.reflect.Field[] realRefFields = this.type.type.getDeclaredFields();
+        FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
+        for (int i = 0; i < realFields.length; i++) {
+            try {
+                realRefFields[i].setAccessible(true);
+                realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
+            }
+        }
+        List<FieldLCSResolver.Pair> pairs = FieldLCSResolver.lcs(this.fields, realFields);
+
+        // Register all successful pairs
+        Iterator<FieldLCSResolver.Pair> succIter = pairs.iterator();
+        while (succIter.hasNext()) {
+            FieldLCSResolver.Pair pair = succIter.next();
+            if (pair.a != null && pair.b != null) {
+                pair.a.field = pair.b.field;
+                succIter.remove();
+            }
+        }
+
+        // Log all fields we could not find in our template
+        // The fields in the underlying Class are not important (yet)
+        for (FieldLCSResolver.Pair failPair : pairs) {
+            if (failPair.b == null) {
+                MountiplexUtil.LOGGER.warning("Failed to find field " + failPair.a);
+            }
+        }
+    }
+
+    private void resolveMethods() {
+        java.lang.reflect.Method[] realRefMethods = this.type.type.getDeclaredMethods();
+        MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.length];
+        for (int i = 0; i < realMethods.length; i++) {
+            try {
+                realRefMethods[i].setAccessible(true);
+                realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods[i]);
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefMethods[i], t);
+            }
+        }
+
+        // Connect the methods together
+        for (int i = 0; i < this.methods.length; i++) {
+            MethodDeclaration method = this.methods[i];
+            boolean found = false;
+            for (int j = 0; j < realMethods.length; j++) {
+                if (realMethods[j].match(method)) {
+                    method.method = realMethods[j].method;
+                    found = true;
+                    break;
                 }
             }
-            List<FieldLCSResolver.Pair> pairs = FieldLCSResolver.lcs(this.fields, realFields);
-
-            // Register all successful pairs
-            Iterator<FieldLCSResolver.Pair> succIter = pairs.iterator();
-            while (succIter.hasNext()) {
-                FieldLCSResolver.Pair pair = succIter.next();
-                if (pair.a != null && pair.b != null) {
-                    pair.a.field = pair.b.field;
-                    succIter.remove();
-                }
-            }
-
-            // Log all fields we could not find in our template
-            // The fields in the underlying Class are not important (yet)
-            for (FieldLCSResolver.Pair failPair : pairs) {
-                if (failPair.b == null) {
-                    MountiplexUtil.LOGGER.warning("Failed to find field " + failPair.a);
-                }
+            if (!found) {
+                MountiplexUtil.LOGGER.warning("Failed to find method " + method);
             }
         }
     }

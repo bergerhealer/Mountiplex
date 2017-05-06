@@ -233,6 +233,7 @@ public class ConversionTest {
         assertEquals(collection.size(), values.length);
         for (Object value : values) {
             if (!collection.contains(value)) {
+                System.out.println("COLLECTION TYPE: " + collection.getClass().getName());
                 for (Object v : values) {
                     System.out.println("VALUES: " + v + " " + v.getClass());
                 }

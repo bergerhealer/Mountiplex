@@ -36,13 +36,7 @@ public class ParameterListDeclaration extends Declaration {
         boolean foundEnd = false;
         for (int cidx = 0; cidx < declaration.length(); cidx++) {
             char c = declaration.charAt(cidx);
-            if (c == '(') {
-                // Can never have 2x a (, is invalid
-                if (foundStart) {
-                    foundStart = false;
-                    break;
-                }
-
+            if (!foundStart && c == '(') {
                 // Update index
                 this.setPostfix(declaration.substring(cidx));
                 foundStart = true;
