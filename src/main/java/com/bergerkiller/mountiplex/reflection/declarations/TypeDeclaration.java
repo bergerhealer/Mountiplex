@@ -29,6 +29,7 @@ public class TypeDeclaration extends Declaration {
     public static final TypeDeclaration OBJECT = fromClass(Object.class);
     public static final TypeDeclaration ENUM = fromClass(Enum.class);
     public final boolean isWildcard;
+    public final String variableName;
     public final String typeName;
     public final String typePath;
     public final Class<?> type;
@@ -51,6 +52,7 @@ public class TypeDeclaration extends Declaration {
         // Null types are invalid
         if (type == null) {
             this.isWildcard = false;
+            this.variableName = null;
             this.type = null;
             this.typeName = "NULL";
             this.typePath = "NULL";
@@ -81,6 +83,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
             this.genericTypes = new TypeDeclaration[params.length];
+            this.variableName = null;
             for (int i = 0; i < params.length; i++) {
                 this.genericTypes[i] = new TypeDeclaration(resolver, params[i]);
             }
@@ -90,13 +93,17 @@ public class TypeDeclaration extends Declaration {
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
             this.genericTypes = new TypeDeclaration[0];
+            this.variableName = null;
         } else if (type instanceof TypeVariable) {
             // Example: T
             TypeVariable<?> vtype = (TypeVariable<?>) type;
-            this.type = MountiplexUtil.getArrayType(Object.class, arrayLevels);
-            this.typePath = vtype.getName();
-            this.typeName = vtype.getName();
+            Type varType = vtype.getBounds()[0];
+            Class<?> bound =  (varType instanceof Class) ? (Class<?>) varType : Object.class;
+            this.type = MountiplexUtil.getArrayType(bound, arrayLevels);
+            this.typePath = resolver.resolvePath(this.type);
+            this.typeName = resolver.resolveName(this.type);
             this.genericTypes = new TypeDeclaration[0];
+            this.variableName = vtype.getName();
         } else {
             // ???
             MountiplexUtil.LOGGER.warning("Unsupported type in TypeDeclaration: " + type.getClass());
@@ -104,6 +111,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = "";
             this.typeName = "";
             this.genericTypes = new TypeDeclaration[0];
+            this.variableName = null;
             this.setInvalid();
         }
     }
@@ -118,6 +126,7 @@ public class TypeDeclaration extends Declaration {
             this.type = null;
             this.genericTypes = new TypeDeclaration[0];
             this.isWildcard = false;
+            this.variableName = null;
             this.cast = null;
             this.setInvalid();
             return;
@@ -127,6 +136,7 @@ public class TypeDeclaration extends Declaration {
         // This is the first '<' we find, or otherwise the first open space
         // We also allow types like List <String>, where a space preceeds the <
         String rawType = null;
+        String typeVarName = null;
         String postfix = "";
         int startIdx = -1;
         boolean anyType = false;
@@ -188,8 +198,16 @@ public class TypeDeclaration extends Declaration {
 
             // The first non-space starts the postfix part of this type declaration
             if (rawType != null && c != ' ') {
-                postfix = declaration.substring(cidx);
-                break;
+                if (declaration.substring(cidx).startsWith("extends ")) {
+                    typeVarName = rawType;
+                    foundExtends = true;
+                    rawType = null;
+                    startIdx = -1;
+                    cidx += 7;
+                } else {
+                    postfix = declaration.substring(cidx);
+                    break;
+                }
             }
         }
 
@@ -203,6 +221,7 @@ public class TypeDeclaration extends Declaration {
                 this.typeName = "";
                 this.typePath = "java.lang.Object";
                 this.type = Object.class;
+                this.variableName = typeVarName;
                 this.genericTypes = new TypeDeclaration[0];
                 this.cast = castType;
             } else {
@@ -210,6 +229,7 @@ public class TypeDeclaration extends Declaration {
                 this.typeName = "";
                 this.typePath = "";
                 this.type = null;
+                this.variableName = typeVarName;
                 this.genericTypes = new TypeDeclaration[0];
                 this.cast = castType;
             }
@@ -221,6 +241,14 @@ public class TypeDeclaration extends Declaration {
             rawType = declaration.substring(startIdx);
             postfix = "";
         }
+
+        // <T>
+        if (rawType != null && rawType.length() == 1 && typeVarName == null) {
+            typeVarName = rawType;
+            rawType = "Object";
+        }
+
+        this.variableName = typeVarName;
 
         if (postfix.length() > 0 && postfix.charAt(0) == '<') {
 
@@ -300,6 +328,7 @@ public class TypeDeclaration extends Declaration {
         this.typeName = mainType.typeName;
         this.typePath = mainType.typePath;
         this.type = mainType.type;
+        this.variableName = mainType.variableName;
         this.genericTypes = genericTypes;
     }
 
@@ -343,15 +372,43 @@ public class TypeDeclaration extends Declaration {
                 types.add(superType);
                 types.addAll(Arrays.asList(superType.getSuperTypes()));
             }
-            for (Type iif : this.type.getGenericInterfaces()) {
-                TypeDeclaration iifType = resolveSuperType(iif);
-                if (!types.contains(iifType)) {
-                    types.add(iifType);
-                }
-            }
+            addInterfaces(types);
             this.superTypes = types.toArray(new TypeDeclaration[types.size()]);
         }
         return this.superTypes;
+    }
+
+    private void addInterfaces(ArrayList<TypeDeclaration> types) {
+        if (this.type != null) {
+            for (Type iif : this.type.getGenericInterfaces()) {
+                TypeDeclaration iifType = this.resolveSuperType(iif);
+                if (!types.contains(iifType)) {
+                    types.add(iifType);
+                    iifType.addInterfaces(types);
+                }
+            }
+        }
+    }
+
+    /**
+     * Gets whether this Type has any typed generic variables in it, which
+     * would allow multiple different types to be represented
+     * 
+     * @return True if this type has type variables
+     */
+    public boolean hasTypeVariables() {
+        if (this.variableName != null) {
+            return true;
+        }
+        if (this.genericTypes.length == 0) {
+            return false;
+        }
+        for (int i = 0; i < this.genericTypes.length; i++) {
+            if (this.genericTypes[i].hasTypeVariables()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean isAssignableFrom(Object value) {
@@ -360,6 +417,10 @@ public class TypeDeclaration extends Declaration {
 
     public boolean isAssignableFrom(TypeDeclaration other) {
         return other != null && other.isInstanceOf(this);
+    }
+
+    public boolean isInstanceOf(Class<?> otherType) {
+        return otherType != null && this.type != null && otherType.isAssignableFrom(this.type);
     }
 
     public boolean isInstanceOf(TypeDeclaration other) {
@@ -374,21 +435,22 @@ public class TypeDeclaration extends Declaration {
             }
 
             for (int i = 0; i < selfType.genericTypes.length; i++) {
+                TypeDeclaration s = selfType.genericTypes[i];
                 TypeDeclaration t = other.genericTypes[i];
                 if (t.type == null) {
                     return false; // unresolved.
                 }
-                if (other.genericTypes[i].isWildcard) {
+                if (t.isWildcard) {
                     // ? extends TYPE
-                    if (!t.isInstanceOf(other.genericTypes[i])) {
+                    if (!s.isInstanceOf(t)) {
                         return false;
                     }
-                } else if (t.type.equals(Object.class) && (t.typeName.length() == 1)) {
+                } else if ((t.variableName != null) && (s.isInstanceOf(t))) {
                     // T matches all other generic types
                     continue;
                 } else {
                     // TYPE must be exactly the same
-                    if (!t.equals(selfType.genericTypes[i])) {
+                    if (!t.equals(s)) {
                         return false;
                     }
                 }
@@ -415,6 +477,10 @@ public class TypeDeclaration extends Declaration {
                 if (type.type.equals(classType)) {
                     return type;
                 }
+            }
+            System.out.println("FAILED TO FIND CAST " + this + " TO TYPE " + classType.getName());
+            for (TypeDeclaration type : this.getSuperTypes()) {
+                System.out.println("SUPER TYPE: " + type.toString());
             }
         }
         return null;
@@ -450,7 +516,10 @@ public class TypeDeclaration extends Declaration {
             TypeVariable<?>[] params = this.type.getTypeParameters();
             if (params.length == this.genericTypes.length) {
                 for (int i = 0; i < superType.genericTypes.length; i++) {
-                    String name = superType.genericTypes[i].typePath;
+                    String name = superType.genericTypes[i].variableName;
+                    if (name == null) {
+                        continue;
+                    }
                     for (int j = 0; j < params.length; j++) {
                         if (params[j].getName().equals(name)) {
                             superType.genericTypes[i] = this.genericTypes[j];
@@ -500,10 +569,16 @@ public class TypeDeclaration extends Declaration {
             str += "(" + this.cast.toString(identity) + ") ";
         }
         if (this.isWildcard) {
-            if (typeInfo.length() == 0) {
+            if (typeInfo.length() == 0 || (this.type == Object.class)) {
                 str += "?";
             } else {
                 str += "? extends " + typeInfo;
+            }
+        } else if (this.variableName != null) {
+            if (typeInfo.length() == 0 || (this.type == Object.class)) {
+                str += this.variableName;
+            } else {
+                str += this.variableName + " extends " + typeInfo;
             }
         } else {
             str += typeInfo;

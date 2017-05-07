@@ -7,6 +7,9 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 import com.bergerkiller.mountiplex.types.IntegerMapOfString;
+import com.bergerkiller.mountiplex.types.TestInterface;
+import com.bergerkiller.mountiplex.types.TestInterfaceExt;
+import com.bergerkiller.mountiplex.types.TestInterfaceImpl;
 
 public class TypeMapTest {
 
@@ -33,6 +36,7 @@ public class TypeMapTest {
                 "AbstractCollection<String>",
                 "Object",
                 "Collection<String>",
+                "Iterable<String>",
                 "List<String>",
                 "RandomAccess",
                 "Cloneable",
@@ -160,6 +164,24 @@ public class TypeMapTest {
         testMap(map, tInt, 64);
         testMap(map, tInteger, 32);
         testMap(map, tDouble, 12);
+    }
+
+    @Test
+    public void castToInterfaceTest() {
+        TypeDeclaration t1 = TypeDeclaration.fromClass(TestInterfaceImpl.class);
+        TypeDeclaration t2 = TypeDeclaration.fromClass(TestInterface.class);
+        assertTrue(t1.isInstanceOf(t2));
+        assertTrue(t2.isAssignableFrom(t1));
+        TypeDeclaration t3 = t1.castAsType(TestInterface.class);
+        assertNotNull(t3);
+        assertEquals(t2, t3);
+
+        TypeDeclaration t4 = TypeDeclaration.fromClass(TestInterfaceExt.class);
+        assertTrue(t4.isInstanceOf(t2));
+        assertTrue(t2.isAssignableFrom(t4));
+        TypeDeclaration t5 = t4.castAsType(TestInterface.class);
+        assertNotNull(t5);
+        assertEquals(t5, t2);
     }
 
     private static void assertTypesEqual(Class<?> typeClass, String selfName, String... superTypeNames) {

@@ -36,14 +36,12 @@ public class InputTypeMap<T> {
         bin.clearCache();
     }
 
-    @SuppressWarnings("unchecked")
     public void put(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
         bin.values = Arrays.asList(value);
         bin.clearCache();
     }
 
-    @SuppressWarnings("unchecked")
     public boolean amend(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
         if (bin.isEmpty()) {

@@ -13,6 +13,7 @@ import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion2.annotations.ProviderMethod;
 import com.bergerkiller.mountiplex.conversion2.builtin.ArrayConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.CollectionConversion;
 import com.bergerkiller.mountiplex.conversion2.builtin.EnumConversion;
@@ -101,14 +102,25 @@ public class Conversion {
         for (Method method : converterListClass.getDeclaredMethods()) {
             if (method.getAnnotation(ConverterMethod.class) != null) {
                 try {
-                    if (method.getTypeParameters().length > 0) {
-                        registerProvider(new AnnotatedProvider(method));
+                    TypeDeclaration input = AnnotatedConverter.parseType(method, true);
+                    TypeDeclaration output = AnnotatedConverter.parseType(method, false);
+                    if (input.hasTypeVariables() || output.hasTypeVariables()) {
+                        registerProvider(new AnnotatedConverter.GenericProvider(method, input, output));
                     } else {
-                        registerConverter(new AnnotatedConverter(method));
+                        registerConverter(new AnnotatedConverter(method, input, output));
                     }
                 } catch (Throwable t) {
                     MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
                     System.err.println("Failed to register static converter method " + m.toString());
+                    t.printStackTrace();
+                }
+            }
+            if (method.getAnnotation(ProviderMethod.class) != null) {
+                try {
+                    registerProvider(new AnnotatedProvider(method));
+                } catch (Throwable t) {
+                    MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
+                    System.err.println("Failed to register static provider method " + m.toString());
                     t.printStackTrace();
                 }
             }
@@ -117,19 +129,30 @@ public class Conversion {
             if (!Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
-            if (!Converter.class.isAssignableFrom(field.getType())) {
-                continue;
+            if (Converter.class.isAssignableFrom(field.getType())) {
+                Converter<?, ?> converter = null;
+                try {
+                    field.setAccessible(true);
+                    converter = (Converter<?, ?>) field.get(null);
+                } catch (Throwable t) {
+                    FieldDeclaration f = new FieldDeclaration(ClassResolver.DEFAULT, field);
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to register static converter field " + f.toString(), t);
+                    continue;
+                }
+                registerConverter(converter);
             }
-            Converter<?, ?> converter = null;
-            try {
-                field.setAccessible(true);
-                converter = (Converter<?, ?>) field.get(null);
-            } catch (Throwable t) {
-                FieldDeclaration f = new FieldDeclaration(ClassResolver.DEFAULT, field);
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to register static converter field " + f.toString(), t);
-                continue;
+            if (ConverterProvider.class.isAssignableFrom(field.getType())) {
+                ConverterProvider provider = null;
+                try {
+                    field.setAccessible(true);
+                    provider = (ConverterProvider) field.get(null);
+                } catch (Throwable t) {
+                    FieldDeclaration f = new FieldDeclaration(ClassResolver.DEFAULT, field);
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to register static provider field " + f.toString(), t);
+                    continue;
+                }
+                registerProvider(provider);
             }
-            registerConverter(converter);
         }
     }
 
@@ -284,6 +307,13 @@ public class Conversion {
 
         // finds the (chain) converter for a particular input type
         public final Converter<Object, Object> find(TypeDeclaration input) {
+            // 'Object' inputs can have any real object assigned to it
+            // Just return our very own input converter in that case
+            // This resolves the incoming object type into a proper converter at runtime
+            if (input.type.equals(Object.class)) {
+                return this.converter;
+            }
+
             Node node = mapping.get(input);
 
             // generate more layers deeper into the tree until we find our type
@@ -313,6 +343,7 @@ public class Conversion {
 
             // input type could not be found in the tree
             if (node == null) {
+                System.out.println("FAILED TO FIND CONVERTER " + input + " -> " + this.converter.output);
                 return null; // not found
             } else if (node == this.root || node.previous == this.root) {
                 return resolveInput(node.converter, input); // direct neighbor or self does not need a chain converter

@@ -3,7 +3,10 @@ package com.bergerkiller.mountiplex.conversion2.type;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.List;
 
+import com.bergerkiller.mountiplex.conversion2.Converter;
+import com.bergerkiller.mountiplex.conversion2.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
@@ -14,21 +17,27 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  */
 public class AnnotatedConverter extends RawConverter {
     public final Method method;
-
-    public AnnotatedConverter(Method method) {
-        super(parseType(method, true), parseType(method, false));
-        this.method = method;
-    }
+    public final boolean isUpcast;
 
     public AnnotatedConverter(Method method, TypeDeclaration input, TypeDeclaration output) {
+        this(method, input, output, false);
+    }
+
+    public AnnotatedConverter(Method method, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
         super(input, output);
         this.method = method;
+        this.isUpcast = isUpcast;
     }
 
     @Override
     public Object convertInput(Object value) {
         try {
-            return method.invoke(null, value);
+            Object result = method.invoke(null, value);
+            if (!isUpcast || this.output.isAssignableFrom(result)) {
+                return result;
+            } else {
+                return null;
+            }
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (IllegalArgumentException e) {
@@ -73,5 +82,78 @@ public class AnnotatedConverter extends RawConverter {
             return TypeDeclaration.fromType(resolver, input ? 
                     method.getGenericParameterTypes()[0] : method.getGenericReturnType());
         }
+    }
+
+    /**
+     * Handles generic input/output types to provide the appropriate {@link AnnotatedConverter} for
+     * requested output types. This handles generic conversion such as List&lt;T&gt; -> Set&lt;T&gt;
+     */
+    public static class GenericProvider implements ConverterProvider {
+        public final TypeDeclaration input;
+        public final TypeDeclaration output;
+        public final Method method;
+
+        public GenericProvider(Method method, TypeDeclaration input, TypeDeclaration output) {
+            this.input = input;
+            this.output = output;
+            this.method = method;
+        }
+
+        @Override
+        public void getConverters(TypeDeclaration output, List<Converter<?, ?>> converters) {
+            boolean isUpcast = false;
+            TypeDeclaration relOutput;
+            if (this.output.variableName != null || this.output.isWildcard) {
+                // T extends <name> OR ? extends <name>'
+                // When this happens, we allow for up-casting if generics permit it
+                // Here we want to check if the requested output type is a derivative of this output type
+                isUpcast = true;
+                if (!this.output.type.isAssignableFrom(output.type)){
+                    return;
+                }
+
+                // Get input-relative output type from the upcasted type
+                relOutput = output.castAsType(this.output.type);
+            } else {
+                // No generic type information, so no upcast is used
+                if (!output.type.equals(this.output.type)) {
+                    return;
+                }
+
+                relOutput = output; // same type
+            }
+
+            // Process generic parameters
+            TypeDeclaration[] inTypes;
+            if (relOutput.genericTypes.length == 0) {
+                // Raw types
+                inTypes = new TypeDeclaration[0];
+            } else if (relOutput.isInstanceOf(this.output) && this.output.genericTypes.length == relOutput.genericTypes.length) {
+                // Generic typed convert
+                inTypes = this.input.genericTypes.clone();
+                for (int i = 0; i < inTypes.length; i++) {
+                    // Find this declaration in the output
+                    String typeName = inTypes[i].variableName;
+                    if (typeName != null) {
+                        boolean found = false;
+                        for (int j = 0; j < this.output.genericTypes.length; j++) {
+                            if (typeName.equals(this.output.genericTypes[i].variableName)) {
+                                inTypes[i] = relOutput.genericTypes[i];
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found ) {
+                            return;
+                        }
+                    }
+                }
+            } else {
+                return;
+            }
+
+            converters.add(new AnnotatedConverter(this.method, this.input.setGenericTypes(inTypes), output, isUpcast));
+        }
+
     }
 }

@@ -21,4 +21,5 @@ public class MethodDeclarationTest {
         assertEquals(dec.parameters.parameters[1].type.type, int.class);
         assertEquals(dec.parameters.parameters[1].type.cast.type, String.class);
     }
+
 }

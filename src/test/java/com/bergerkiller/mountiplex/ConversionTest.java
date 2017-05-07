@@ -17,7 +17,10 @@ import com.bergerkiller.mountiplex.conversion2.Converter;
 import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.types.AnnotatedConverters;
 import com.bergerkiller.mountiplex.types.CustomType;
+import com.bergerkiller.mountiplex.types.UniqueTypeExtension1;
+import com.bergerkiller.mountiplex.types.UniqueTypeWrap;
 
 public class ConversionTest {
 
@@ -178,6 +181,18 @@ public class ConversionTest {
         assertEquals(result.get(80), "39");
         assertCollectionSame(result.keySet(), 44, 60, 80);
         assertCollectionSame(result.values(), "55", "62", "39");
+    }
+
+    @Test
+    public void testAnnotated() {
+        Conversion.registerConverters(AnnotatedConverters.class);
+
+        Converter<UniqueTypeWrap, UniqueTypeExtension1> converter = Conversion.find(UniqueTypeWrap.class, UniqueTypeExtension1.class);
+        assertNotNull(converter);
+        UniqueTypeWrap wrap = new UniqueTypeWrap(new UniqueTypeExtension1());
+        Object result = converter.convert(wrap);
+        assertNotNull(result);
+        assertEquals(result.getClass(), UniqueTypeExtension1.class);
     }
     
     private static enum Day {
