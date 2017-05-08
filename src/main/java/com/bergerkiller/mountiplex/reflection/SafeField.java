@@ -7,6 +7,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.SecureField;
 
 /**
  * Wraps around the java.lang.reflect.Field class to provide an error-free
@@ -18,18 +19,10 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
  */
 public class SafeField<T> implements FieldAccessor<T> {
 
-    private Field field;
+    private final SecureField field = new SecureField();
 
     public SafeField(Field field) {
-        if (field != null && !field.isAccessible()) {
-            try {
-                field.setAccessible(true);
-            } catch (SecurityException ex) {
-                ex.printStackTrace();
-                field = null;
-            }
-        }
-        this.field = field;
+        this.field.init(field);
     }
 
     public SafeField(String fieldPath, Class<?> fieldType) {
@@ -65,18 +58,17 @@ public class SafeField<T> implements FieldAccessor<T> {
         String fixedName = Resolver.resolveFieldName(source, name);
         String dispName = name.equals(fixedName) ? name : (name + "[" + fixedName + "]");
         try {
-            this.field = findRaw(source, fixedName);
-            if (this.field != null) {
-            	if (fieldType != null && !this.field.getType().equals(fieldType)) {
-            		MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
-            				               " in class " + source.getName() +
-            				               " is of type " + this.field.getType().getSimpleName() +
-            				               " while we expect type " + fieldType.getSimpleName());
-            		this.field = null;
-            	} else {
-                    this.field.setAccessible(true);
+            this.field.init(findRaw(source, fixedName));
+            if (this.field.isInit()) {
+                if (fieldType != null && !this.field.getType().equals(fieldType)) {
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
+                                              " in class " + source.getName() +
+                                              " is of type " + this.field.getType().getSimpleName() +
+                                              " while we expect type " + fieldType.getSimpleName());
+                    this.field.deinit();
+                } else {
                     return;
-            	}
+                }
             }
         } catch (SecurityException ex) {
             new Exception("No permission to access field '" + dispName + "' in class file '" + source.getSimpleName() + "'").printStackTrace();
@@ -87,7 +79,7 @@ public class SafeField<T> implements FieldAccessor<T> {
 
     @Override
     public boolean isValid() {
-        return this.field != null;
+        return this.field.isInit();
     }
 
     /**
@@ -96,12 +88,12 @@ public class SafeField<T> implements FieldAccessor<T> {
      * @return True if static, False if not
      */
     public boolean isStatic() {
-        return this.field == null ? false : Modifier.isStatic(this.field.getModifiers());
+        return this.field.isInit() ? Modifier.isStatic(this.field.get().getModifiers()) : false;
     }
 
     @Override
     public T transfer(Object from, Object to) {
-        if (this.field == null) {
+        if (!this.field.isInit()) {
             return null;
         }
         T old = get(to);
@@ -112,33 +104,33 @@ public class SafeField<T> implements FieldAccessor<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T get(Object object) {
-        if (this.field == null) {
+        if (!this.field.isInit()) {
             return null;
         }
         try {
-            return (T) this.field.get(object);
+            return (T) this.field.read().get(object);
         } catch (Throwable t) {
             if (!this.isStatic() && object == null) {
                 throw new IllegalArgumentException("Non-static field requires a non-null instance");
             }
             t.printStackTrace();
-            this.field = null;
+            this.field.deinit();
             return null;
         }
     }
 
     @Override
     public boolean set(Object object, T value) {
-        if (this.field != null) {
+        if (this.field.isInit()) {
             try {
-                this.field.set(object, value);
+                this.field.write().set(object, value);
                 return true;
             } catch (Throwable t) {
                 if (!this.isStatic() && object == null) {
                     throw new IllegalArgumentException("Non-static field requires a non-null instance");
                 }
                 t.printStackTrace();
-                this.field = null;
+                this.field.deinit();
             }
         }
         return false;
@@ -147,7 +139,7 @@ public class SafeField<T> implements FieldAccessor<T> {
     @Override
     public String toString() {
         StringBuilder text = new StringBuilder(20);
-        final int mod = field.getModifiers();
+        final int mod = field.get().getModifiers();
         if (Modifier.isPublic(mod)) {
             text.append("public ");
         } else if (Modifier.isPrivate(mod)) {
@@ -158,7 +150,7 @@ public class SafeField<T> implements FieldAccessor<T> {
         if (Modifier.isStatic(mod)) {
             text.append("static ");
         }
-        return text.append(field.getType().getName()).append(" ").append(field.getName()).toString();
+        return text.append(field.getType().getName()).append(" ").append(field.get().getName()).toString();
     }
 
     /**
@@ -167,7 +159,7 @@ public class SafeField<T> implements FieldAccessor<T> {
      * @return Field name
      */
     public String getName() {
-        return field.getName();
+        return field.get().getName();
     }
 
     /**

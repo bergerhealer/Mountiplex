@@ -147,7 +147,6 @@ public class ClassDeclaration extends Declaration {
         FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
         for (int i = 0; i < realFields.length; i++) {
             try {
-                realRefFields[i].setAccessible(true);
                 realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
             } catch (Throwable t) {
                 MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
@@ -179,7 +178,6 @@ public class ClassDeclaration extends Declaration {
         MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.length];
         for (int i = 0; i < realMethods.length; i++) {
             try {
-                realRefMethods[i].setAccessible(true);
                 realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods[i]);
             } catch (Throwable t) {
                 MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefMethods[i], t);

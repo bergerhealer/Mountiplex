@@ -7,6 +7,7 @@ import com.bergerkiller.mountiplex.conversion2.Conversion;
 import com.bergerkiller.mountiplex.conversion2.Converter;
 import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.SecureField;
 
 public class Template {
 
@@ -60,39 +61,14 @@ public class Template {
     }
 
     public static class AbstractField extends TemplateElement<FieldDeclaration> {
-        protected java.lang.reflect.Field field = null;
-
-        // throws an exception when the field is not found
-        protected final void failNotFound() {
-            if (this.field == null) {
-                throw new RuntimeException("Field not found");
-            }
-        }
-
-        // throws an exception when the value is of invalid type for the field
-        protected final void failInvalidValue(Object value) {
-            java.lang.Class<?> valueType = field.getType();
-            if (valueType.isPrimitive() && value == null) {
-                throw new IllegalArgumentException("Field primitive type " + valueType.getName() + " can not be assigned null");
-            }
-            if (value != null && valueType.isAssignableFrom(value.getClass())) {
-                throw new IllegalArgumentException("value type " + value.getClass().getName() +
-                        " can not be assigned to field type " + valueType.getName());
-            }
-        }
+        protected final SecureField field = new SecureField();
 
         @Override
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
             for (FieldDeclaration fieldDec : dec.fields) {
                 if (fieldDec.field != null && fieldDec.name.real().equals(name)) {
-                    try {
-                        fieldDec.field.setAccessible(true);
-                        this.field = fieldDec.field;
-                        return fieldDec;
-                    } catch (Throwable t) {
-                        MountiplexUtil.LOGGER.warning("Field '" + name + "' in template for " + dec.type.typePath + " not accessible");
-                        return null;
-                    }
+                    this.field.init(fieldDec.field);
+                    return fieldDec;
                 }
             }
             MountiplexUtil.LOGGER.warning("Field '" + name + "' not found in template for " + dec.type.typePath);
@@ -114,7 +90,7 @@ public class Template {
         protected final void failInvalidArgs(Object[] arguments) {
             
         }
-        
+
         @Override
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
             for (MethodDeclaration methodDec : dec.methods) {
@@ -405,7 +381,7 @@ public class Template {
         @SuppressWarnings("unchecked")
         public final T get() {
             try {
-                return (T) field.get(null);
+                return (T) field.read().get(null);
             } catch (Throwable t) {
                 throw failGet(t);
             }
@@ -418,7 +394,7 @@ public class Template {
          */
         public final void set(T value) {
             try {
-                field.set(null, value);
+                field.write().set(null, value);
             } catch (Throwable t) {
                 throw failSet(t, value);
             }
@@ -430,13 +406,12 @@ public class Template {
         }
 
         protected final RuntimeException failGet(Throwable t) {
-            this.failNotFound();
+            this.field.checkGet();
             return new RuntimeException("Failed to get field", t);
         }
 
         protected final RuntimeException failSet(Throwable t, Object value) {
-            this.failNotFound();
-            this.failInvalidValue(value);
+            this.field.checkSet(value);
             return new RuntimeException("Failed to set field", t);
         }
 
@@ -487,7 +462,7 @@ public class Template {
                 try {
                     rawValue = converter.convertReverse(value);
                 } catch (RuntimeException t) {
-                    raw.failNotFound();
+                    raw.field.checkInit();
                     failNoConverter();
                     throw t;
                 }
@@ -507,12 +482,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final double getDouble() {
-                try{return field.getDouble(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getDouble(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setDouble(double value) {
-                try{field.setDouble(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setDouble(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -524,12 +499,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final float getFloat() {
-                try{return field.getFloat(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getFloat(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setFloat(float value) {
-                try{field.setFloat(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setFloat(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -541,12 +516,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final byte getByte() {
-                try{return field.getByte(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getByte(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setByte(byte value) {
-                try{field.setByte(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setByte(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -558,12 +533,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final short getShort() {
-                try{return field.getShort(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getShort(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setShort(short value) {
-                try{field.setShort(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setShort(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -575,12 +550,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final int getInteger() {
-                try{return field.getInt(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getInt(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setInteger(int value) {
-                try{field.setInt(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setInt(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -592,12 +567,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final long getLong() {
-                try{return field.getLong(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getLong(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setLong(long value) {
-                try{field.setLong(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setLong(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -609,12 +584,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final char getCharacter() {
-                try{return field.getChar(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getChar(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setCharacter(char value) {
-                try{field.setChar(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setChar(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
 
@@ -626,12 +601,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final boolean getBoolean() {
-                try{return field.getBoolean(null);}catch(Throwable t){throw failGet(t);}
+                try{return field.read().getBoolean(null);}catch(Throwable t){throw failGet(t);}
             }
 
             /** @see StaticField#set(value) */
             public final void setBoolean(boolean value) {
-                try{field.setBoolean(null, value);}catch(Throwable t){throw failSet(t,value);}
+                try{field.write().setBoolean(null, value);}catch(Throwable t){throw failSet(t,value);}
             }
         }
     }
@@ -648,7 +623,7 @@ public class Template {
         @SuppressWarnings("unchecked")
         public final T get(Object instance) {
             try {
-                return (T) field.get(instance);
+                return (T) this.field.read().get(instance);
             } catch (Throwable t) {
                 throw failGet(t, instance);
             }
@@ -663,7 +638,7 @@ public class Template {
          */
         public final void set(Object instance, T value) {
             try {
-                field.set(instance, value);
+                this.field.write().set(instance, value);
             } catch (Throwable t) {
                 throw failSet(t, instance, value);
             }
@@ -677,39 +652,28 @@ public class Template {
          */
         public void copy(Object instanceFrom, Object instanceTo) {
             try {
-                field.set(instanceTo, field.get(instanceFrom));
+                this.field.write().set(instanceTo, this.field.read().get(instanceFrom));
             } catch (Throwable t) {
                 throw failCopy(t, instanceFrom, instanceTo);
             }
         }
 
-        protected final void failInvalidInstance(Object instance) {
-            if (instance == null) {
-                throw new IllegalArgumentException("Instance is null");
-            }
-            java.lang.Class<?> type = field.getDeclaringClass();
-            if (!type.isAssignableFrom(instance.getClass())) {
-                throw new IllegalArgumentException("Failed to get field: instance is not an instance of " + type.getName());
-            }
-        }
-
         protected final RuntimeException failGet(Throwable t, Object instance) {
-            this.failNotFound();
-            this.failInvalidInstance(instance);
+            this.field.checkGet();
+            this.field.checkInstance(instance);
             return new RuntimeException("Failed to get field", t);
         }
 
         protected final RuntimeException failSet(Throwable t, Object instance, Object value) {
-            this.failNotFound();
-            this.failInvalidInstance(instance);
-            this.failInvalidValue(value);
+            this.field.checkSet(value);
+            this.field.checkInstance(instance);
             return new RuntimeException("Failed to set field", t);
         }
 
         protected final RuntimeException failCopy(Throwable t, Object instanceFrom, Object instanceTo) {
-            this.failNotFound();
-            this.failInvalidInstance(instanceFrom);
-            this.failInvalidInstance(instanceTo);
+            this.field.checkInit();
+            this.field.checkInstance(instanceFrom);
+            this.field.checkInstance(instanceTo);
             return new RuntimeException("Failed to copy", t);
         }
 
@@ -751,7 +715,7 @@ public class Template {
                 try {
                     rawValue = converter.convertReverse(value);
                 } catch (RuntimeException t) {
-                    raw.failNotFound();
+                    raw.field.checkInit();
                     failNoConverter();
                     throw t;
                 }
@@ -776,136 +740,136 @@ public class Template {
         public static final class Double extends Field<Double> {
             /** @see Field#get(instance) */
             public final double getDouble(Object instance) {
-                try{return field.getDouble(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getDouble(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setDouble(Object instance, double value) {
-                try{field.setDouble(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setDouble(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setDouble(instanceTo, field.getDouble(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setDouble(instanceTo, field.read().getDouble(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Float extends Field<Float> {
             /** @see Field#get(instance) */
             public final float getFloat(Object instance) {
-                try{return field.getFloat(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getFloat(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setFloat(Object instance, float value) {
-                try{field.setFloat(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setFloat(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setFloat(instanceTo, field.getFloat(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setFloat(instanceTo, field.read().getFloat(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Byte extends Field<Byte> {
             /** @see Field#get(instance) */
             public final byte getByte(Object instance) {
-                try{return field.getByte(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getByte(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setByte(Object instance, byte value) {
-                try{field.setByte(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setByte(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setByte(instanceTo, field.getByte(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setByte(instanceTo, field.read().getByte(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Short extends Field<Short> {
             /** @see Field#get(instance) */
             public final short getShirt(Object instance) {
-                try{return field.getShort(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getShort(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setShort(Object instance, short value) {
-                try{field.setShort(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setShort(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setShort(instanceTo, field.getShort(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setShort(instanceTo, field.read().getShort(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Integer extends Field<Integer> {
             /** @see Field#get(instance) */
             public final int getInteger(Object instance) {
-                try{return field.getInt(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getInt(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setInteger(Object instance, int value) {
-                try{field.setInt(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setInt(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setInt(instanceTo, field.getInt(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setInt(instanceTo, field.read().getInt(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Long extends Field<Long> {
             /** @see Field#get(instance) */
             public final long getLong(Object instance) {
-                try{return field.getLong(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getLong(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setLong(Object instance, long value) {
-                try{field.setLong(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setLong(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setLong(instanceTo, field.getLong(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setLong(instanceTo, field.read().getLong(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Character extends Field<Character> {
             /** @see Field#get(instance) */
             public final char getCharacter(Object instance) {
-                try{return field.getChar(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getChar(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setCharacter(Object instance, char value) {
-                try{field.setChar(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setChar(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setChar(instanceTo, field.getChar(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setChar(instanceTo, field.read().getChar(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
 
         public static final class Boolean extends Field<Boolean> {
             /** @see Field#get(instance) */
             public final boolean getBoolean(Object instance) {
-                try{return field.getBoolean(instance);}catch(Throwable t){throw failGet(t,instance);}
+                try{return field.read().getBoolean(instance);}catch(Throwable t){throw failGet(t,instance);}
             }
 
             /** @see Field#set(instance, value) */
             public final void setBoolean(Object instance, boolean value) {
-                try{field.setBoolean(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
+                try{field.write().setBoolean(instance, value);}catch(Throwable t){throw failSet(t,instance,value);}
             }
 
             @Override
             public final void copy(Object instanceFrom, Object instanceTo) {
-                try{field.setBoolean(instanceTo, field.getBoolean(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
+                try{field.write().setBoolean(instanceTo, field.read().getBoolean(instanceFrom));}catch(Throwable t){throw failCopy(t,instanceFrom,instanceTo);}
             }
         }
     }
