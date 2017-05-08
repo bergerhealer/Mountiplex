@@ -15,7 +15,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 public class SourceDeclaration extends Declaration {
     public final ClassDeclaration[] classes;
 
-    private SourceDeclaration(File sourceDirectory, String declaration) {
+    private SourceDeclaration(ClassLoader classLoader, File sourceDirectory, String declaration) {
         super(new ClassResolver(), declaration);
 
         trimWhitespace(0);
@@ -99,15 +99,13 @@ public class SourceDeclaration extends Declaration {
                     // Load the resource pointed to by this name
                     InputStream is;
                     if (sourceDirectory == null) {
-                        ClassLoader loader = Thread.currentThread().getContextClassLoader();
-                        if (loader == null) {
-                            loader = SourceDeclaration.class.getClassLoader();
+                        if (classLoader == null) {
+                            classLoader = SourceDeclaration.class.getClassLoader();
                         }
-                        is = loader.getResourceAsStream(name);
+                        is = classLoader.getResourceAsStream(name);
                     } else {
                         try {
                             String path = sourceDirectory.getAbsolutePath() + File.separator + name.replace("/", File.separator);
-                            System.out.println("LOADING: " + path);
                             is = new FileInputStream(path);
                         } catch (FileNotFoundException e) {
                             is = null;
@@ -125,7 +123,7 @@ public class SourceDeclaration extends Declaration {
                         if (!inclSourceStr.isEmpty()) {
                             // Load this source file
                             inclSourceStr = "setpath " + name + "\n" + inclSourceStr;
-                            SourceDeclaration inclSource = new SourceDeclaration(sourceDirectory, inclSourceStr);
+                            SourceDeclaration inclSource = new SourceDeclaration(classLoader, sourceDirectory, inclSourceStr);
                             classes.addAll(Arrays.asList(inclSource.classes));
                         }
                     }
@@ -180,17 +178,18 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parse(String source) {
-        return new SourceDeclaration(null, source);
+        return new SourceDeclaration(null, null, source);
     }
 
     /**
      * Parses the full source contents by reading a bundled resource file
      * 
+     * @param classLoader to use when resolving loaded and included resources
      * @param sourceInclude resource file to load
      * @return Source Declaration
      */
-    public static SourceDeclaration parseFromResources(String sourceInclude) {
-        return new SourceDeclaration(null, "include " + sourceInclude);
+    public static SourceDeclaration parseFromResources(ClassLoader classLoader, String sourceInclude) {
+        return new SourceDeclaration(classLoader, null, "include " + sourceInclude);
     }
 
     /**
@@ -201,6 +200,6 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude) {
-        return new SourceDeclaration(sourceDirectory, "include " + sourceInclude);
+        return new SourceDeclaration(null, sourceDirectory, "include " + sourceInclude);
     }
 }
