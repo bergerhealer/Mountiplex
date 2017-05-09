@@ -1,164 +1,97 @@
 package com.bergerkiller.mountiplex.conversion;
 
-import java.util.logging.Level;
-
-import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion.type.ArrayElementConverter;
-import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
+public abstract class Converter<I, O> {
+    public final TypeDeclaration input;
+    public final TypeDeclaration output;
 
-/**
- * Represents a data type converter
- *
- * @param <T> output type
- */
-@Deprecated
-public abstract class Converter<T> {
-    private final TypeDeclaration _output;
-
-    public Converter(Class<?> outputType) {
-        this(TypeDeclaration.fromClass(outputType));
+    public Converter(Class<?> input, Class<?> output) {
+        this(TypeDeclaration.fromClass(input), TypeDeclaration.fromClass(output));
     }
 
-    public Converter(ClassResolver resolver, String declaration) {
-        this(TypeDeclaration.parse(resolver, declaration));
-    }
-
-    public Converter(TypeDeclaration outputType) {
-        if (!outputType.isValid()) {
-            this._output = null;
-            MountiplexUtil.LOGGER.log(Level.WARNING, "Converter output declaration is invalid: " + outputType.toString(), new Exception());
-        } else if (!outputType.isResolved()) {
-            this._output = null;
-            MountiplexUtil.LOGGER.log(Level.WARNING, "Converter output could not be resolved: " + outputType.toString(), new Exception());
-        } else {
-            this._output = outputType;
-        }
+    public Converter(TypeDeclaration input, TypeDeclaration output) {
+        this.input = input;
+        this.output = output;
     }
 
     /**
-     * Converts the input value to the output type
-     *
-     * @param value to convert
-     * @param def value to return when conversion fails
-     * @return converted output type
-     */
-    public abstract T convert(Object value, T def);
-
-    /**
-     * Converts the input value to the output type<br>
-     * If conversion fails, null is returned instead
-     *
-     * @param value to convert
-     * @return converted output type
-     */
-    public T convert(Object value) {
-        return convert(value, null);
-    }
-
-    /**
-     * Gets the full generics-supporting Class type declaration returned by convert
+     * Converts the typed input value to the converted output.
+     * If conversion fails, null is returned instead.
      * 
-     * @return output Class type declaration
+     * @param value to be converted
+     * @return converted value, or null if failed
      */
-    public final TypeDeclaration getOutput() {
-        return this._output;
-    }
+    public abstract O convertInput(I value);
 
     /**
-     * Gets whether this converter has any output at all.
-     * If this returns False, the converter must be considered unusable.
+     * Converts the input value to the converted output.
+     * If conversion fails, null is returned instead.
+     * For primitive output types, their default value is returned. (0, false, etc.)
      * 
-     * @return True if output is set, False if not
-     */
-    public final boolean hasOutput() {
-        return this._output != null;
-    }
-
-    /**
-     * Gets the Class type returned by convert
-     *
-     * @return output Class type
+     * @param value to be converted
+     * @return converted output value, null on failure
      */
     @SuppressWarnings("unchecked")
-    public Class<T> getOutputType() {
-        return (Class<T>) this._output.type;
+    public final O convert(Object value) {
+        O result = null;
+        Class<?> inputType = this.input.type;
+        if (inputType.isPrimitive()) {
+            inputType = BoxedType.getBoxedType(inputType);
+        }
+        if (value != null && inputType.isAssignableFrom(value.getClass())) {
+            result = convertInput((I) value);
+        }
+        if (result == null && this.output.type.isPrimitive()) {
+            result = (O) BoxedType.getDefaultValue(this.output.type);
+        }
+        return result;
     }
 
     /**
-     * Gets a child converter used to convert a narrowed input type to an output type.
-     * Conversion type narrowing optimization can be performed here. If the converted type
-     * uses generics, the generic type information should be further handled here.
-     * By default this function returns 'this'.
+     * Converts the input value to the converted output.
+     * If conversion fails, the default value is returned instead.
+     * For primitive output types, their default value is returned for null. (0, false, etc.)
      * 
-     * @param input type to be converted
-     * @return proper converter for this generic type
+     * @param value to convert
+     * @param defaultValue to return on failure
+     * @return converted result
      */
-    public Converter<T> getConverter(TypeDeclaration input, TypeDeclaration output) {
-        return this;
+    @SuppressWarnings("unchecked")
+    public final O convert(Object value, O defaultValue) {
+        O result = null;
+        if (value != null && this.input.type.isAssignableFrom(value.getClass())) {
+            result = convert(value);
+        }
+        if (result == null) {
+            result = defaultValue;
+        }
+        if (result == null && this.output.type.isPrimitive()) {
+            result = (O) BoxedType.getDefaultValue(this.output.type);
+        }
+        return result;
     }
 
     /**
-     * Checks whether the returned output value can be casted to another
-     * type<br>
-     * This should only be supported when the returned type can be an extension
-     * of the output type<br>
-     * Typically, interfaces do not support this, as they can conflict with
-     * other converters<br><br>
-     * <p/>
-     * <b>Do not give a converter for multipurpose types this property! For
-     * example, an Object converter would end up being used for all cases,
-     * rendering isCastingSupported unusable globally.</b>
-     *
-     * @return True if casting is supported, False if not
-     */
-    public abstract boolean isCastingSupported();
-
-    /**
-     * Checks whether this converter supports registering in the Conversion
-     * look-up table. If this converter produces something that has to do with
-     * reading a field or method, and not actual conversion, this should be set
-     * to False. If an unique type is produced on the output, not bound to generics,
-     * this should be set to True to allow for automatic conversion to that type.
-     *
-     * @return True if Conversion table registration is enabled, False if not
-     */
-    public abstract boolean isRegisterSupported();
-
-    /**
-     * Creates a new ConverterPair with this converter as A and the specified
-     * converter as B
-     *
-     * @param converterB to form a pair with
-     * @return new ConverterPair
-     */
-    public <K> ConverterPair<T, K> formPair(Converter<K> converterB) {
-    	return new ConverterPair<T, K>(this, converterB);
-    }
-
-    /**
-     * Creates a new Converter that uses this base converter, but attempts to
-     * cast the result to the type specified
-     *
-     * @param type to cast to
-     * @return new Casting Converter
-     */
-    public <K> Converter<K> cast(Class<K> type) {
-    	return new CastingConverter<K>(type, this);
-    }
-
-    /**
-     * Applies this Conversion to a collection of elements and converts each element
+     * Gets whether this Converter is lazy. A lazy converter is used as a last resort,
+     * when no other converters exist to perform a conversion. If a converter converts
+     * from a very common type, such as Object, it should be made lazy to prevent the converter
+     * from being used everywhere.<br>
+     * <br>
+     * For example, a common conversion is to convert an Object to a String using {@link Object#toString()}.
+     * This converter is lazy to make sure other types, such as Integer, don't end up converted to a String
+     * when parsing to another type.
      * 
-     * @return new Array element converter
+     * @return True if lazy, False if not
      */
-    public Converter<T[]> toArray() {
-    	return ArrayElementConverter.create(this);
+    public boolean isLazy() {
+        return false;
     }
 
-    @Deprecated
-    public com.bergerkiller.mountiplex.conversion2.Converter<Object, T> toNew() {
-        return com.bergerkiller.mountiplex.conversion2.Converter.fromLegacy(this);
+    @Override
+    public String toString() {
+        return this.getClass().getName() + "[" + input.toString() + " -> " + output.toString() + "]";
     }
+
 }

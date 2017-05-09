@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 
 /**
  * A field implementation that allows direct getting and setting

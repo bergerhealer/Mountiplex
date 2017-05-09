@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 
 /**
  * Defines the methods to access a certain field

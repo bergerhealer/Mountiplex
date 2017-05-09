@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.types;
 
-import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
 
 public class AnnotatedConverters {
 

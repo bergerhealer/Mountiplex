@@ -12,10 +12,10 @@ import java.util.Set;
 
 import org.junit.Test;
 
-import com.bergerkiller.mountiplex.conversion2.Conversion;
-import com.bergerkiller.mountiplex.conversion2.Converter;
-import com.bergerkiller.mountiplex.conversion2.annotations.ConverterMethod;
-import com.bergerkiller.mountiplex.conversion2.type.InputConverter;
+import com.bergerkiller.mountiplex.conversion.Conversion;
+import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.AnnotatedConverters;
 import com.bergerkiller.mountiplex.types.CustomType;

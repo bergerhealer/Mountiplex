@@ -3,9 +3,9 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion2.Conversion;
-import com.bergerkiller.mountiplex.conversion2.Converter;
-import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion.Conversion;
+import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.SecureField;
 

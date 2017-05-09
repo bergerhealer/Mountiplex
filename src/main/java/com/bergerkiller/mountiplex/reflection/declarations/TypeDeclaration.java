@@ -676,6 +676,42 @@ public class TypeDeclaration extends Declaration {
     }
 
     /**
+     * Creates a generic type declaration from a base Class type, and a number of generic enclosing types
+     * 
+     * @param baseType
+     * @param genericTypes
+     * @return generic type declaration
+     */
+    public static TypeDeclaration createGeneric(Class<?> baseType, Class<?>... genericTypes) {
+        TypeDeclaration[] gen = new TypeDeclaration[genericTypes.length];
+        for (int i = 0; i < gen.length; i++) {
+            gen[i] = TypeDeclaration.fromClass(genericTypes[i]);
+        }
+        return createGeneric(baseType, gen);
+    }
+
+    /**
+     * Creates a generic type declaration from a base Class type, and a number of generic enclosing types
+     * 
+     * @param baseType
+     * @param genericTypes
+     * @return generic type declaration
+     */
+    public static TypeDeclaration createGeneric(Class<?> baseType, TypeDeclaration... genericTypes) {
+        return TypeDeclaration.fromClass(baseType).setGenericTypes(genericTypes);
+    }
+
+    /**
+     * Creates a type declaration for an array type of the component type specified
+     * 
+     * @param componentType of the array
+     * @return array type declaration
+     */
+    public static TypeDeclaration createArray(Class<?> componentType) {
+        return TypeDeclaration.fromClass(MountiplexUtil.getArrayType(componentType));
+    }
+
+    /**
      * Creates a Type Declaration by inspecting a type, resolving using a set Class Resolver
      * 
      * @param classResolver to use

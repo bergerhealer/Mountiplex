@@ -1,32 +1,25 @@
 package com.bergerkiller.mountiplex.conversion.type;
 
-import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 /**
- * A converter that always fails
+ * A converter that does nothing, simply returns the input value.
+ * This is used as a link between converters that does absolutely nothing.
+ * It is also critical for bridging unboxed and boxed types.
+ * Null Converters should be removed from Conversion Chains.
  */
-@Deprecated
-@SuppressWarnings("rawtypes")
-public class NullConverter extends Converter {
+public final class NullConverter extends RawConverter {
 
-    @SuppressWarnings("unchecked")
-    public NullConverter() {
-        super(Object.class);
+    public NullConverter(Class<?> input, Class<?> output) {
+        super(input, output);
+    }
+
+    public NullConverter(TypeDeclaration input, TypeDeclaration output) {
+        super(input, output);
     }
 
     @Override
-    public Object convert(Object value, Object def) {
-        return def;
+    public final Object convertInput(Object value) {
+        return value;
     }
-
-    @Override
-    public boolean isCastingSupported() {
-        return false;
-    }
-
-    @Override
-    public boolean isRegisterSupported() {
-        return false;
-    }
-
 }

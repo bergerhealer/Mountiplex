@@ -4,7 +4,7 @@ import java.lang.reflect.Constructor;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion2.Converter;
+import com.bergerkiller.mountiplex.conversion.Converter;
 
 /**
  * A safe version of the Constructor

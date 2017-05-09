@@ -7,7 +7,7 @@ import org.objenesis.ObjenesisHelper;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.conversion2.Converter;
+import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;

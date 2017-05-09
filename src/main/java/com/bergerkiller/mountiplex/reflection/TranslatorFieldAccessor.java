@@ -1,7 +1,7 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import com.bergerkiller.mountiplex.conversion2.Converter;
-import com.bergerkiller.mountiplex.conversion2.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 
 /**
  * A field accessor that can translate from one type to another to expose a
