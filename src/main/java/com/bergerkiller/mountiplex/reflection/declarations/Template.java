@@ -511,7 +511,7 @@ public class Template {
         /* ================= Please don't look at the copy-pasted code down below =================== */
         /* ========================================================================================== */
 
-        public static final class Double extends StaticField<Double> {
+        public static final class Double extends StaticField<java.lang.Double> {
             /** @see StaticField#getSafe() */
             public final double getDoubleSafe() {
                 try{return getDouble();}catch(Throwable t){return failGetSafe(t, 0.0);}
@@ -528,7 +528,7 @@ public class Template {
             }
         }
 
-        public static final class Float extends StaticField<Float> {
+        public static final class Float extends StaticField<java.lang.Float> {
             /** @see StaticField#getSafe() */
             public final float getFloatSafe() {
                 try{return getFloat();}catch(Throwable t){return failGetSafe(t, 0.0f);}
@@ -545,7 +545,7 @@ public class Template {
             }
         }
 
-        public static final class Byte extends StaticField<Byte> {
+        public static final class Byte extends StaticField<java.lang.Byte> {
             /** @see StaticField#getSafe() */
             public final byte getByteSafe() {
                 try{return getByte();}catch(Throwable t){return failGetSafe(t, (byte) 0);}
@@ -562,7 +562,7 @@ public class Template {
             }
         }
 
-        public static final class Short extends StaticField<Short> {
+        public static final class Short extends StaticField<java.lang.Short> {
             /** @see StaticField#getSafe() */
             public final short getShortSafe() {
                 try{return getShort();}catch(Throwable t){return failGetSafe(t, (short) 0);}
@@ -579,7 +579,7 @@ public class Template {
             }
         }
 
-        public static final class Integer extends StaticField<Integer> {
+        public static final class Integer extends StaticField<java.lang.Integer> {
             /** @see StaticField#getSafe() */
             public final int getIntegerSafe() {
                 try{return getInteger();}catch(Throwable t){return failGetSafe(t, 0);}
@@ -596,7 +596,7 @@ public class Template {
             }
         }
 
-        public static final class Long extends StaticField<Long> {
+        public static final class Long extends StaticField<java.lang.Long> {
             /** @see StaticField#getSafe() */
             public final long getLongSafe() {
                 try{return getLong();}catch(Throwable t){return failGetSafe(t, 0L);}
@@ -613,7 +613,7 @@ public class Template {
             }
         }
 
-        public static final class Character extends StaticField<Character> {
+        public static final class Character extends StaticField<java.lang.Character> {
             /** @see StaticField#getSafe() */
             public final char getCharacterSafe() {
                 try{return getCharacter();}catch(Throwable t){return failGetSafe(t, '\0');}
@@ -630,7 +630,7 @@ public class Template {
             }
         }
 
-        public static final class Boolean extends StaticField<Boolean> {
+        public static final class Boolean extends StaticField<java.lang.Boolean> {
             /** @see StaticField#getSafe() */
             public final boolean getBooleanSafe() {
                 try{return getBoolean();}catch(Throwable t){return failGetSafe(t, false);}
@@ -774,7 +774,7 @@ public class Template {
         /* ================= Please don't look at the copy-pasted code down below =================== */
         /* ========================================================================================== */
 
-        public static final class Double extends Field<Double> {
+        public static final class Double extends Field<java.lang.Double> {
             /** @see Field#get(instance) */
             public final double getDouble(Object instance) {
                 try{return field.read().getDouble(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -791,7 +791,7 @@ public class Template {
             }
         }
 
-        public static final class Float extends Field<Float> {
+        public static final class Float extends Field<java.lang.Float> {
             /** @see Field#get(instance) */
             public final float getFloat(Object instance) {
                 try{return field.read().getFloat(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -808,7 +808,7 @@ public class Template {
             }
         }
 
-        public static final class Byte extends Field<Byte> {
+        public static final class Byte extends Field<java.lang.Byte> {
             /** @see Field#get(instance) */
             public final byte getByte(Object instance) {
                 try{return field.read().getByte(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -825,7 +825,7 @@ public class Template {
             }
         }
 
-        public static final class Short extends Field<Short> {
+        public static final class Short extends Field<java.lang.Short> {
             /** @see Field#get(instance) */
             public final short getShirt(Object instance) {
                 try{return field.read().getShort(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -842,7 +842,7 @@ public class Template {
             }
         }
 
-        public static final class Integer extends Field<Integer> {
+        public static final class Integer extends Field<java.lang.Integer> {
             /** @see Field#get(instance) */
             public final int getInteger(Object instance) {
                 try{return field.read().getInt(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -859,7 +859,7 @@ public class Template {
             }
         }
 
-        public static final class Long extends Field<Long> {
+        public static final class Long extends Field<java.lang.Long> {
             /** @see Field#get(instance) */
             public final long getLong(Object instance) {
                 try{return field.read().getLong(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -876,7 +876,7 @@ public class Template {
             }
         }
 
-        public static final class Character extends Field<Character> {
+        public static final class Character extends Field<java.lang.Character> {
             /** @see Field#get(instance) */
             public final char getCharacter(Object instance) {
                 try{return field.read().getChar(instance);}catch(Throwable t){throw failGet(t,instance);}
@@ -893,7 +893,7 @@ public class Template {
             }
         }
 
-        public static final class Boolean extends Field<Boolean> {
+        public static final class Boolean extends Field<java.lang.Boolean> {
             /** @see Field#get(instance) */
             public final boolean getBoolean(Object instance) {
                 try{return field.read().getBoolean(instance);}catch(Throwable t){throw failGet(t,instance);}
