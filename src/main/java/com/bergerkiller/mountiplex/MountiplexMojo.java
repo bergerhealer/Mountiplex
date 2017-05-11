@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex;
 
 import java.io.File;
+import java.util.List;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -33,39 +34,60 @@ public class MountiplexMojo extends AbstractMojo {
      * @parameter
      */
     private File target_root;
-    
-    /**
-     * Source-relative path to the template file which will be loaded
-     * 
-     * @parameter
-     */
-    private String source;
+
+    public static class GenerationAction {
+        /**
+         * Source-relative path to the template file which will be loaded
+         * 
+         * @parameter
+         */
+        public String source;
+
+        /**
+         * Target-relative path to where generated source files will be placed
+         * 
+         * @parameter
+         */
+        public String target;
+    }
 
     /**
-     * Target-relative path to where generated source files will be placed
+     * Array of generation options to execute
      * 
      * @parameter
      */
-    private String target;
+    private List<GenerationAction> generatorActions;
 
     /**
      * Download the background, load image, paint labels and save
      */
     public void execute() throws MojoExecutionException {
-        // List all template files
         System.out.println("--- Generating reflection source code ---");
         System.out.println("Source Root: " + source_root.getAbsolutePath());
         System.out.println("Target Root: " + target_root.getAbsolutePath());
-        System.out.println("Source: " + source);
-        System.out.println("Target: " + target);
 
-        SourceDeclaration dec = SourceDeclaration.loadFromDisk(source_root, source);
-        for (ClassDeclaration classDec : dec.classes) {
-            TemplateGenerator gen = new TemplateGenerator();
-            gen.setRootDirectory(this.target_root);
-            gen.setPath(this.target);
-            gen.setClass(classDec);
-            gen.generate();
+        if (generatorActions == null || generatorActions.size() == 0) {
+            System.out.println("No generator actions specified. Nothing happened.");
+            return;
+        }
+
+        try {
+            for (GenerationAction opt: generatorActions) {
+                System.out.println("Source: " + opt.source);
+                System.out.println("Target: " + opt.target);
+
+                SourceDeclaration dec = SourceDeclaration.loadFromDisk(source_root, opt.source);
+                for (ClassDeclaration classDec : dec.classes) {
+                    String path = classDec.getResolver().getPackage().replace('.', '/');
+                    TemplateGenerator gen = new TemplateGenerator();
+                    gen.setRootDirectory(this.target_root);
+                    gen.setPath(opt.target + "/" + path);
+                    gen.setClass(classDec);
+                    gen.generate();
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 

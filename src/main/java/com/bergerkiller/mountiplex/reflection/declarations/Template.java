@@ -6,12 +6,16 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
+import com.bergerkiller.mountiplex.reflection.FieldAccessor;
+import com.bergerkiller.mountiplex.reflection.SafeField;
+import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.SecureField;
 
 public class Template {
 
     public static class Class {
+        private boolean successful = true;
 
         protected void init(java.lang.Class<?> type, String classpath) {
             // Retrieve the Class Declaration belonging to this classpath
@@ -19,12 +23,14 @@ public class Template {
             if (classType == null) {
                 MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classpath + " not found; Template '" +
                         getClass().getSimpleName() + " not initialized.");
+                successful = false;
                 return;
             }
 
             ClassDeclaration dec = Resolver.resolveClassDeclaration(classType);
             if (dec == null) {
                 MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + classType.getName() + " not found");
+                successful = false;
                 return;
             }
 
@@ -33,13 +39,26 @@ public class Template {
                 try {
                     Object templateField = templateFieldRef.get(this);
                     if (templateField instanceof TemplateElement) {
-                        ((TemplateElement<?>) templateField).init(dec, templateFieldName);
+                        Object result = ((TemplateElement<?>) templateField).init(dec, templateFieldName);
+                        if (result == null) {
+                            successful = false;
+                        }
                     }
                 } catch (Throwable t) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize template field " +
                         "'" + templateFieldName + "' in " + classpath, t);
+                    successful = false;
                 }
             }
+        }
+
+        /**
+         * Gets whether this entire Class Template has been initialized without any errors
+         * 
+         * @return True if loaded successfully, False if errors had occurred
+         */
+        public boolean isSuccessfullyLoaded() {
+            return successful;
         }
     }
 
@@ -60,7 +79,7 @@ public class Template {
         protected abstract T init(ClassDeclaration dec, String name);
     }
 
-    public static class AbstractField extends TemplateElement<FieldDeclaration> {
+    public static class AbstractField<T> extends TemplateElement<FieldDeclaration> {
         protected final SecureField field = new SecureField();
 
         @Override
@@ -73,6 +92,15 @@ public class Template {
             }
             MountiplexUtil.LOGGER.warning("Field '" + name + "' not found in template for " + dec.type.typePath);
             return null;
+        }
+
+        /**
+         * Turns this templated field into a reflection Field Accessor (legacy)
+         * 
+         * @return field accessor
+         */
+        public FieldAccessor<T> toFieldAccessor() {
+            return new SafeField<T>(field);
         }
     }
 
@@ -110,7 +138,7 @@ public class Template {
         }
     }
 
-    public static class AbstractFieldConverter<F extends AbstractField, T> extends TemplateElement<FieldDeclaration> {
+    public static class AbstractFieldConverter<F extends AbstractField<?>, T> extends TemplateElement<FieldDeclaration> {
         public final F raw;
         protected DuplexConverter<?, T> converter = null;
 
@@ -137,6 +165,15 @@ public class Template {
                 }
             }
             return fDec;
+        }
+
+        /**
+         * Turns this templated converted field into a reflection translated Field Accessor (legacy)
+         * 
+         * @return field accessor
+         */
+        public TranslatorFieldAccessor<T> toFieldAccessor() {
+            return new TranslatorFieldAccessor<T>(this.raw.toFieldAccessor(), this.converter);
         }
     }
 
@@ -361,7 +398,7 @@ public class Template {
         }
     }
 
-    public static class StaticField<T> extends AbstractField {
+    public static class StaticField<T> extends AbstractField<T> {
 
         /**
          * Gets the current static field value, guaranteeing to never throw an exception.
@@ -611,7 +648,7 @@ public class Template {
         }
     }
 
-    public static class Field<T> extends AbstractField {
+    public static class Field<T> extends AbstractField<T> {
 
         /**
          * Gets the field value from an instance where the field is declared. Static fields

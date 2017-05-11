@@ -19,6 +19,8 @@ import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.AnnotatedConverters;
 import com.bergerkiller.mountiplex.types.CustomType;
+import com.bergerkiller.mountiplex.types.TestObject;
+import com.bergerkiller.mountiplex.types.UniqueType;
 import com.bergerkiller.mountiplex.types.UniqueTypeExtension1;
 import com.bergerkiller.mountiplex.types.UniqueTypeWrap;
 
@@ -194,7 +196,29 @@ public class ConversionTest {
         assertNotNull(result);
         assertEquals(result.getClass(), UniqueTypeExtension1.class);
     }
-    
+
+    @Test
+    public void testObjectCast() {
+        TestObject testObject = new TestObject();
+
+        Converter<Object, TestObject> toTestObject = Conversion.find(Object.class, TestObject.class);
+        Converter<TestObject, Object> toObject = Conversion.find(TestObject.class, Object.class);
+
+        assertNotNull(toTestObject);
+        assertNotNull(toObject);
+
+        Object asTestObject = toTestObject.convert(testObject);
+        Object asObject = toObject.convert(testObject);
+        assertNotNull(asTestObject);
+        assertNotNull(asObject);
+        assertEquals(testObject, asTestObject);
+        assertEquals(testObject, asObject);
+
+        UniqueType someType = new UniqueType();
+        assertNull(toTestObject.convert(someType));
+        assertNull(toObject.convert(someType));
+    }
+
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 

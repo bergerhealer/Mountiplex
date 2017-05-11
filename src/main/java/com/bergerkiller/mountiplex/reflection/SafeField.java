@@ -18,14 +18,19 @@ import com.bergerkiller.mountiplex.reflection.util.SecureField;
  * @param <T> type of the Field
  */
 public class SafeField<T> implements FieldAccessor<T> {
+    private final SecureField field;
 
-    private final SecureField field = new SecureField();
+    public SafeField(SecureField field) {
+        this.field = field;
+    }
 
     public SafeField(Field field) {
+        this.field = new SecureField();
         this.field.init(field);
     }
 
     public SafeField(String fieldPath, Class<?> fieldType) {
+        this.field = new SecureField();
         if (fieldPath == null || fieldPath.isEmpty() || !fieldPath.contains(".")) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Field path contains no class: " + fieldPath);
             return;
@@ -42,10 +47,12 @@ public class SafeField<T> implements FieldAccessor<T> {
     }
 
     public SafeField(Object value, String name, Class<?> fieldType) {
+        this.field = new SecureField();
         load(value == null ? null : value.getClass(), name, fieldType);
     }
 
     public SafeField(Class<?> source, String name, Class<?> fieldType) {
+        this.field = new SecureField();
         load(source, name, fieldType);
     }
 
@@ -286,5 +293,14 @@ public class SafeField<T> implements FieldAccessor<T> {
         }
         // Interfaces don't contain fields, so nothing found at this point
         return null;
+    }
+
+    /**
+     * Creates a safe field that is backed by nothing, indicating a field that could not be found
+     * 
+     * @return null field
+     */
+    public static <T> SafeField<T> createNull() {
+        return new SafeField<T>((Field) null);
     }
 }

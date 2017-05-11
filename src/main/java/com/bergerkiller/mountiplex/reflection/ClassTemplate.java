@@ -555,18 +555,18 @@ public class ClassTemplate<T> {
         // No type
         if (this.type == null) {
             logFieldWarning(declaration, "can not be found because class to find it in is null");
-            return new SafeField<F>(null);
+            return SafeField.createNull();
         }
 
         // Parse the declaration
         FieldDeclaration declare = new FieldDeclaration(resolver, declaration);
         if (!declare.isValid()) {
             logFieldWarning(declaration, "could not be parsed");
-            return new SafeField<F>(null);
+            return SafeField.createNull();
         }
         if (!declare.isResolved()) {
             logFieldWarning(declare.toString(), "has some unresolved types");
-            return new SafeField<F>(null);
+            return SafeField.createNull();
         }
 
         loadFields(true);
@@ -611,7 +611,7 @@ public class ClassTemplate<T> {
             }
         }
 
-        return new SafeField<F>(null);
+        return SafeField.createNull();
     }
 
     public void skipFieldSignature(String declaration) {
@@ -634,18 +634,18 @@ public class ClassTemplate<T> {
             // If empty, abort
             if (nextFieldQueue.isEmpty()) {
                 logFieldWarning(declaration, "could not be found (no more fields)");
-                return new SafeField<F>(null);
+                return SafeField.createNull();
             }
 
             // Parse the declaration
             FieldDeclaration declare = new FieldDeclaration(resolver, declaration);
             if (!declare.isValid()) {
                 logFieldWarning(declaration, "could not be parsed");
-                return new SafeField<F>(null);
+                return SafeField.createNull();
             }
             if (!declare.isResolved()) {
                 logFieldWarning(declare.toString(), "has some unresolved types");
-                return new SafeField<F>(null);
+                return SafeField.createNull();
             }
 
             // Check if the field matches the very next item
@@ -667,7 +667,7 @@ public class ClassTemplate<T> {
                 }
                 if (next == null) {
                     logFieldWarning(declaration, "could not be found (no more fields)");
-                    return new SafeField<F>(null);
+                    return SafeField.createNull();
                 }
 
                 if (skipped.size() > 0) {
@@ -709,11 +709,11 @@ public class ClassTemplate<T> {
         FieldDeclaration declare = new FieldDeclaration(resolver, declaration);
         if (!declare.isValid()) {
             logFieldWarning(declaration, "could not be parsed");
-            return new SafeField<F>(null);
+            return SafeField.createNull();
         }
         if (!declare.isResolved()) {
             logFieldWarning(declare.toString(), "has some unresolved types");
-            return new SafeField<F>(null);
+            return SafeField.createNull();
         }
 
         loadFields(false);
@@ -768,7 +768,7 @@ public class ClassTemplate<T> {
             }
         }
 
-        return new SafeField<F>(null);
+        return SafeField.createNull();
     }
 
     public <M> MethodAccessor<M> selectMethod(String declaration) {

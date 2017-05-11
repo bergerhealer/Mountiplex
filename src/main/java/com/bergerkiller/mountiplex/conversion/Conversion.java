@@ -343,7 +343,6 @@ public class Conversion {
 
             // input type could not be found in the tree
             if (node == null) {
-                System.out.println("FAILED TO FIND CONVERTER " + input + " -> " + this.converter.output);
                 return null; // not found
             } else if (node == this.root || node.previous == this.root) {
                 return resolveInput(node.converter, input); // direct neighbor or self does not need a chain converter

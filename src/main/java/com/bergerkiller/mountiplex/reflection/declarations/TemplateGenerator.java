@@ -246,7 +246,7 @@ public class TemplateGenerator {
         addLine(methodStr + ") {");
 
         String bodyStr = "";
-        if (!mDec.returnType.type.equals(void.class)) {
+        if (!void.class.equals(mDec.returnType.type)) {
             bodyStr += "return ";
         }
         bodyStr += "T." + mDec.name.real() + ".invoke(";
@@ -263,7 +263,7 @@ public class TemplateGenerator {
         addLine(bodyStr);
         addLine("}");
     }
-    
+
     private String getMethodAppend(MethodDeclaration mDec) {
         String app = "";
         boolean hasConversion = false;
@@ -279,10 +279,11 @@ public class TemplateGenerator {
         if (hasConversion) {
             app += ".Converted";
         }
-        if (mDec.returnType.type.isPrimitive()) {
-            app += "<" + BoxedType.getBoxedType(mDec.returnType.type).getSimpleName() + ">"; 
+        TypeDeclaration returnType = (mDec.returnType.cast != null) ? mDec.returnType.cast : mDec.returnType;
+        if (returnType.type != null && returnType.type.isPrimitive()) {
+            app += "<" + BoxedType.getBoxedType(returnType.type).getSimpleName() + ">"; 
         } else {
-            app += "<" + getTypeStr(mDec.returnType) + ">";
+            app += "<" + getTypeStr(returnType) + ">";
         }
         return app;
     }
