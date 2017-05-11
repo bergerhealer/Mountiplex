@@ -140,6 +140,24 @@ public abstract class Declaration {
     }
 
     /**
+     * Removes all block comments put in the postfix
+     */
+    protected void trimBlockComments() {
+        while (true) {
+            int startIndex = this._postfix.lastIndexOf("/*");
+            if (startIndex == -1) {
+                break;
+            }
+            int endIndex = this._postfix.indexOf("*/", startIndex + 2);
+            if (endIndex == -1) {
+                break;
+            }
+            this._postfix = this._postfix.substring(0, startIndex) +
+                            this._postfix.substring(endIndex + 2);
+        }
+    }
+    
+    /**
      * Removes everything up until the next newline
      */
     protected final void trimLine() {

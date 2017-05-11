@@ -18,6 +18,8 @@ public class SourceDeclaration extends Declaration {
     private SourceDeclaration(ClassLoader classLoader, File sourceDirectory, String declaration) {
         super(new ClassResolver(), declaration);
 
+        trimBlockComments();
+
         trimWhitespace(0);
 
         // Parse all segments

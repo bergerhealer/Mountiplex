@@ -251,7 +251,10 @@ public class TemplateGenerator {
         }
         bodyStr += "T." + mDec.name.real() + ".invoke(";
         if (!mDec.modifiers.isStatic()) {
-            bodyStr += "instance, ";
+            bodyStr += "instance";
+            if (mDec.parameters.parameters.length > 0) {
+                bodyStr += ", ";
+            }
         }
         for (int i = 0; i < mDec.parameters.parameters.length; i++) {
             if (i > 0) {
