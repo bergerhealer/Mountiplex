@@ -7,7 +7,9 @@ import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
+import com.bergerkiller.mountiplex.reflection.MethodAccessor;
 import com.bergerkiller.mountiplex.reflection.SafeField;
+import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.SecureField;
@@ -135,6 +137,15 @@ public class Template {
             }
             MountiplexUtil.LOGGER.warning("Method '" + name + "' not found in template for " + dec.type.typePath);
             return null;
+        }
+
+        /**
+         * Turns this templated method into a reflection Method Accessor (legacy)
+         * 
+         * @return method accessor
+         */
+        public <T> MethodAccessor<T> toMethodAccessor() {
+            return new SafeMethod<T>(this.method);
         }
     }
 
