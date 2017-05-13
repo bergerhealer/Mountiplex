@@ -242,12 +242,24 @@ public class TypeDeclaration extends Declaration {
             postfix = "";
         }
 
+        // enum - invalid
+        if (rawType != null && rawType.equals("enum")) {
+            this.setInvalid();
+            this.typeName = "";
+            this.typePath = "";
+            this.type = null;
+            this.variableName = typeVarName;
+            this.genericTypes = new TypeDeclaration[0];
+            this.cast = castType;
+            return;
+        }
+
         // <T>
         if (rawType != null && rawType.length() == 1 && typeVarName == null) {
             typeVarName = rawType;
             rawType = "Object";
         }
-
+        
         this.variableName = typeVarName;
 
         if (postfix.length() > 0 && postfix.charAt(0) == '<') {

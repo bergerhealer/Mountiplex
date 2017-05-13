@@ -1,16 +1,14 @@
 package com.bergerkiller.mountiplex.types;
 
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
+import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
 public class TestObjectHandle extends Template.Handle {
     public static final TestObjectClass T = new TestObjectClass();
+    protected static final StaticInitHelper _init_helper = new StaticInitHelper(TestObjectHandle.class, "com.bergerkiller.mountiplex.types.TestObject");
     public static final String CONSTANT = T.staticField.getSafe();
 
     public static class TestObjectClass extends Template.Class {
-        public TestObjectClass() {
-            this.init(TestObjectClass.class, "com.bergerkiller.mountiplex.types.TestObject");
-        }
-
         public final Template.StaticField<String> staticField = new Template.StaticField<String>();
         public final Template.Field<String> localField = new Template.Field<String>();
         public final Template.Field.Converted<String> intConvField = new Template.Field.Converted<String>();

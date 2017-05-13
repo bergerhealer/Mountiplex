@@ -13,43 +13,40 @@ import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.SecureField;
+import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
+import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
 
 public class Template {
 
     public static class Class {
-        private boolean successful = true;
+        private boolean valid = false;
+        private java.lang.Class<?> classType = null;
 
-        protected void init(java.lang.Class<?> type, String classpath) {
-            // Retrieve the Class Declaration belonging to this classpath
-            java.lang.Class<?> classType = Resolver.loadClass(classpath, false);
-            if (classType == null) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classpath + " not found; Template '" +
-                        getClass().getSimpleName() + " not initialized.");
-                successful = false;
-                return;
-            }
+        private final void init(java.lang.Class<?> classType) {
+            this.classType = classType;
+            this.valid = true;
 
-            ClassDeclaration dec = Resolver.resolveClassDeclaration(classType);
+            ClassDeclaration dec = Resolver.resolveClassDeclaration(this.classType);
             if (dec == null) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + classType.getName() + " not found");
-                successful = false;
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
+                valid = false;
                 return;
             }
 
-            for (java.lang.reflect.Field templateFieldRef : type.getFields()) {
+            for (java.lang.reflect.Field templateFieldRef : getClass().getFields()) {
                 String templateFieldName = templateFieldRef.getName();
                 try {
                     Object templateField = templateFieldRef.get(this);
                     if (templateField instanceof TemplateElement) {
                         Object result = ((TemplateElement<?>) templateField).init(dec, templateFieldName);
                         if (result == null) {
-                            successful = false;
+                            valid = false;
                         }
                     }
                 } catch (Throwable t) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize template field " +
-                        "'" + templateFieldName + "' in " + classpath, t);
-                    successful = false;
+                        "'" + templateFieldName + "' in " + classType.getName(), t);
+                    valid = false;
                 }
             }
         }
@@ -59,19 +56,114 @@ public class Template {
          * 
          * @return True if loaded successfully, False if errors had occurred
          */
-        public boolean isSuccessfullyLoaded() {
-            return successful;
+        public boolean isValid() {
+            return valid;
+        }
+
+        /**
+         * Gets the internally stored Class Type of this Class
+         * 
+         * @return class type
+         */
+        public java.lang.Class<?> getType() {
+            return this.classType;
         }
     }
 
     /**
      * Base class for objects that refer to a hidden type
      */
-    public static class Handle {
-        protected Object instance = null;
+    public static class Handle implements StaticInitHelper.InitClass {
+        protected Object instance;
 
-        public void setInstance(Object instance) {
-            this.instance = instance;
+        /**
+         * Checks whether the backing raw type is an instance of a certain type of class
+         * 
+         * @param type to check (template type)
+         * @return True if it is an instance, False if not
+         */
+        public final boolean isInstanceOf(Class type) {
+            return isInstanceOf(type.getType());
+        }
+
+        /**
+         * Checks whether the backing raw type is an instance of a certain type of class
+         * 
+         * @param type to check
+         * @return True if it is an instance, False if not
+         */
+        public final boolean isInstanceOf(java.lang.Class<?> type) {
+            return type != null && type.isAssignableFrom(instance.getClass());
+        }
+
+        /**
+         * Gets the raw instance backing this Handle
+         * 
+         * @return raw instance
+         */
+        public final Object getRaw() {
+            return this.instance;
+        }
+
+        @InitMethod
+        protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath) {
+            try {
+                // Load the class at the path and retrieve the Class Declaration belonging to it
+                java.lang.Class<?> classType = Resolver.loadClass(classPath, false);
+                if (classType == null) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classPath + " not found; Template '" +
+                            handleType.getSimpleName() + " not initialized.");
+                    return;
+                }
+
+                // First register a duplex converter between this type and the handle. This is required to make
+                // the converter accessible during initialization of the template fields, which may use it.
+                Conversion.registerConverter(new DuplexConverter<Handle, Object>(handleType, classType) {
+                    @Override
+                    public Object convertInput(Handle value) {
+                        return value.instance;
+                    }
+
+                    @Override
+                    public Handle convertOutput(Object value) {
+                        try {
+                            Handle handle;
+                            handle = handleType.newInstance();
+                            handle.instance = value;
+                            return handle;
+                        } catch (Throwable t) {
+                            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct handle " +handleType.getName(), t);
+                            return null;
+                        }
+                    }
+                });
+
+                // Initialize the template class fields
+                ((Class) handleType.getField("T").get(null)).init(classType);
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register " + handleType.getName(), t);
+            }
+        }
+
+        @Override
+        public final int hashCode() {
+            return instance.hashCode();
+        }
+
+        @Override
+        public final boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            } else if (o instanceof Handle) {
+                return ((Handle) o).instance.equals(this.instance);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public final String toString() {
+            return instance.toString();
         }
     }
 
@@ -79,6 +171,11 @@ public class Template {
     // all declared class element types must extend this type
     public static abstract class TemplateElement<T extends Declaration> {
         protected abstract T init(ClassDeclaration dec, String name);
+
+        protected final <V> V failGetSafe(Throwable t, V def) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get static field value", t);
+            return def;
+        }
     }
 
     public static class AbstractField<T> extends TemplateElement<FieldDeclaration> {
@@ -118,7 +215,21 @@ public class Template {
 
         // throws an exception when arguments differ
         protected final void failInvalidArgs(Object[] arguments) {
-            
+            java.lang.Class<?>[] params = method.getParameterTypes();
+            if (params.length != arguments.length) {
+                throw new IllegalArgumentException("Invalid number of argument specified! Expected " +
+                        params.length + " arguments, but got " + arguments.length);
+            }
+            for (int i = 0; i < params.length; i++) {
+                if (params[i].isPrimitive() && arguments[i] == null) {
+                    throw new IllegalArgumentException("Null can not be assigned to primitive " +
+                            params[i].getName() + " argument [" + i + "]");
+                }
+                if (arguments[i] != null && !params[i].isAssignableFrom(arguments[i].getClass())) {
+                    throw new IllegalArgumentException("Value of type " + arguments[i].getClass().getName() +
+                            " can not be assigned to " + params[i].getName() + " argument [" + i + "]");
+                }
+            }
         }
 
         @Override
@@ -409,6 +520,101 @@ public class Template {
         }
     }
 
+    public static class EnumConstant<T extends Enum<?>> extends TemplateElement<FieldDeclaration> {
+        protected T constant;
+
+        public final T get() {
+            if (constant == null) {
+                throw new UnsupportedOperationException("Enumeration constant not initialized");
+            }
+            return constant;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        protected FieldDeclaration init(ClassDeclaration dec, String name) {
+            for (FieldDeclaration fDec : dec.fields) {
+                if (fDec.isEnum && fDec.name.real().equals(name)) {
+                    // Check if the class is initialized
+                    if (dec.type.type == null) {
+                        MountiplexUtil.LOGGER.warning("Enumeration constant " + name + " in class " +
+                                dec.type + " not initialized: class not found");
+                        return null;
+                    }
+
+                    // Find the enum constant
+                    for (Object enumConstant : dec.type.type.getEnumConstants()) {
+                        if (((Enum<?>) enumConstant).name().equals(fDec.name.value())) {
+                            constant = (T) enumConstant;
+                            return fDec;
+                        }
+                    }
+
+                    // Not found, despite being declared
+                    MountiplexUtil.LOGGER.warning("Enumeration constant " + name + " missing in class " + dec.type);
+                    return null;
+                }
+            }
+            MountiplexUtil.LOGGER.warning("Failed to find enumeration field " + name + " in class " + dec.type);
+            return null;
+        }
+
+        public static final class Converted<T> extends TemplateElement<FieldDeclaration> {
+            public final EnumConstant<Enum<?>> raw = new EnumConstant<Enum<?>>();
+            protected DuplexConverter<?, T> converter = null;
+
+            /**
+             * Gets the converted enumeration constant
+             * 
+             * @return converted enumeration constant
+             */
+            public final T get() {
+                Enum<?> value = raw.get();
+                try {
+                    return converter.convert(value);
+                } catch (RuntimeException ex) {
+                    failNoConverter();
+                    throw ex;
+                }
+            }
+
+            /**
+             * Gets the converted enumeration constant, guaranteeing no exception is thrown.
+             * This should be used when statically initializing constants.
+             * 
+             * @return converted enumeration constant, null on failure
+             */
+            public final T getSafe() {
+                try {
+                    return get();
+                } catch (Throwable t) {
+                    return failGetSafe(t, null);
+                }
+            }
+
+            // throws an exception when the converter was not initialized
+            protected final void failNoConverter() {
+                if (converter == null) {
+                    throw new UnsupportedOperationException("Enum constant converter was not found");
+                }
+            }
+
+            @Override
+            @SuppressWarnings("unchecked")
+            protected FieldDeclaration init(ClassDeclaration dec, String name) {
+                FieldDeclaration fDec = raw.init(dec, name);
+                if (fDec != null) {
+                    this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
+                    if (this.converter == null) {
+                        MountiplexUtil.LOGGER.warning("Converter for enum constant " + fDec.name.toString() + 
+                                                      " not found: " + fDec.type.toString());
+                    }
+                }
+                return fDec;
+            }
+        }
+    }
+
     public static class StaticField<T> extends AbstractField<T> {
 
         /**
@@ -446,11 +652,6 @@ public class Template {
             } catch (Throwable t) {
                 throw failSet(t, value);
             }
-        }
-
-        protected final <V> V failGetSafe(Throwable t, V def) {
-            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get static field value", t);
-            return def;
         }
 
         protected final RuntimeException failGet(Throwable t) {

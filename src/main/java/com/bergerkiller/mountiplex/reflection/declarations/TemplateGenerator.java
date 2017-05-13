@@ -6,9 +6,10 @@ import java.io.FileWriter;
 import java.util.HashMap;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
 public class TemplateGenerator {
-    private ClassDeclaration classDec = null;
+    private ClassDeclaration rootClassDec = null;
     private File rootDir = null;
     private String path = "";
     private StringBuilder builder = new StringBuilder();
@@ -16,7 +17,7 @@ public class TemplateGenerator {
     private int indent = 0;
 
     public void setClass(ClassDeclaration classDec) {
-        this.classDec = classDec;
+        this.rootClassDec = classDec;
     }
 
     public void setRootDirectory(File rootDir) {
@@ -31,20 +32,68 @@ public class TemplateGenerator {
         this.builder = new StringBuilder();
         this.imports = new HashMap<String, String>();
         this.imports.put("Template", Template.class.getName());
+        this.imports.put("StaticInitHelper", StaticInitHelper.class.getName());
         this.indent = 0;
         String packagePath = this.path;
-        String extendedHandleType = "Template.Handle";
-        String extendedClassType = "Template.Class";
 
-        addLine("public class " + handleName() + " extends " + extendedHandleType + " {");
+        addClass(this.rootClassDec);
+
+        // Insert package path and imports at the top
+        String resultStr = this.builder.toString();
+        this.builder.setLength(0);
+        addLine("package " + packagePath);
+        addLine();
+        for (String importPath : this.imports.values()) {
+            addLine("import " + importPath);
+        }
+        this.builder.append(resultStr);
+
+        try {
+            File sourceFileDir = new File(this.rootDir, packagePath.replace('.', File.separatorChar));
+            sourceFileDir.mkdirs();
+            File sourceFile = new File(sourceFileDir, handleName(this.rootClassDec) + ".java");
+            BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile));
+            try {
+                writer.write(this.builder.toString());
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+            writer.close();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    private void addClass(ClassDeclaration classDec) {
+        String extendedHandleType = "Template.Handle";
+
+        String classHeadStatic = "";
+        if (classDec != rootClassDec) {
+            classHeadStatic = "static ";
+        }
+
+        addLine("public " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
         {
-            addLine("public static final " + className() + " T = new " + className() + "()");
+            addLine("public static final " + className(classDec) + " T = new " + className(classDec) + "()");
+            addLine("static final StaticInitHelper _init_helper = new StaticInitHelper(" + handleName(classDec) + ".class, \"" + classDec.type.typePath + "\")");
             addLine();
 
             {
+                // Enumeration constants
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (!fDec.isEnum) {
+                        continue;
+                    }
+
+                    String typeStr = getFieldTypeStr(fDec);
+                    String fName = fDec.name.real();
+
+                    addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".getSafe()");
+                }
+
                 // Static constant fields
-                for (FieldDeclaration fDec : this.classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isConstant()) {
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isConstant() || fDec.isEnum) {
                         continue;
                     }
 
@@ -55,9 +104,25 @@ public class TemplateGenerator {
                     addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".get" + primTypeStr + "Safe()");
                 }
 
+                addLine();
+                addLine("/* ============================================================================== */");
+
+                // Create from existing handle; important for use by converters
+                addLine("public static final " + handleName(classDec) + " createHandle(Object handleInstance) {");
+                addLine("if (handleInstance == null) throw new IllegalArgumentException(\"Handle instance can not be null\")");
+                addLine(handleName(classDec) + " handle = new " + handleName(classDec) + "()");
+                addLine("handle.instance = handleInstance");
+                addLine("return handle");
+                addLine("}");
+
+                // TODO: Constructors turned into static create functions, with converted parameters
+
+                addLine();
+                addLine("/* ============================================================================== */");
+
                 // Static fields
-                for (FieldDeclaration fDec : this.classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isConstant()) {
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isConstant() || fDec.isEnum) {
                         continue;
                     }
                     String primTypeStr = getPrimFieldType(fDec);
@@ -76,7 +141,7 @@ public class TemplateGenerator {
                 }
 
                 // Static methods
-                for (MethodDeclaration mDec : this.classDec.methods) {
+                for (MethodDeclaration mDec : classDec.methods) {
                     if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic()) {
                         continue;
                     }
@@ -84,46 +149,74 @@ public class TemplateGenerator {
                 }
 
                 // Local methods
-                for (MethodDeclaration mDec : this.classDec.methods) {
+                for (MethodDeclaration mDec : classDec.methods) {
                     if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic()) {
                         continue;
                     }
                     addMethodBody(mDec);
                 }
 
+                // Custom code section
+                if (classDec.code.length() > 0) {
+                    for (String line : classDec.code.split("\n")) {
+                        if (line.trim().length() > 0) {
+                            for (int i = 0; i < indent; i++) {
+                                this.builder.append("    ");
+                            }
+                            this.builder.append(line);
+                        }
+                        this.builder.append('\n');
+                    }
+                }
+
                 // Local fields
-                for (FieldDeclaration fDec : this.classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic()) {
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic() || fDec.isEnum) {
                         continue;
                     }
                     String primTypeStr = getPrimFieldType(fDec);
                     String typeStr = getFieldTypeStr(fDec);
-                    String fName = getPropertyName(fDec);
 
                     // Getter
-                    addLine("public " + typeStr + " get" + fName + "() {");
+                    addLine("public " + typeStr + " " + getGetterName(fDec) + "() {");
                     addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(instance)");
                     addLine("}");
 
                     // Setter
-                    addLine("public void set" + fName + "(" + typeStr + " value) {");
+                    addLine("public void " + getSetterName(fDec) + "(" + typeStr + " value) {");
                     addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(instance, value)");
                     addLine("}");
                 }
             }
 
-            addLine("public static class " + className() + " extends " + extendedClassType + " {");
+            addLine("public static final class " + className(classDec) + " extends Template.Class {");
             {
-                // Constructor declaring where the class should be initialized
-                addLine("protected " + className() + "() {");
-                addLine("init(" + className() + ".class, \"" + this.classDec.type.typePath + "\")");
-                addLine("}");
-                addLine();
+                // Enumeration constants
+                boolean hasEnumFields = false;
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || !fDec.isEnum) {
+                        continue;
+                    }
+
+                    String fieldTypeStr = "Template.EnumConstant";
+                    if (fDec.type.cast != null) {
+                        fieldTypeStr += ".Converted";
+                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
+                    } else {
+                        fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
+                    }
+
+                    addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
+                    hasEnumFields = true;
+                }
+                if (hasEnumFields) {
+                    addLine();
+                }
 
                 // Static Fields
                 boolean hasStaticFields = false;
-                for (FieldDeclaration fDec : this.classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic()) {
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.isEnum) {
                         continue;
                     }
                     String fieldTypeStr = "Template.StaticField";
@@ -147,8 +240,8 @@ public class TemplateGenerator {
 
                 // Local fields
                 boolean hasLocalFields = false;
-                for (FieldDeclaration fDec : this.classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic()) {
+                for (FieldDeclaration fDec : classDec.fields) {
+                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic() || fDec.isEnum) {
                         continue;
                     }
                     String fieldTypeStr = "Template.Field";
@@ -172,7 +265,7 @@ public class TemplateGenerator {
 
                 // Static methods
                 boolean hasStaticMethods = false;
-                for (MethodDeclaration mDec : this.classDec.methods) {
+                for (MethodDeclaration mDec : classDec.methods) {
                     if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic()) {
                         continue;
                     }
@@ -186,7 +279,7 @@ public class TemplateGenerator {
 
                 // Local methods
                 boolean hasLocalMethods = false;
-                for (MethodDeclaration mDec : this.classDec.methods) {
+                for (MethodDeclaration mDec : classDec.methods) {
                     if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic()) {
                         continue;
                     }
@@ -199,34 +292,35 @@ public class TemplateGenerator {
                 }
             }
             addLine("}");
+
+            // Subclasses
+            for (ClassDeclaration subClassDec : classDec.subclasses) {
+                addClass(subClassDec);
+            }
         }
 
         addLine("}");
 
-        // Insert package path and imports at the top
-        String resultStr = this.builder.toString();
-        this.builder.setLength(0);
-        addLine("package " + packagePath);
-        addLine();
-        for (String importPath : this.imports.values()) {
-            addLine("import " + importPath);
-        }
-        this.builder.append(resultStr);
+    }
+    
+    private String getGetterName(FieldDeclaration fDec) {
+        String fName = getPropertyName(fDec);
 
-        try {
-            File sourceFileDir = new File(this.rootDir, packagePath.replace('.', File.separatorChar));
-            sourceFileDir.mkdirs();
-            File sourceFile = new File(sourceFileDir, handleName() + ".java");
-            BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile));
-            try {
-                writer.write(this.builder.toString());
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-            writer.close();
-        } catch (Throwable t) {
-            t.printStackTrace();
+        // IsProperty is retained without adding 'get' in front of it
+        if (fName.length() > 2 && fName.startsWith("Is") && Character.isUpperCase(fName.charAt(2))) {
+            return fName.substring(0, 1).toLowerCase() + fName.substring(1);
         }
+
+        // If field type is boolean, use 'is' instead of 'get'
+        if (boolean.class.equals(getFieldType(fDec).type)) {
+            return "is" + fName;
+        } else {
+            return "get" +  fName;
+        }
+    }
+
+    private String getSetterName(FieldDeclaration fDec) {
+        return "set" + getPropertyName(fDec);
     }
 
     private void addMethodBody(MethodDeclaration mDec) {
@@ -377,12 +471,20 @@ public class TemplateGenerator {
         return "";
     }
 
-    private String handleName() {
-        return this.classDec.type.typeName + "Handle";
+    private String handleName(ClassDeclaration classDec) {
+        return filterTypeName(classDec.type.typeName) + "Handle";
     }
 
-    private String className() {
-        return this.classDec.type.typeName + "Class";
+    private String className(ClassDeclaration classDec) {
+        return filterTypeName(classDec.type.typeName) + "Class";
+    }
+
+    private static String filterTypeName(String name) {
+        int idx = name.lastIndexOf('.');
+        if (idx != -1) {
+            return name.substring(idx + 1);
+        }
+        return name;
     }
 
     private void addLine() {
@@ -402,7 +504,7 @@ public class TemplateGenerator {
         this.builder.append(line);
         if (line.endsWith("{")) {
             this.indent(1);
-        } else if (!line.endsWith("}")) {
+        } else if (!line.endsWith("}") && !line.startsWith("//") && !line.startsWith("/*")) {
             this.builder.append(';');
         }
         this.builder.append('\n');

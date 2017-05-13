@@ -7,6 +7,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
 /**
  * Resolves class, field and method names into Class, Fields and Methods.
@@ -39,7 +40,7 @@ public class Resolver {
             // Load the class if required
             if (!meta.loaded && initialize) {
                 if (meta.type != null) {
-                    loadClassImpl(meta.type.getName(), true);
+                    initializeClass(meta.type);
                 }
                 meta.loaded = true;
             }
@@ -70,7 +71,9 @@ public class Resolver {
         String alterPath = resolveClassPath(path);
         try {
             if (initialize) {
-                return Class.forName(alterPath);
+                Class<?> type = Class.forName(alterPath);
+                StaticInitHelper.initType(type);
+                return type;
             } else {
                 return Class.forName(alterPath, false, MountiplexUtil.class.getClassLoader());
             }
@@ -91,6 +94,24 @@ public class Resolver {
                 }
             }
             return null;
+        }
+    }
+
+    /**
+     * Fully loads a Class, calling static initializers and initializing field values.
+     * Classes are only ever initialized once.
+     * 
+     * @param classType to initialize
+     */
+    public static void initializeClass(Class<?> classType) {
+        try {
+            Class.forName(classType.getName());
+            StaticInitHelper.initType(classType);
+        } catch (ExceptionInInitializerError e) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + classType.getName() + "':", e.getCause());
+        } catch (ClassNotFoundException e) {
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 

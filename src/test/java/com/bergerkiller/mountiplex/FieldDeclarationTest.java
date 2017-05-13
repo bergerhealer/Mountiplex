@@ -35,4 +35,12 @@ public class FieldDeclarationTest {
         assertEquals("private java.util.List<java.lang.String> field;", dec.toString(true));
         assertEquals("java.util.Set<java.lang.String>", dec.type.cast.toString(true));
     }
+
+    @Test
+    public void testEnumField() {
+        FieldDeclaration dec = new FieldDeclaration(ClassResolver.DEFAULT, "enum String TEST");
+        assertTrue(dec.isEnum);
+        assertEquals("enum java.lang.String TEST", dec.toString(true));
+    }
+
 }

@@ -106,6 +106,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
 
         // If the converter already is a duplex converter, do not create a new one
         if (converter instanceof DuplexConverter) {
+            @SuppressWarnings("unchecked")
             DuplexConverter<A, B> dupl = (DuplexConverter<A, B>) converter;
             if (dupl.reverse() == reverse) {
                 return dupl;

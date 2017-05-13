@@ -142,7 +142,7 @@ public class ClassResolver {
 
         // 'assume' the class can be found at the package path
         // only do this when no package path portion is declared
-        if (packagePath.isEmpty() || name.contains(".")) {
+        if (packagePath.isEmpty() || (Character.isLowerCase(name.charAt(0)) && name.contains("."))) {
             return name;
         } else {
             return packagePath + "." + name;

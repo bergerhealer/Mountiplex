@@ -13,9 +13,11 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 public class ClassDeclaration extends Declaration {
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration type;
+    public final ClassDeclaration[] subclasses;
     public final ConstructorDeclaration[] constructors;
     public final MethodDeclaration[] methods;
     public final FieldDeclaration[] fields;
+    public final String code; /* custom code section, used during generation only */
     public final boolean is_interface;
 
     public ClassDeclaration(ClassResolver resolver, Class<?> type) {
@@ -23,11 +25,18 @@ public class ClassDeclaration extends Declaration {
         this.is_interface = type.isInterface();
         this.type = TypeDeclaration.fromClass(type);
         this.modifiers = new ModifierDeclaration(getResolver(), type.getModifiers());
+        this.code = "";
 
         LinkedList<ConstructorDeclaration> constructors = new LinkedList<ConstructorDeclaration>();
         LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
         LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
+        LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
 
+        if (type.isEnum()) {
+            for (Object enumConstant : type.getEnumConstants()) {
+                fields.add(new FieldDeclaration(getResolver(), (Enum<?>) enumConstant));
+            }
+        }
         for (java.lang.reflect.Constructor<?> constructor : type.getDeclaredConstructors()) {
             constructors.add(new ConstructorDeclaration(getResolver(), constructor));
         }
@@ -37,10 +46,14 @@ public class ClassDeclaration extends Declaration {
         for (java.lang.reflect.Method method : type.getDeclaredMethods()) {
             methods.add(new MethodDeclaration(getResolver(), method));
         }
+        for (java.lang.Class<?> decClass : type.getDeclaredClasses()) {
+            classes.add(new ClassDeclaration(getResolver(), decClass));
+        }
 
         this.constructors = constructors.toArray(new ConstructorDeclaration[constructors.size()]);
         this.methods = methods.toArray(new MethodDeclaration[methods.size()]);
         this.fields = fields.toArray(new FieldDeclaration[fields.size()]);
+        this.subclasses = classes.toArray(new ClassDeclaration[classes.size()]);
     }
 
     public ClassDeclaration(ClassResolver resolver, String declaration) {
@@ -49,7 +62,9 @@ public class ClassDeclaration extends Declaration {
         // Modifiers, stop when invalid
         this.modifiers = nextModifier();
         if (!this.isValid()) {
+            this.code = "";
             this.type = nextType();
+            this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
             this.fields = new FieldDeclaration[0];
@@ -62,6 +77,8 @@ public class ClassDeclaration extends Declaration {
         this.is_interface = postfix.startsWith("interface ");
         if (!this.is_interface && !postfix.startsWith("class ")) {
             this.type = nextType();
+            this.code = "";
+            this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
             this.fields = new FieldDeclaration[0];
@@ -71,6 +88,8 @@ public class ClassDeclaration extends Declaration {
         setPostfix(postfix.substring(this.is_interface ? 10 : 6));
         this.type = nextType();
         if (!this.isValid()) {
+            this.code = "";
+            this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
             this.fields = new FieldDeclaration[0];
@@ -91,14 +110,18 @@ public class ClassDeclaration extends Declaration {
             }
         }
         if (startIdx == -1) {
+            this.code = "";
+            this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
             this.fields = new FieldDeclaration[0];
             this.setInvalid();
             return;
         }
-        this.setPostfix(postfix.substring(startIdx));
+        this.trimWhitespace(startIdx);
 
+        StringBuilder codeStr = new StringBuilder();
+        LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
         LinkedList<ConstructorDeclaration> constructors = new LinkedList<ConstructorDeclaration>();
         LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
         LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
@@ -108,6 +131,45 @@ public class ClassDeclaration extends Declaration {
                 break;
             }
 
+            if (postfix.startsWith("<code>")) {
+                int endIdx = postfix.indexOf("</code>", 6);
+                if (endIdx != -1) {
+                    String[] lines = postfix.substring(6, endIdx).split("\\r?\\n", -1);
+
+                    // Find the indent of the text section
+                    int minIndent = 20;
+                    for (String line : lines) {
+                        for (int i = 0; i < line.length(); i++) {
+                            if (line.charAt(i) != ' ') {
+                                if (i < minIndent) {
+                                    minIndent = i;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    // Trim indentation off the section and add the lines
+                    for (String line : lines) {
+                        if (line.length() >= minIndent) {
+                            line = line.substring(minIndent);
+                        }
+                        codeStr.append(line).append('\n');
+                    }
+
+                    setPostfix(postfix.substring(endIdx + 7));
+                    trimLine();
+                    continue;
+                }
+            }
+
+            ClassDeclaration cldec = new ClassDeclaration(getResolver(), postfix);
+            if (cldec.isValid()) {
+                classes.add(cldec);
+                setPostfix(cldec.getPostfix());
+                trimLine();
+                continue;
+            }
             MethodDeclaration mdec = new MethodDeclaration(getResolver(), postfix);
             if (mdec.isValid()) {
                 methods.add(mdec);
@@ -131,6 +193,8 @@ public class ClassDeclaration extends Declaration {
             }
             break;
         }
+        this.code = codeStr.toString();
+        this.subclasses = classes.toArray(new ClassDeclaration[classes.size()]);
         this.constructors = constructors.toArray(new ConstructorDeclaration[constructors.size()]);
         this.methods = methods.toArray(new MethodDeclaration[methods.size()]);
         this.fields = fields.toArray(new FieldDeclaration[fields.size()]);
@@ -159,7 +223,7 @@ public class ClassDeclaration extends Declaration {
         while (succIter.hasNext()) {
             FieldLCSResolver.Pair pair = succIter.next();
             if (pair.a != null && pair.b != null) {
-                pair.a.field = pair.b.field;
+                pair.a.setField(pair.b);
                 succIter.remove();
             }
         }

@@ -30,7 +30,9 @@ import com.bergerkiller.mountiplex.conversion.type.NullConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 
@@ -262,6 +264,12 @@ public class Conversion {
         }
     }
 
+    private static void initType(TypeDeclaration type) {
+        if (type.type != null && Template.Handle.class.isAssignableFrom(type.type)) {
+            Resolver.initializeClass(type.type);
+        }
+    }
+
     // verifies the converter input and output are properly defined
     private static void verifyConverter(Converter<?, ?> converter) throws IllegalArgumentException {
         if (converter == null) {
@@ -315,6 +323,9 @@ public class Conversion {
             }
 
             Node node = mapping.get(input);
+            if (node == null) {
+                initType(input);
+            }
 
             // generate more layers deeper into the tree until we find our type
             while (node == null && !nextNodes.isEmpty()) {
@@ -467,6 +478,7 @@ public class Conversion {
             if (tree == null) {
                 tree = new OutputConverterTree(output);
                 trees.put(output, tree);
+                initType(output);
             }
             return tree;
         }
