@@ -109,7 +109,7 @@ public class TemplateGenerator {
 
                 // Create from existing handle; important for use by converters
                 addLine("public static final " + handleName(classDec) + " createHandle(Object handleInstance) {");
-                addLine("if (handleInstance == null) throw new IllegalArgumentException(\"Handle instance can not be null\")");
+                addLine("if (handleInstance == null) return null");
                 addLine(handleName(classDec) + " handle = new " + handleName(classDec) + "()");
                 addLine("handle.instance = handleInstance");
                 addLine("return handle");

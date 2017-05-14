@@ -68,6 +68,45 @@ public class Template {
         public java.lang.Class<?> getType() {
             return this.classType;
         }
+
+        /**
+         * Checks whether an instance is of the exact type as this
+         * 
+         * @param instance to check
+         * @return True if the instance type is this type, False if not or the instance is null
+         */
+        public boolean isType(Object instance) {
+            return instance != null && this.classType.equals(instance.getClass());
+        }
+
+        /**
+         * Checks whether a type equals this type
+         * 
+         * @param type to check
+         * @return True if equals, False if not or null
+         */
+        public boolean isType(java.lang.Class<?> type) {
+            return this.classType.equals(type);
+        }
+
+        /**
+         * Checks whether an Object value can be assigned to this type
+         * @param instance to check
+         * @return True if assignable, False if not or instance is <i>null</i>
+         */
+        public boolean isAssignableFrom(Object instance) {
+            return instance != null && this.classType.isAssignableFrom(instance.getClass());
+        }
+
+        /**
+         * Checks whether a Class type can be assigned to this type
+         * 
+         * @param type to check
+         * @return True if assignable, False if not or type is <i>null</i>
+         */
+        public boolean isAssignableFrom(java.lang.Class<?> type) {
+            return type != null && this.classType.isAssignableFrom(type);
+        }
     }
 
     /**
