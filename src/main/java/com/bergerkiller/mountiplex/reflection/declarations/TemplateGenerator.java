@@ -115,7 +115,13 @@ public class TemplateGenerator {
                 addLine("return handle");
                 addLine("}");
 
-                // TODO: Constructors turned into static create functions, with converted parameters
+                // Constructors turned into static create functions, with converted parameters
+                for (ConstructorDeclaration cDec : classDec.constructors) {
+                    String cHeader = "public static final " + getExposedTypeStr(cDec.type) + " createNew";
+                    addLine(cHeader + getParamsBody(cDec.parameters));
+                    addLine("return T." + cDec.getName() + ".newInstance(" + getArgsBody(cDec.parameters) + ")");
+                    addLine("}");
+                }
 
                 addLine();
                 addLine("/* ============================================================================== */");
@@ -213,6 +219,24 @@ public class TemplateGenerator {
                     addLine();
                 }
 
+                // Constructors
+                boolean hasConstructors = false;
+                for (ConstructorDeclaration cDec : classDec.constructors) {
+                    String constrTypeStr = "Template.Constructor";
+                    if (cDec.type.cast != null) {
+                        constrTypeStr += ".Converted";
+                        constrTypeStr += "<" + getTypeStr(cDec.type.cast) + ">";
+                    } else {
+                        constrTypeStr += "<" + getTypeStr(cDec.type) + ">";
+                    }
+
+                    addLine("public final " + constrTypeStr + " " + cDec.getName() + " = new " + constrTypeStr + "()");
+                    hasConstructors = true;
+                }
+                if (hasConstructors) {
+                    addLine();
+                }
+
                 // Static Fields
                 boolean hasStaticFields = false;
                 for (FieldDeclaration fDec : classDec.fields) {
@@ -302,7 +326,7 @@ public class TemplateGenerator {
         addLine("}");
 
     }
-    
+
     private String getGetterName(FieldDeclaration fDec) {
         String fName = getPropertyName(fDec);
 
@@ -312,7 +336,7 @@ public class TemplateGenerator {
         }
 
         // If field type is boolean, use 'is' instead of 'get'
-        if (boolean.class.equals(getFieldType(fDec).type)) {
+        if (boolean.class.equals(getExposedType(fDec.type).type)) {
             return "is" + fName;
         } else {
             return "get" +  fName;
@@ -323,21 +347,37 @@ public class TemplateGenerator {
         return "set" + getPropertyName(fDec);
     }
 
+    private String getParamsBody(ParameterListDeclaration parameters) {
+        String paramsStr = "(";
+        for (int i = 0; i < parameters.parameters.length; i++) {
+            if (i > 0) {
+                paramsStr += ", ";
+            }
+            paramsStr += getExposedTypeStr(parameters.parameters[i].type);
+            paramsStr += " " + parameters.parameters[i].name.real();
+        }
+        return paramsStr + ") {";
+    }
+
+    private String getArgsBody(ParameterListDeclaration parameters) {
+        String argsStr = "";
+        for (int i = 0; i < parameters.parameters.length; i++) {
+            if (i > 0) {
+                argsStr += ", ";
+            }
+            argsStr += parameters.parameters[i].name.real();
+        }
+        return argsStr;
+    }
+    
     private void addMethodBody(MethodDeclaration mDec) {
         String methodStr = "public ";
         if (mDec.modifiers.isStatic()) {
             methodStr += "static ";
         }
-        methodStr += getTypeStrCast(mDec.returnType);
-        methodStr += " " + mDec.name.real() + "(";
-        for (int i = 0; i < mDec.parameters.parameters.length; i++) {
-            if (i > 0) {
-                methodStr += ", ";
-            }
-            methodStr += getTypeStrCast(mDec.parameters.parameters[i].type);
-            methodStr += " " + mDec.parameters.parameters[i].name.real();
-        }
-        addLine(methodStr + ") {");
+        methodStr += getExposedTypeStr(mDec.returnType);
+        methodStr += " " + mDec.name.real();
+        addLine(methodStr + getParamsBody(mDec.parameters));
 
         String bodyStr = "";
         if (!void.class.equals(mDec.returnType.type)) {
@@ -350,12 +390,7 @@ public class TemplateGenerator {
                 bodyStr += ", ";
             }
         }
-        for (int i = 0; i < mDec.parameters.parameters.length; i++) {
-            if (i > 0) {
-                bodyStr += ", ";
-            }
-            bodyStr += mDec.parameters.parameters[i].name.real();
-        }
+        bodyStr += getArgsBody(mDec.parameters);
         bodyStr += ")";
         addLine(bodyStr);
         addLine("}");
@@ -385,22 +420,22 @@ public class TemplateGenerator {
         return app;
     }
 
-    private TypeDeclaration getFieldType(FieldDeclaration fDec) {
-        if (fDec.type.cast != null) {
-            return fDec.type.cast;
+    private TypeDeclaration getExposedType(TypeDeclaration type) {
+        if (type.cast != null) {
+            return type.cast;
         } else {
-            return fDec.type;
+            return type;
         }
     }
 
-    private String getFieldTypeStr(FieldDeclaration fDec) {
-        return getTypeStr(getFieldType(fDec));
+    private String getExposedTypeStr(TypeDeclaration type) {
+        return getTypeStr(getExposedType(type));
     }
 
-    private String getTypeStrCast(TypeDeclaration type) {
-        return (type.cast != null) ? getTypeStr(type.cast) : getTypeStr(type);
+    private String getFieldTypeStr(FieldDeclaration fDec) {
+        return getExposedTypeStr(fDec.type);
     }
-    
+
     // gets the type string while automatically adding/resolving imports
     private String getTypeStr(TypeDeclaration type) {
         if (type.isBuiltin()) {
@@ -448,7 +483,7 @@ public class TemplateGenerator {
     }
 
     private String getPrimFieldType(FieldDeclaration fDec) {
-        Class<?> fType = getFieldType(fDec).type;
+        Class<?> fType = getExposedType(fDec.type).type;
         if (fType != null) {
             if (fType.equals(byte.class)) {
                 return "Byte";

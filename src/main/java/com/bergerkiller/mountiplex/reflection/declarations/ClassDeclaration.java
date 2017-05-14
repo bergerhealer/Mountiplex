@@ -203,6 +203,7 @@ public class ClassDeclaration extends Declaration {
         if (this.type.isResolved()) {
             resolveFields();
             resolveMethods();
+            resolveConstructors();
         }
     }
 
@@ -244,7 +245,7 @@ public class ClassDeclaration extends Declaration {
             try {
                 realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods[i]);
             } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefMethods[i], t);
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods[i], t);
             }
         }
 
@@ -261,6 +262,34 @@ public class ClassDeclaration extends Declaration {
             }
             if (!found) {
                 MountiplexUtil.LOGGER.warning("Failed to find method " + method);
+            }
+        }
+    }
+
+    private void resolveConstructors() {
+        java.lang.reflect.Constructor<?>[] realRefConstructors = this.type.type.getDeclaredConstructors();
+        ConstructorDeclaration[] realConstructors = new ConstructorDeclaration[realRefConstructors.length];
+        for (int i = 0; i < realConstructors.length; i++) {
+            try {
+                realConstructors[i] = new ConstructorDeclaration(getResolver(), realRefConstructors[i]);
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read constructor " + realRefConstructors[i], t);
+            }
+        }
+
+        // Connect the methods together
+        for (int i = 0; i < this.constructors.length; i++) {
+            ConstructorDeclaration constructor = this.constructors[i];
+            boolean found = false;
+            for (int j = 0; j < realConstructors.length; j++) {
+                if (realConstructors[j].match(constructor)) {
+                    constructor.constructor = realConstructors[j].constructor;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                MountiplexUtil.LOGGER.warning("Failed to find constructor " + constructor);
             }
         }
     }

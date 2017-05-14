@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.types;
 
+@SuppressWarnings("unused")
 public class TestObject {
     private static String a = "static_test";
     private String b = "local_test";

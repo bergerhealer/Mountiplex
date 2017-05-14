@@ -299,13 +299,13 @@ public class Template {
         }
     }
 
-    public static class AbstractMethodConverter<M extends AbstractMethod, T> extends TemplateElement<MethodDeclaration> {
-        public final M raw;
+    public static abstract class AbstractParamsConverter<R, T, D extends Declaration> extends TemplateElement<D> {
+        public final R raw;
         protected Converter<?, T> resultConverter = null;
         protected Converter<?, ?>[] argConverters = null;
         protected boolean isConvertersInitialized = false;
 
-        protected AbstractMethodConverter(M raw) {
+        protected AbstractParamsConverter(R raw) {
             this.raw = raw;
         }
 
@@ -315,49 +315,90 @@ public class Template {
             }
         }
 
-        @Override
         @SuppressWarnings("unchecked")
+        protected final void initConverters(String name, TypeDeclaration returnType, ParameterListDeclaration parameters) {
+            this.isConvertersInitialized = true;
+            this.resultConverter = null;
+            this.argConverters = null;
+
+            // Initialize the converter for the return value
+            if (returnType.cast != null) {
+                this.resultConverter = (Converter<?, T>) Conversion.find(returnType, returnType.cast);
+                if (this.resultConverter == null) {
+                    this.isConvertersInitialized = false;
+                    MountiplexUtil.LOGGER.warning("Converter for " + name + 
+                            " return type not found: " + returnType.toString());
+                }
+            }
+
+            // Converters for the arguments of the method
+            ParameterDeclaration[] params = parameters.parameters;
+            this.argConverters = new Converter<?, ?>[params.length];
+            boolean hasArgumentConversion = false;
+            for (int i = 0; i < params.length; i++) {
+                if (params[i].type.cast != null) {
+                    hasArgumentConversion = true;
+                    this.argConverters[i] = Conversion.find(params[i].type.cast, params[i].type);
+                    if (this.argConverters[i] == null) {
+                        this.isConvertersInitialized = false;
+                        MountiplexUtil.LOGGER.warning("Converter for " + name + 
+                                " argument " + params[i].name.toString() + " not found: " + params[i].type.toString());
+                    }
+                }
+            }
+            if (!hasArgumentConversion) {
+                this.argConverters = null;
+            }
+        }
+
+        protected final Object[] convertArgs(Object[] arguments) {
+            if (this.argConverters != null) {
+                // Verify correct number of arguments
+                if (this.argConverters.length != (arguments.length)) {
+                    throw new IllegalArgumentException("Invalid number of arguments (" +
+                            (this.argConverters.length - 1) + " expected, but got " + arguments.length + ")");
+                }
+
+                // Got to convert the parameters
+                Object[] convertedArgs = arguments.clone();
+                for (int i = 0; i < convertedArgs.length; i++) {
+                    if (this.argConverters[i] != null) {
+                        convertedArgs[i] = this.argConverters[i].convert(convertedArgs[i]);
+                    }
+                }
+                return convertedArgs;
+            } else {
+                return arguments;
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        protected final T convertResult(Object result) {
+            if (this.resultConverter != null) {
+                return this.resultConverter.convert(result);
+            } else {
+                return (T) result;
+            }
+        }
+    }
+
+    public static class AbstractMethodConverter<M extends AbstractMethod, T> extends AbstractParamsConverter<M, T, MethodDeclaration> {
+
+        protected AbstractMethodConverter(M raw) {
+            super(raw);
+        }
+
+        @Override
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
             MethodDeclaration mDec = this.raw.init(dec, name);
             if (mDec != null) {
-                this.isConvertersInitialized = true;
-                this.resultConverter = null;
-                this.argConverters = null;
-
-                // Initialize the converter for the return value
-                if (mDec.returnType.cast != null) {
-                    this.resultConverter = (Converter<?, T>) Conversion.find(mDec.returnType, mDec.returnType.cast);
-                    if (this.resultConverter == null) {
-                        this.isConvertersInitialized = false;
-                        MountiplexUtil.LOGGER.warning("Converter for method " + mDec.name.toString() + 
-                                " return type not found: " + mDec.returnType.toString());
-                    }
-                }
-
-                // Converters for the arguments of the method
-                ParameterDeclaration[] params = mDec.parameters.parameters;
-                this.argConverters = new Converter<?, ?>[params.length];
-                boolean hasArgumentConversion = false;
-                for (int i = 0; i < params.length; i++) {
-                    if (params[i].type.cast != null) {
-                        hasArgumentConversion = true;
-                        this.argConverters[i] = Conversion.find(params[i].type.cast, params[i].type);
-                        if (this.argConverters[i] == null) {
-                            this.isConvertersInitialized = false;
-                            MountiplexUtil.LOGGER.warning("Converter for method " + mDec.name.toString() + 
-                                    " argument " + params[i].name.toString() + " not found: " + params[i].type.toString());
-                        }
-                    }
-                }
-                if (!hasArgumentConversion) {
-                    this.argConverters = null;
-                }
+                initConverters("method " + mDec.name.toString(), mDec.returnType, mDec.parameters);
             }
             return mDec;
         }
     }
 
-    public static final class Constructor {
+    public static final class Constructor<T> extends TemplateElement<ConstructorDeclaration> {
         protected java.lang.reflect.Constructor<?> constructor = null;
 
         /**
@@ -366,11 +407,72 @@ public class Template {
          * @param args for the constructor
          * @return the constructed class instance
          */
-        public Object newInstance(Object... args) {
+        @SuppressWarnings("unchecked")
+        public T newInstance(Object... args) {
             try {
-                return constructor.newInstance(args);
+                return (T) constructor.newInstance(args);
             } catch (Throwable t) {
                 throw new RuntimeException("WELP");
+            }
+        }
+
+        // throws an exception when the method is not found
+        protected final void failNotFound() {
+            if (this.constructor == null) {
+                throw new RuntimeException("Constructor not found");
+            }
+        }
+
+        @Override
+        protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
+            for (ConstructorDeclaration cDec : dec.constructors) {
+                if (cDec.constructor != null && cDec.getName().equals(name)) {
+                    try {
+                        cDec.constructor.setAccessible(true);
+                        this.constructor = cDec.constructor;
+                        return cDec;
+                    } catch (Throwable t) {
+                        MountiplexUtil.LOGGER.warning("Method '" + name + "' in template for " + dec.type.typePath + " not accessible");
+                        return null;
+                    }
+                }
+            }
+            MountiplexUtil.LOGGER.warning("Constructor '" + name + "' not found in template for " + dec.type.typePath);
+            return null;
+        }
+
+        public static final class Converted<T> extends AbstractParamsConverter<Constructor<Object>, T, ConstructorDeclaration> {
+
+            public Converted() {
+                super(new Constructor<Object>());
+            }
+
+            /**
+             * Constructs a new Instance of the class using this constructor.
+             * The input arguments and returned object are converted.
+             * 
+             * @param arguments for the constructor
+             * @return the constructed class instance
+             */
+            public T newInstance(Object... arguments) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                    return null; // never reached
+                }
+
+                Object convArgs = convertArgs(arguments);
+                Object rawInstance = raw.newInstance(convArgs);
+                return convertResult(rawInstance);
+            }
+
+            @Override
+            protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
+                ConstructorDeclaration cDec = this.raw.init(dec, name);
+                if (cDec != null) {
+                    initConverters("constructor " + cDec.parameters.toString(), cDec.type, cDec.parameters);
+                }
+                return cDec;
             }
         }
     }
@@ -407,7 +509,6 @@ public class Template {
              * @param arguments to pass along with the method
              * @return return value, null for void methods
              */
-            @SuppressWarnings("unchecked")
             public final T invoke(Object... arguments) {
                 if (!this.isConvertersInitialized) {
                     this.raw.failNotFound();
@@ -415,32 +516,9 @@ public class Template {
                     return null; // never reached
                 }
 
-                Object rawResult;
-                if (this.argConverters != null) {
-                    // Verify correct number of arguments
-                    if (this.argConverters.length != (arguments.length)) {
-                        throw new IllegalArgumentException("Invalid number of arguments (" +
-                                (this.argConverters.length - 1) + " expected, but got " + arguments.length + ")");
-                    }
-
-                    // Got to convert the parameters
-                    Object[] convertedArgs = arguments.clone();
-                    for (int i = 0; i < convertedArgs.length; i++) {
-                        if (this.argConverters[i] != null) {
-                            convertedArgs[i] = this.argConverters[i].convert(convertedArgs[i]);
-                        }
-                    }
-                    rawResult = this.raw.invoke(convertedArgs);
-                } else {
-                    // Only result is converted
-                    rawResult = this.raw.invoke(arguments);
-                }
-
-                if (this.resultConverter != null) {
-                    return this.resultConverter.convert(rawResult);
-                } else {
-                    return (T) rawResult;
-                }
+                Object[] convertedArgs = convertArgs(arguments);
+                Object rawResult = this.raw.invoke(convertedArgs);
+                return convertResult(rawResult);
             }
         }
     }
@@ -482,7 +560,6 @@ public class Template {
              * @param arguments to pass along with the method
              * @return return value, null for void methods
              */
-            @SuppressWarnings("unchecked")
             public final T invoke(Object instance, Object... arguments) {
                 if (!this.isConvertersInitialized) {
                     this.raw.failNotFound();
@@ -490,32 +567,9 @@ public class Template {
                     return null; // never reached
                 }
 
-                Object rawResult;
-                if (this.argConverters != null) {
-                    // Verify correct number of arguments
-                    if (this.argConverters.length != (arguments.length)) {
-                        throw new IllegalArgumentException("Invalid number of arguments (" +
-                                (this.argConverters.length - 1) + " expected, but got " + arguments.length + ")");
-                    }
-
-                    // Got to convert the parameters
-                    Object[] convertedArgs = arguments.clone();
-                    for (int i = 0; i < convertedArgs.length; i++) {
-                        if (this.argConverters[i] != null) {
-                            convertedArgs[i] = this.argConverters[i].convert(convertedArgs[i]);
-                        }
-                    }
-                    rawResult = this.raw.invoke(instance, convertedArgs);
-                } else {
-                    // Only result is converted
-                    rawResult = this.raw.invoke(instance, arguments);
-                }
-
-                if (this.resultConverter != null) {
-                    return this.resultConverter.convert(rawResult);
-                } else {
-                    return (T) rawResult;
-                }
+                Object[] convertedArgs = convertArgs(arguments);
+                Object rawResult = this.raw.invoke(instance, convertedArgs);
+                return convertResult(rawResult);
             }
         }
     }

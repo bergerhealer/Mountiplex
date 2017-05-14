@@ -3,10 +3,10 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Constructor;
 
 public class ConstructorDeclaration extends Declaration {
-    public final Constructor<?> constructor;
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration type;
     public final ParameterListDeclaration parameters;
+    public Constructor<?> constructor;
 
     public ConstructorDeclaration(ClassResolver resolver, Constructor<?> constructor) {
         super(resolver);
@@ -22,6 +22,19 @@ public class ConstructorDeclaration extends Declaration {
         this.modifiers = nextModifier();
         this.type = nextType();
         this.parameters = nextParameterList();
+    }
+
+    /**
+     * Gets a unique identifier name for this constructor
+     * 
+     * @return constructor name
+     */
+    public final String getName() {
+        String name = "constr";
+        for (ParameterDeclaration param : parameters.parameters) {
+            name += "_" + param.name.real();
+        }
+        return name;
     }
 
     @Override
