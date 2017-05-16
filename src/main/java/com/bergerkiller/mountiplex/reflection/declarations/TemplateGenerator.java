@@ -15,9 +15,18 @@ public class TemplateGenerator {
     private StringBuilder builder = new StringBuilder();
     private HashMap<String, String> imports = new HashMap<String, String>();
     private int indent = 0;
+    private TemplateGenerator base = null;
 
     public void setClass(ClassDeclaration classDec) {
         this.rootClassDec = classDec;
+    }
+
+    public ClassDeclaration getClassType() {
+        return this.rootClassDec;
+    }
+
+    public void setBase(TemplateGenerator base) {
+        this.base = base;
     }
 
     public void setRootDirectory(File rootDir) {
@@ -66,6 +75,9 @@ public class TemplateGenerator {
 
     private void addClass(ClassDeclaration classDec) {
         String extendedHandleType = "Template.Handle";
+        if (base != null && classDec == rootClassDec) {
+            extendedHandleType = resolveImport(base.path + "." + base.handleName(base.rootClassDec));
+        }
 
         String classHeadStatic = "";
         if (classDec != rootClassDec) {
@@ -108,7 +120,7 @@ public class TemplateGenerator {
                 addLine("/* ============================================================================== */");
 
                 // Create from existing handle; important for use by converters
-                addLine("public static final " + handleName(classDec) + " createHandle(Object handleInstance) {");
+                addLine("public static " + handleName(classDec) + " createHandle(Object handleInstance) {");
                 addLine("if (handleInstance == null) return null");
                 addLine(handleName(classDec) + " handle = new " + handleName(classDec) + "()");
                 addLine("handle.instance = handleInstance");
@@ -436,24 +448,30 @@ public class TemplateGenerator {
         return getExposedTypeStr(fDec.type);
     }
 
+    // adds/resolves the imports for a class type, returning the keyword to use in the source file
+    private String resolveImport(String typePath) {
+        String typeName = typePath.substring(typePath.lastIndexOf('.') + 1);
+        String oldImport = this.imports.get(typeName);
+        String fullType;
+        if (oldImport != null) {
+            if (oldImport.equals(typePath)) {
+                fullType = typeName;
+            } else {
+                fullType = typePath;
+            }
+        } else {
+            this.imports.put(typeName, typePath);
+            fullType = typeName;
+        }
+        return fullType;
+    }
+
     // gets the type string while automatically adding/resolving imports
     private String getTypeStr(TypeDeclaration type) {
         if (type.isBuiltin()) {
             return type.typeName;
         }
-        String typeName = type.typePath.substring(type.typePath.lastIndexOf('.') + 1);
-        String oldImport = this.imports.get(typeName);
-        String fullType;
-        if (oldImport != null) {
-            if (oldImport.equals(type.typePath)) {
-                fullType = typeName;
-            } else {
-                fullType = type.typePath;
-            }
-        } else {
-            this.imports.put(typeName, type.typePath);
-            fullType = typeName;
-        }
+        String fullType = resolveImport(type.typePath);
         if (type.isWildcard) {
             fullType = "? extends " + fullType;
         }

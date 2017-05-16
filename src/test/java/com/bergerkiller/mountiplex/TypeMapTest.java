@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 import com.bergerkiller.mountiplex.types.IntegerMapOfString;
@@ -182,6 +184,13 @@ public class TypeMapTest {
         TypeDeclaration t5 = t4.castAsType(TestInterface.class);
         assertNotNull(t5);
         assertEquals(t5, t2);
+    }
+
+    @Test
+    public void baseTypeTest() {
+        ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, "class Test extends ArrayList<String> {}");
+        assertEquals(cDec.type.typePath, "Test");
+        assertEquals(cDec.base.toString(), "ArrayList<String>");
     }
 
     private static void assertTypesEqual(Class<?> typeClass, String selfName, String... superTypeNames) {

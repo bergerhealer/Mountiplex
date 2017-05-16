@@ -199,6 +199,12 @@ public class TypeDeclaration extends Declaration {
             // The first non-space starts the postfix part of this type declaration
             if (rawType != null && c != ' ') {
                 if (declaration.substring(cidx).startsWith("extends ")) {
+                    // Var names are only allowed for names > 1 character long
+                    // Otherwise, stop parsing to allow Class Declarations to handle extends instead
+                    if (rawType.length() > 1) {
+                        postfix = declaration.substring(cidx);
+                        break;
+                    }
                     typeVarName = rawType;
                     foundExtends = true;
                     rawType = null;

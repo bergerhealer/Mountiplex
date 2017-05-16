@@ -12,6 +12,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
  */
 public class ClassDeclaration extends Declaration {
     public final ModifierDeclaration modifiers;
+    public final TypeDeclaration base;
     public final TypeDeclaration type;
     public final ClassDeclaration[] subclasses;
     public final ConstructorDeclaration[] constructors;
@@ -22,7 +23,9 @@ public class ClassDeclaration extends Declaration {
 
     public ClassDeclaration(ClassResolver resolver, Class<?> type) {
         super(resolver.clone());
+        Class<?> superType = type.getSuperclass();
         this.is_interface = type.isInterface();
+        this.base = (superType == null) ? null : TypeDeclaration.fromClass(superType);
         this.type = TypeDeclaration.fromClass(type);
         this.modifiers = new ModifierDeclaration(getResolver(), type.getModifiers());
         this.code = "";
@@ -63,6 +66,7 @@ public class ClassDeclaration extends Declaration {
         this.modifiers = nextModifier();
         if (!this.isValid()) {
             this.code = "";
+            this.base = null;
             this.type = nextType();
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
@@ -76,6 +80,7 @@ public class ClassDeclaration extends Declaration {
         String postfix = this.getPostfix();
         this.is_interface = postfix.startsWith("interface ");
         if (!this.is_interface && !postfix.startsWith("class ")) {
+            this.base = null;
             this.type = nextType();
             this.code = "";
             this.subclasses = new ClassDeclaration[0];
@@ -88,12 +93,22 @@ public class ClassDeclaration extends Declaration {
         setPostfix(postfix.substring(this.is_interface ? 10 : 6));
         this.type = nextType();
         if (!this.isValid()) {
+            this.base = null;
             this.code = "";
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
             this.fields = new FieldDeclaration[0];
             return;
+        }
+
+        // If starts with 'extends', parse base type
+        postfix = getPostfix();
+        if (postfix.startsWith("extends ")) {
+            this.setPostfix(postfix.substring(8));
+            this.base = this.nextType();
+        } else {
+            this.base = null;
         }
 
         // Find start of class definitions {
@@ -312,6 +327,9 @@ public class ClassDeclaration extends Declaration {
         }
         str += this.is_interface ? "interface " : "class ";
         str += this.type.toString(identity);
+        if (this.base != null) {
+            str += " extends " + this.base.toString(identity);
+        }
         str += " {\n";
         for (FieldDeclaration fdec : this.fields) str += "    " + fdec.toString(identity) + "\n";
         for (ConstructorDeclaration cdec : this.constructors) str += "    " + cdec.toString(identity) + "\n";

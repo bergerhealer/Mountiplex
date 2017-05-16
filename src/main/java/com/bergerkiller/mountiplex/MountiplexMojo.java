@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.maven.plugin.AbstractMojo;
@@ -9,6 +10,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TemplateGenerator;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 /**
  * Goal which generates source files from template files
@@ -76,14 +78,32 @@ public class MountiplexMojo extends AbstractMojo {
                 System.out.println("Source: " + opt.source);
                 System.out.println("Target: " + opt.target);
 
+                // Create template generators for all found classes
                 SourceDeclaration dec = SourceDeclaration.loadFromDisk(source_root, opt.source);
+                HashMap<TypeDeclaration, TemplateGenerator> generators = new HashMap<TypeDeclaration, TemplateGenerator>();
                 for (ClassDeclaration classDec : dec.classes) {
                     String path = classDec.getResolver().getPackage().replace('.', '/');
                     TemplateGenerator gen = new TemplateGenerator();
                     gen.setRootDirectory(this.target_root);
                     gen.setPath(opt.target + "/" + path);
                     gen.setClass(classDec);
-                    gen.generate();
+                    generators.put(classDec.type, gen);
+                }
+
+                // Map base classes to their generators for resolving template extensions
+                for (TemplateGenerator generator : generators.values()) {
+                    TypeDeclaration baseType = generator.getClassType().base;
+                    if (baseType != null) {
+                        TemplateGenerator baseGenerator = generators.get(baseType);
+                        if (baseGenerator != null) {
+                            generator.setBase(baseGenerator);
+                        }
+                    }
+                }
+
+                // Proceed with generation
+                for (TemplateGenerator generator : generators.values()) {
+                    generator.generate();
                 }
             }
         } catch (Throwable t) {
