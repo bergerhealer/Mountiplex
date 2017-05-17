@@ -21,6 +21,7 @@ public class Template {
     public static class Class<H extends Handle> {
         private boolean valid = false;
         private java.lang.Class<?> classType = null;
+        private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
 
         @SuppressWarnings("unchecked")
@@ -51,6 +52,29 @@ public class Template {
             this.classType = classType;
             this.valid = true;
 
+            // Create duplex converter between handle type and instance type
+            this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
+                @Override
+                public H convertInput(Object value) {
+                    try {
+                        H handle;
+                        handle = handleType.newInstance();
+                        handle.instance = value;
+                        return handle;
+                    } catch (Throwable t) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct handle " + handleType.getName(), t);
+                        return null;
+                    }
+                }
+
+                @Override
+                public Object convertOutput(H value) {
+                    return value.instance;
+                }
+            };
+            Conversion.registerConverter(this.handleConverter);
+
+            // Resolve class declaration
             ClassDeclaration dec = Resolver.resolveClassDeclaration(this.classType);
             if (dec == null) {
                 MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
@@ -58,6 +82,7 @@ public class Template {
                 return;
             }
 
+            // Initialize all declared fields
             for (java.lang.reflect.Field templateFieldRef : getClass().getFields()) {
                 String templateFieldName = templateFieldRef.getName();
                 try {
@@ -92,6 +117,16 @@ public class Template {
          */
         public java.lang.Class<?> getType() {
             return this.classType;
+        }
+
+        /**
+         * Gets the duplex converter used to convert between the internal Class type, and
+         * the handle type for that type. This converter is automatically registered.
+         * 
+         * @return handle converter
+         */
+        public DuplexConverter<Object, H> getHandleConverter() {
+            return this.handleConverter;
         }
 
         /**
@@ -211,28 +246,6 @@ public class Template {
                             handleType.getSimpleName() + " not initialized.");
                     return;
                 }
-
-                // First register a duplex converter between this type and the handle. This is required to make
-                // the converter accessible during initialization of the template fields, which may use it.
-                Conversion.registerConverter(new DuplexConverter<Handle, Object>(handleType, classType) {
-                    @Override
-                    public Object convertInput(Handle value) {
-                        return value.instance;
-                    }
-
-                    @Override
-                    public Handle convertOutput(Object value) {
-                        try {
-                            Handle handle;
-                            handle = handleType.newInstance();
-                            handle.instance = value;
-                            return handle;
-                        } catch (Throwable t) {
-                            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct handle " +handleType.getName(), t);
-                            return null;
-                        }
-                    }
-                });
 
                 // Initialize the template class fields
                 ((Class<?>) handleType.getField("T").get(null)).init(classType);
