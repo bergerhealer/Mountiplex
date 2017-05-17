@@ -52,7 +52,17 @@ public class TemplateGenerator {
         this.builder.setLength(0);
         addLine("package " + packagePath);
         addLine();
+
+        String classRoot = this.path + "." + this.handleName(this.rootClassDec);
         for (String importPath : this.imports.values()) {
+            // Verify this import is not in the root class file
+            if (importPath.startsWith(classRoot)) {
+                continue;
+            }
+            // Verify this import is not another import in the same package
+            if (importPath.startsWith(this.path) && importPath.substring(this.path.length() + 1).contains(".")) {
+                continue;
+            }
             addLine("import " + importPath);
         }
         this.builder.append(resultStr);
@@ -381,7 +391,7 @@ public class TemplateGenerator {
         }
         return argsStr;
     }
-    
+
     private void addMethodBody(MethodDeclaration mDec) {
         String methodStr = "public ";
         if (mDec.modifiers.isStatic()) {
@@ -468,12 +478,18 @@ public class TemplateGenerator {
 
     // gets the type string while automatically adding/resolving imports
     private String getTypeStr(TypeDeclaration type) {
+        String fullType;
         if (type.isBuiltin()) {
-            return type.typeName;
+            fullType = type.typeName;
+        } else {
+            fullType = resolveImport(type.typePath);
         }
-        String fullType = resolveImport(type.typePath);
         if (type.isWildcard) {
-            fullType = "? extends " + fullType;
+            if (fullType.length() > 0) {
+                fullType = "? extends " + fullType;
+            } else {
+                fullType = "?";
+            }
         }
         if (type.genericTypes.length > 0) {
             fullType += "<";
