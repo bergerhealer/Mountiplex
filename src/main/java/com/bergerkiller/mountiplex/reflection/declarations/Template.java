@@ -18,9 +18,34 @@ import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
 
 public class Template {
 
-    public static class Class {
+    public static class Class<H extends Handle> {
         private boolean valid = false;
         private java.lang.Class<?> classType = null;
+        private final java.lang.Class<H> handleType;
+
+        @SuppressWarnings("unchecked")
+        public Class() {
+            this.handleType = (java.lang.Class<H>) getClass().getDeclaringClass();
+        }
+
+        /**
+         * Creates a new Handle instance suitable for this Template Class type
+         * 
+         * @param instance to create a handle for
+         * @return handle
+         */
+        public final H createHandle(Object instance) {
+            try {
+                H handle;
+                handle = this.handleType.newInstance();
+                handle.instance = instance;
+                return handle;
+            } catch (InstantiationException e) {
+                throw new RuntimeException("Failed to instantiate", e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Could not construct new handle", e);
+            }
+        }
 
         private final void init(java.lang.Class<?> classType) {
             this.classType = classType;
@@ -121,7 +146,7 @@ public class Template {
          * @param type to check (template type)
          * @return True if it is an instance, False if not
          */
-        public final boolean isInstanceOf(Class type) {
+        public final boolean isInstanceOf(Class<?> type) {
             return isInstanceOf(type.getType());
         }
 
@@ -142,6 +167,38 @@ public class Template {
          */
         public final Object getRaw() {
             return this.instance;
+        }
+
+        /**
+         * Casts this handle to a different handle Class type.
+         * If casting fails, an exception is thrown.
+         * 
+         * @param type template Class type to cast to
+         * @return handle for the casted type
+         */
+        public <T extends Handle> T cast(Class<T> type) {
+            if (this.isInstanceOf(type)) {
+                return type.createHandle(this.instance);
+            } else {
+                throw new ClassCastException("Failed to cast handle of type " +
+                        this.instance.getClass().getName() + " to " +
+                        type.getType().getName());
+            }
+        }
+
+        /**
+         * Attempts to cast this handle to a different handle Class type.
+         * If casting fails, null is returned instead.
+         * 
+         * @param type template Class type to cast to
+         * @return handle for the casted type, null if casting fails
+         */
+        public <T extends Handle> T tryCast(Class<T> type) {
+            if (this.isInstanceOf(type)) {
+                return type.createHandle(this.instance);
+            } else {
+                return null;
+            }
         }
 
         @InitMethod
@@ -178,7 +235,7 @@ public class Template {
                 });
 
                 // Initialize the template class fields
-                ((Class) handleType.getField("T").get(null)).init(classType);
+                ((Class<?>) handleType.getField("T").get(null)).init(classType);
             } catch (Throwable t) {
                 MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register " + handleType.getName(), t);
             }

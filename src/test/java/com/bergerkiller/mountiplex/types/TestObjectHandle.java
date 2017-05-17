@@ -8,7 +8,7 @@ public class TestObjectHandle extends Template.Handle {
     protected static final StaticInitHelper _init_helper = new StaticInitHelper(TestObjectHandle.class, "com.bergerkiller.mountiplex.types.TestObject");
     public static final String CONSTANT = T.staticField.getSafe();
 
-    public static class TestObjectClass extends Template.Class {
+    public static class TestObjectClass extends Template.Class<TestObjectHandle> {
         public final Template.StaticField<String> staticField = new Template.StaticField<String>();
         public final Template.Field<String> localField = new Template.Field<String>();
         public final Template.Field.Converted<String> intConvField = new Template.Field.Converted<String>();

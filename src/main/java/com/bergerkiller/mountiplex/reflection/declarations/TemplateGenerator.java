@@ -207,7 +207,7 @@ public class TemplateGenerator {
                 }
             }
 
-            addLine("public static final class " + className(classDec) + " extends Template.Class {");
+            addLine("public static final class " + className(classDec) + " extends Template.Class<" + handleName(classDec) + "> {");
             {
                 // Enumeration constants
                 boolean hasEnumFields = false;
