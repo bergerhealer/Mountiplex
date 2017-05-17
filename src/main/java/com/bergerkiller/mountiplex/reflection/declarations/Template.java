@@ -521,7 +521,7 @@ public class Template {
             try {
                 return (T) constructor.newInstance(args);
             } catch (Throwable t) {
-                throw new RuntimeException("WELP");
+                throw new RuntimeException(t);
             }
         }
 
@@ -570,7 +570,7 @@ public class Template {
                     return null; // never reached
                 }
 
-                Object convArgs = convertArgs(arguments);
+                Object[] convArgs = convertArgs(arguments);
                 Object rawInstance = raw.newInstance(convArgs);
                 return convertResult(rawInstance);
             }
