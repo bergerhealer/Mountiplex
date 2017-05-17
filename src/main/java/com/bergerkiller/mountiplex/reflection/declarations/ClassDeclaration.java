@@ -277,6 +277,12 @@ public class ClassDeclaration extends Declaration {
             }
             if (!found) {
                 MountiplexUtil.LOGGER.warning("Failed to find method " + method);
+                MountiplexUtil.LOGGER.warning("Alternatives:");
+                for (MethodDeclaration m : realMethods) {
+                    if (m.parameters.parameters.length == method.parameters.parameters.length) {
+                        MountiplexUtil.LOGGER.warning(" - " + m.toString());
+                    }
+                }
             }
         }
     }
