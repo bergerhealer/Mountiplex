@@ -269,7 +269,7 @@ public class ConversionTest {
     }
 
     private static void assertCollectionSame(Collection<?> collection, Object... values) {
-        assertEquals(collection.size(), values.length);
+        assertEquals(values.length, collection.size());
         for (Object value : values) {
             if (!collection.contains(value)) {
                 System.out.println("COLLECTION TYPE: " + collection.getClass().getName());

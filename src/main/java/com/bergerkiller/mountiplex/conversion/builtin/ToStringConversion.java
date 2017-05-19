@@ -28,6 +28,45 @@ public class ToStringConversion {
             }
         });
 
+        // Number Type -> String
+        // We have to be specific otherwise Integer value 10 can result in 10.0 or vice versa
+        Conversion.registerConverter(new Converter<Double, String>(Double.class, String.class) {
+            @Override
+            public String convertInput(Double value) {
+                return Double.toString(value.doubleValue());
+            }
+        });
+        Conversion.registerConverter(new Converter<Float, String>(Float.class, String.class) {
+            @Override
+            public String convertInput(Float value) {
+                return Float.toString(value.floatValue());
+            }
+        });
+        Conversion.registerConverter(new Converter<Byte, String>(Byte.class, String.class) {
+            @Override
+            public String convertInput(Byte value) {
+                return Byte.toString(value.byteValue());
+            }
+        });
+        Conversion.registerConverter(new Converter<Short, String>(Short.class, String.class) {
+            @Override
+            public String convertInput(Short value) {
+                return Short.toString(value.shortValue());
+            }
+        });
+        Conversion.registerConverter(new Converter<Integer, String>(Integer.class, String.class) {
+            @Override
+            public String convertInput(Integer value) {
+                return Integer.toString(value.intValue());
+            }
+        });
+        Conversion.registerConverter(new Converter<Long, String>(Long.class, String.class) {
+            @Override
+            public String convertInput(Long value) {
+                return Long.toString(value.longValue());
+            }
+        });
+
         // char[] -> String
         Conversion.registerConverter(new Converter<char[], String>(char[].class, String.class) {
             @Override

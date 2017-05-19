@@ -7,7 +7,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
-import com.bergerkiller.mountiplex.reflection.util.SecureField;
+import com.bergerkiller.mountiplex.reflection.util.FastField;
 
 /**
  * Wraps around the java.lang.reflect.Field class to provide an error-free
@@ -18,19 +18,19 @@ import com.bergerkiller.mountiplex.reflection.util.SecureField;
  * @param <T> type of the Field
  */
 public class SafeField<T> implements FieldAccessor<T> {
-    private final SecureField field;
+    private final FastField<T> field;
 
-    public SafeField(SecureField field) {
+    public SafeField(FastField<T> field) {
         this.field = field;
     }
 
     public SafeField(Field field) {
-        this.field = new SecureField();
+        this.field = new FastField<T>();
         this.field.init(field);
     }
 
     public SafeField(String fieldPath, Class<?> fieldType) {
-        this.field = new SecureField();
+        this.field = new FastField<T>();
         if (fieldPath == null || fieldPath.isEmpty() || !fieldPath.contains(".")) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Field path contains no class: " + fieldPath);
             return;
@@ -47,12 +47,12 @@ public class SafeField<T> implements FieldAccessor<T> {
     }
 
     public SafeField(Object value, String name, Class<?> fieldType) {
-        this.field = new SecureField();
+        this.field = new FastField<T>();
         load(value == null ? null : value.getClass(), name, fieldType);
     }
 
     public SafeField(Class<?> source, String name, Class<?> fieldType) {
-        this.field = new SecureField();
+        this.field = new FastField<T>();
         load(source, name, fieldType);
     }
 
@@ -66,13 +66,13 @@ public class SafeField<T> implements FieldAccessor<T> {
         String dispName = name.equals(fixedName) ? name : (name + "[" + fixedName + "]");
         try {
             this.field.init(findRaw(source, fixedName));
-            if (this.field.isInit()) {
+            if (this.field.getField() != null) {
                 if (fieldType != null && !this.field.getType().equals(fieldType)) {
                     MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
                                               " in class " + source.getName() +
                                               " is of type " + this.field.getType().getSimpleName() +
                                               " while we expect type " + fieldType.getSimpleName());
-                    this.field.deinit();
+                    this.field.init(null);
                 } else {
                     return;
                 }
@@ -86,7 +86,7 @@ public class SafeField<T> implements FieldAccessor<T> {
 
     @Override
     public boolean isValid() {
-        return this.field.isInit();
+        return this.field.getField() != null;
     }
 
     /**
@@ -95,12 +95,12 @@ public class SafeField<T> implements FieldAccessor<T> {
      * @return True if static, False if not
      */
     public boolean isStatic() {
-        return this.field.isInit() ? Modifier.isStatic(this.field.get().getModifiers()) : false;
+        return this.field.isStatic();
     }
 
     @Override
     public T transfer(Object from, Object to) {
-        if (!this.field.isInit()) {
+        if (this.field.getField() == null) {
             return null;
         }
         T old = get(to);
@@ -109,44 +109,36 @@ public class SafeField<T> implements FieldAccessor<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public T get(Object object) {
-        if (!this.field.isInit()) {
-            return null;
-        }
         try {
-            return (T) this.field.read().get(object);
-        } catch (Throwable t) {
-            if (!this.isStatic() && object == null) {
-                throw new IllegalArgumentException("Non-static field requires a non-null instance");
-            }
-            t.printStackTrace();
-            this.field.deinit();
+            return this.field.reader.get(object);
+        } catch (RuntimeException ex) {
+            ex.printStackTrace();
+            this.field.init(null);
             return null;
         }
     }
 
     @Override
     public boolean set(Object object, T value) {
-        if (this.field.isInit()) {
-            try {
-                this.field.write().set(object, value);
-                return true;
-            } catch (Throwable t) {
-                if (!this.isStatic() && object == null) {
-                    throw new IllegalArgumentException("Non-static field requires a non-null instance");
-                }
-                t.printStackTrace();
-                this.field.deinit();
-            }
+        try {
+            this.field.writer.set(object, value);
+            return true;
+        } catch (RuntimeException ex) {
+            ex.printStackTrace();
+            this.field.init(null);
+            return false;
         }
-        return false;
     }
 
     @Override
     public String toString() {
         StringBuilder text = new StringBuilder(20);
-        final int mod = field.get().getModifiers();
+        java.lang.reflect.Field f = this.field.getField();
+        if (f == null) {
+            return "null";
+        }
+        final int mod = f.getModifiers();
         if (Modifier.isPublic(mod)) {
             text.append("public ");
         } else if (Modifier.isPrivate(mod)) {
@@ -157,7 +149,7 @@ public class SafeField<T> implements FieldAccessor<T> {
         if (Modifier.isStatic(mod)) {
             text.append("static ");
         }
-        return text.append(field.getType().getName()).append(" ").append(field.get().getName()).toString();
+        return text.append(f.getType().getName()).append(" ").append(f.getName()).toString();
     }
 
     /**
@@ -166,7 +158,7 @@ public class SafeField<T> implements FieldAccessor<T> {
      * @return Field name
      */
     public String getName() {
-        return field.get().getName();
+        return field.getName();
     }
 
     /**
