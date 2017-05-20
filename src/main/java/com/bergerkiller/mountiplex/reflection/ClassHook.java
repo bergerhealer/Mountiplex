@@ -11,8 +11,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.InputTypeSet;
 
 import net.sf.cglib.proxy.MethodProxy;
 
@@ -44,16 +47,33 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             }
             if (m.match(methodDec) && method.equals(entry.findMethodIn(typeTemplate))) {
                 //Logging.LOGGER_REFLECTION.info("[" + method.getDeclaringClass().getSimpleName() + "] Hooked " + getMethodName(method) + " to " + getMethodName(entry.method));
+                entry.supportedTypes.add(TypeDeclaration.fromClass(method_class));
                 return entry;
             }
         }
         return null;
     }
 
+    @Override
+    protected void onClassGenerated(Class<?> hookedType) {
+        super.onClassGenerated(hookedType);
+
+        // Verify that all non-optional hooked methods are found in the Class
+        // Those missing will be logged for debugging
+        TypeDeclaration ht = TypeDeclaration.fromClass(hookedType);
+        for (HookMethodEntry method : methods.entries) {
+            if (!method.optional && !method.supportedTypes.contains(ht)) {
+                MountiplexUtil.LOGGER.warning("Hooked method " + method.toString() +
+                        " was not found in " + hookedType.getName());
+            }
+        }
+    }
+
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface HookMethod {
         String value();
+        boolean optional() default false;
     }
 
     private static HookMethodList loadMethodList(Class<?> hookClass) {
@@ -69,7 +89,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             for (Method method : hookClass.getDeclaredMethods()) {
                 HookMethod hm = method.getAnnotation(HookMethod.class);
                 if (hm != null) {
-                    list.entries.add(new HookMethodEntry(method, hm.value()));
+                    list.entries.add(new HookMethodEntry(method, hm.value(), hm.optional()));
                 }
             }
 
@@ -147,11 +167,14 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     private static class HookMethodEntry extends MethodInvokable {
         private final Map<Class<?>, Method> superMethodMap = new HashMap<Class<?>, Method>();
         public final Map<Class<?>, MethodProxy> superMethodProxyMap = new HashMap<Class<?>, MethodProxy>();
+        public final InputTypeSet supportedTypes = new InputTypeSet();
         public final String name;
+        public final boolean optional;
 
-        public HookMethodEntry(Method method, String name) {
+        public HookMethodEntry(Method method, String name, boolean optional) {
             super(method);
             this.name = name;
+            this.optional = optional;
         }
 
         @Override

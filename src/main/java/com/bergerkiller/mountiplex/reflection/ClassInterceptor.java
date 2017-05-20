@@ -11,6 +11,7 @@ import org.objenesis.ObjenesisHelper;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 import net.sf.cglib.asm.Type;
 import net.sf.cglib.core.Signature;
@@ -204,26 +205,7 @@ public abstract class ClassInterceptor {
         }
 
         public NullInvokable(Method signature) {
-            Class<?> t = signature.getReturnType();
-            if (boolean.class.isAssignableFrom(t)) {
-                this.nullObject = Boolean.valueOf(false);
-            } else if (char.class.isAssignableFrom(t)) {
-                this.nullObject = Character.valueOf('\0');
-            } else if (byte.class.isAssignableFrom(t)) {
-                this.nullObject = Byte.valueOf((byte) 0);
-            } else if (short.class.isAssignableFrom(t)) {
-                this.nullObject = Short.valueOf((short) 0);
-            } else if (int.class.isAssignableFrom(t)) {
-                this.nullObject = Integer.valueOf(0);
-            } else if (long.class.isAssignableFrom(t)) {
-                this.nullObject = Long.valueOf(0L);
-            } else if (float.class.isAssignableFrom(t)) {
-                this.nullObject = Float.valueOf(0.0F);
-            } else if (double.class.isAssignableFrom(t)) {
-                this.nullObject = Double.valueOf(0.0);
-            } else {
-                this.nullObject = null;
-            }
+            this.nullObject = BoxedType.getDefaultValue(signature.getReturnType());
         }
 
         @Override

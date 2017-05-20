@@ -5,8 +5,7 @@ import static net.sf.cglib.asm.Opcodes.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-import org.objectweb.asm.ClassWriter;
-
+import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.MethodVisitor;
 import net.sf.cglib.asm.Type;
 

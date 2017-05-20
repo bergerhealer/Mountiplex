@@ -164,7 +164,7 @@ public class SourceDeclaration extends Declaration {
         }
         str += "\n";
         for (ClassDeclaration c : classes) {
-            str += c.toString(identity) + "\n";
+            str += c.toString(identity) + "\n\n";
         }
         return str;
     }

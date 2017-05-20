@@ -1,13 +1,12 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.Label;
 import net.sf.cglib.asm.MethodVisitor;
 import net.sf.cglib.asm.Opcodes;
 import net.sf.cglib.asm.Type;
 
 import static net.sf.cglib.asm.Opcodes.*;
-
-import org.objectweb.asm.ClassWriter;
 
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 

@@ -182,7 +182,7 @@ public class ClassDeclaration extends Declaration {
             if (cldec.isValid()) {
                 classes.add(cldec);
                 setPostfix(cldec.getPostfix());
-                trimLine();
+                trimWhitespace(0);
                 continue;
             }
             MethodDeclaration mdec = new MethodDeclaration(getResolver(), postfix);
@@ -340,7 +340,25 @@ public class ClassDeclaration extends Declaration {
         for (FieldDeclaration fdec : this.fields) str += "    " + fdec.toString(identity) + "\n";
         for (ConstructorDeclaration cdec : this.constructors) str += "    " + cdec.toString(identity) + "\n";
         for (MethodDeclaration mdec : this.methods) str += "    " + mdec.toString(identity) + "\n";
+
+        if (this.subclasses.length > 0) {
+            str += "\n";
+            String subclassesStr = "";
+            for (ClassDeclaration cDec : this.subclasses) {
+                subclassesStr += cDec.toString(identity);
+                subclassesStr += "\n";
+            }
+            for (String line : subclassesStr.split("\\r?\\n", -1)) {
+                if (line.length() > 0) {
+                    str += "    " + line + "\n";
+                } else {
+                    str += "\n";
+                }
+            }
+        }
+
         str += "}";
+
         return str;
     }
 
