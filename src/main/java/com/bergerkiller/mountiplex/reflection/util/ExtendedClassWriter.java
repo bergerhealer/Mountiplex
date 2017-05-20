@@ -1,7 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
-import static net.sf.cglib.asm.Opcodes.ACC_PUBLIC;
-import static net.sf.cglib.asm.Opcodes.V1_5;
+import static net.sf.cglib.asm.Opcodes.*;
 
 import java.util.WeakHashMap;
 
@@ -16,6 +15,7 @@ import net.sf.cglib.asm.Type;
 public class ExtendedClassWriter<T> extends ClassWriter {
     private static final WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
     private final String name;
+    private final String internalName;
     private final GeneratorClassLoader loader;
 
     public ExtendedClassWriter(int flags, Class<T> baseClass) {
@@ -31,7 +31,8 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         String postfix = loader.nextPostfix();
         String baseName = Type.getInternalName(baseClass);
         this.name = baseClass.getName() + postfix;
-        this.visit(V1_5, ACC_PUBLIC, baseName + postfix, null, baseName, null);
+        this.internalName = Type.getInternalName(baseClass) + postfix;
+        this.visit(V1_6, ACC_PUBLIC, baseName + postfix, null, baseName, null);
     }
 
     /**
@@ -43,6 +44,10 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         return this.name;
     }
 
+    public final String getInternalName() {
+        return this.internalName;
+    }
+    
     @SuppressWarnings("unchecked")
     public Class<T> generate() {
         this.visitEnd();

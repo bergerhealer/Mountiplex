@@ -42,5 +42,7 @@ public class SpeedTestObjectHandle extends Template.Handle {
         public final Template.Field.Integer i = new Template.Field.Integer();
         public final Template.Field.Double d = new Template.Field.Double();
         public final Template.Field<String> s = new Template.Field<String>();
+        public final Template.Method<String> getS = new Template.Method<String>();
+        public final Template.Method<Void> setS = new Template.Method<Void>();
     }
 }

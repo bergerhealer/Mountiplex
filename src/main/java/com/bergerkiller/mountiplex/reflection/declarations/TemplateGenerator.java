@@ -405,7 +405,17 @@ public class TemplateGenerator {
         if (!void.class.equals(mDec.returnType.type)) {
             bodyStr += "return ";
         }
-        bodyStr += "T." + mDec.name.real() + ".invoke(";
+
+        //TODO: Also make this work for converted methods (and maybe static methods?)
+        boolean converted = hasConversion(mDec);
+        if (!converted && !mDec.modifiers.isStatic() && mDec.parameters.parameters.length <= 5) {
+            // 0/1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
+            bodyStr += "T." + mDec.name.real() + ".invoke(";
+        } else {
+            // varargs Object[] invoke
+            bodyStr += "T." + mDec.name.real() + ".invokeVA(";
+        }
+
         if (!mDec.modifiers.isStatic()) {
             bodyStr += "instance";
             if (mDec.parameters.parameters.length > 0) {
@@ -418,8 +428,7 @@ public class TemplateGenerator {
         addLine("}");
     }
 
-    private String getMethodAppend(MethodDeclaration mDec) {
-        String app = "";
+    private boolean hasConversion(MethodDeclaration mDec) {
         boolean hasConversion = false;
         if (mDec.returnType.cast != null) {
             hasConversion = true;
@@ -430,7 +439,12 @@ public class TemplateGenerator {
                 break;
             }
         }
-        if (hasConversion) {
+        return hasConversion;
+    }
+
+    private String getMethodAppend(MethodDeclaration mDec) {
+        String app = "";
+        if (hasConversion(mDec)) {
             app += ".Converted";
         }
         TypeDeclaration returnType = (mDec.returnType.cast != null) ? mDec.returnType.cast : mDec.returnType;

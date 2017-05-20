@@ -50,10 +50,10 @@ public class TemplateTest {
         assertEquals("static_changed", TestObjectHandle.T.staticField.get());
         assertEquals("local_changed", TestObjectHandle.T.localField.get(object));
         assertEquals("12", TestObjectHandle.T.intConvField.get(object));
-        assertEquals(57, TestObjectHandle.T.testFunc.invoke(object, 12, 45).intValue());
-        assertEquals("77", TestObjectHandle.T.testConvFunc1.invoke(object, 43, 33));
-        assertEquals(68, TestObjectHandle.T.testConvFunc2.invoke(object, "22", "44").intValue());
-        assertEquals(Long.valueOf(288), TestObjectHandle.T.testing2.invoke(12, "24"));
+        assertEquals(57, TestObjectHandle.T.testFunc.invokeVA(object, 12, 45).intValue());
+        assertEquals("77", TestObjectHandle.T.testConvFunc1.invokeVA(object, 43, 33));
+        assertEquals(68, TestObjectHandle.T.testConvFunc2.invokeVA(object, "22", "44").intValue());
+        assertEquals(Long.valueOf(288), TestObjectHandle.T.testing2.invokeVA(12, "24"));
     }
 
 }

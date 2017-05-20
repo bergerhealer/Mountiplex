@@ -12,4 +12,16 @@ public class SpeedTestObject {
     public final int getI() {
         return i;
     }
+
+    public final void setS(String value) {
+        s = value;
+    }
+
+    public final String getS() {
+        return s;
+    }
+    
+    public final String test(String arg0, Integer arg1) {
+        return "test";
+    }
 }

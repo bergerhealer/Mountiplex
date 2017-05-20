@@ -29,6 +29,8 @@ public class TemplateSpeedTest {
                                       "    private int i;\n" +
                                       "    private double d;\n" +
                                       "    private String s;\n" +
+                                      "    public final void setS(String value);\n" +
+                                      "    public final String getS();\n" +
                                       "}\n";
 
                     return SourceDeclaration.parse(template).classes[0];

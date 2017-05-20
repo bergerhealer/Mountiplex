@@ -55,7 +55,38 @@ public final class FastMethod<T> implements Invoker<T> {
     }
 
     @Override
-    public T invoke(Object instance, Object[] args) {
-        return this.init().invoke(instance, args);
+    public T invokeVA(Object instance, Object... args) {
+        return init().invokeVA(instance, args);
     }
+
+    @Override
+    public T invoke(Object instance) {
+        return init().invoke(instance);
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0) {
+        return init().invoke(instance, arg0);
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1) {
+        return init().invoke(instance, arg0, arg1);
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
+        return init().invoke(instance, arg0, arg1, arg2);
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
+        return init().invoke(instance, arg0, arg1, arg2, arg3);
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+        return init().invoke(instance, arg0, arg1, arg2, arg3, arg4);
+    }
+
 }

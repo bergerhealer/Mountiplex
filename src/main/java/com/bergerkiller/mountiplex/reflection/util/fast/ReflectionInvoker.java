@@ -6,6 +6,7 @@ import java.lang.reflect.Modifier;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ReflectionInvoker<T> implements Invoker<T> {
+    private static final Object[] NO_ARGS = new Object[0];
     private final java.lang.reflect.Method m;
 
     protected ReflectionInvoker(java.lang.reflect.Method method) {
@@ -77,7 +78,7 @@ public class ReflectionInvoker<T> implements Invoker<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public T invoke(Object instance, Object[] args) {
+    public T invokeVA(Object instance, Object... args) {
         try {
             return (T) m.invoke(instance, args);
         } catch (InvocationTargetException ex) {
@@ -92,19 +93,60 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         }
     }
 
-    public static <T> ReflectionInvoker<T> create(java.lang.reflect.Method method) {
+    @Override
+    public T invoke(Object instance) {
+        return invokeVA(instance, NO_ARGS);
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0) {
+        return invokeVA(instance, new Object[] {arg0});
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1) {
+        return invokeVA(instance, new Object[] {arg0, arg1});
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
+        return invokeVA(instance, new Object[] {arg0, arg1, arg2});
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
+        return invokeVA(instance, new Object[] {arg0, arg1, arg2, arg3});
+    }
+
+    @Override
+    public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+        return invokeVA(instance, new Object[] {arg0, arg1, arg2, arg3, arg4});
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Invoker<T> create(java.lang.reflect.Method method) {
         int mod = method.getModifiers();
-        if (Modifier.isPublic(mod) && !Modifier.isStatic(mod)) {
+        Class<?>[] paramTypes = method.getParameterTypes();
+        if (Modifier.isPublic(mod) && !Modifier.isStatic(mod) && paramTypes.length <= 5) {
             //TODO: Generate a faster alternative to reflection for the exact argument count
-            Class<?>[] paramTypes = method.getParameterTypes();
-            if (paramTypes.length == 1) {
-                // Single argument type
-                
-                
-                
+            boolean hasPrimitiveTypes = false;
+            for (int i = 0; i < paramTypes.length; i++) {
+                if (paramTypes[i].isPrimitive()) {
+                    hasPrimitiveTypes = true;
+                    break;
+                }
             }
-            
+            if (method.getReturnType().isPrimitive() && method.getReturnType() != void.class) {
+                hasPrimitiveTypes = true;
+            }
+
+            // If no primitve types exist, optimize the method call by generating it
+            // The generated invoker does not yet support boxing/unboxing.
+            if (!hasPrimitiveTypes) {
+                return (Invoker<T>) GeneratedInvoker.create(method);
+            }
         }
         return new ReflectionInvoker<T>(method);
     }
+
 }

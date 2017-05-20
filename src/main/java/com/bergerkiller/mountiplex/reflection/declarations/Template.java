@@ -363,6 +363,10 @@ public class Template {
         public <R> MethodAccessor<R> toMethodAccessor() {
             return (MethodAccessor<R>) new SafeMethod<T>(this.method);
         }
+
+        public java.lang.reflect.Method toJavaMethod() {
+            return this.method.getMethod();
+        }
     }
 
     public static class AbstractFieldConverter<F extends AbstractField<?>, T> extends TemplateElement<FieldDeclaration> {
@@ -590,8 +594,8 @@ public class Template {
          * @param arguments to pass along with the method
          * @return return value, null for void methods
          */
-        public T invoke(Object... arguments) {
-            return this.method.invoke(null, arguments);
+        public T invokeVA(Object... arguments) {
+            return this.method.invokeVA(null, arguments);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
@@ -607,7 +611,7 @@ public class Template {
              * @param arguments to pass along with the method
              * @return return value, null for void methods
              */
-            public final T invoke(Object... arguments) {
+            public final T invokeVA(Object... arguments) {
                 if (!this.isConvertersInitialized) {
                     this.raw.failNotFound();
                     this.failNoConverter();
@@ -615,7 +619,7 @@ public class Template {
                 }
 
                 Object[] convertedArgs = convertArgs(arguments);
-                Object rawResult = this.raw.invoke(convertedArgs);
+                Object rawResult = this.raw.invokeVA(convertedArgs);
                 return convertResult(rawResult);
             }
         }
@@ -625,13 +629,90 @@ public class Template {
 
         /**
          * Invokes this method on the instance specified.
+         * Uses variable arguments to allow for dynamic or >5 arguments to be used.
+         * Note that this incurs a performance overhead.
          * 
          * @param instance to invoke the method on
          * @param arguments to pass along with the method
          * @return return value, null for void methods
          */
-        public T invoke(Object instance, Object... arguments) {
-            return this.method.invoke(instance, arguments);
+        public T invokeVA(Object instance, Object... arguments) {
+            return this.method.invokeVA(instance, arguments);
+        }
+
+        /**
+         * Invokes this method on the instance specified, with no method arguments.
+         * 
+         * @param instance to invoke the method on
+         * @return return value, null for void methods
+         */
+        public T invoke(Object instance) {
+            return this.method.invoke(instance);
+        }
+
+        /**
+         * Invokes this method on the instance specified, with 1 method argument.
+         * 
+         * @param instance to invoke the method on
+         * @param arg0 first argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object instance, Object arg0) {
+            return this.method.invoke(instance, arg0);
+        }
+
+        /**
+         * Invokes this method on the instance specified, with 2 method arguments.
+         * 
+         * @param instance to invoke the method on
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object instance, Object arg0, Object arg1) {
+            return this.method.invoke(instance, arg0, arg1);
+        }
+
+        /**
+         * Invokes this method on the instance specified, with 3 method arguments.
+         * 
+         * @param instance to invoke the method on
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
+            return this.method.invoke(instance, arg0, arg1, arg2);
+        }
+
+        /**
+         * Invokes this method on the instance specified, with 4 method arguments.
+         * 
+         * @param instance to invoke the method on
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @param arg3 fourth argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
+            return this.method.invoke(instance, arg0, arg1, arg2, arg3);
+        }
+
+        /**
+         * Invokes this method on the instance specified, with 5 method arguments.
+         * 
+         * @param instance to invoke the method on
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @param arg3 fourth argument
+         * @param arg4 fifth argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+            return this.method.invoke(instance, arg0, arg1, arg2, arg3, arg4);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<Method<Object>, T> {
@@ -648,7 +729,7 @@ public class Template {
              * @param arguments to pass along with the method
              * @return return value, null for void methods
              */
-            public final T invoke(Object instance, Object... arguments) {
+            public final T invokeVA(Object instance, Object... arguments) {
                 if (!this.isConvertersInitialized) {
                     this.raw.failNotFound();
                     this.failNoConverter();
@@ -656,7 +737,7 @@ public class Template {
                 }
 
                 Object[] convertedArgs = convertArgs(arguments);
-                Object rawResult = this.raw.invoke(instance, convertedArgs);
+                Object rawResult = this.raw.invokeVA(instance, convertedArgs);
                 return convertResult(rawResult);
             }
         }

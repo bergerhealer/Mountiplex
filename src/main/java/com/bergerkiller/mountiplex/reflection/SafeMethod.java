@@ -112,7 +112,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
 
     @Override
     public T invoke(Object instance, Object... args) {
-        return this.method.invoke(instance, args);
+        return this.method.invokeVA(instance, args);
     }
 
     /**
