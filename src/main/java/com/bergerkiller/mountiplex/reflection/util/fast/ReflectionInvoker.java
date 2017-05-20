@@ -128,25 +128,10 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         int mod = method.getModifiers();
         Class<?>[] paramTypes = method.getParameterTypes();
         if (Modifier.isPublic(mod) && !Modifier.isStatic(mod) && paramTypes.length <= 5) {
-            //TODO: Generate a faster alternative to reflection for the exact argument count
-            boolean hasPrimitiveTypes = false;
-            for (int i = 0; i < paramTypes.length; i++) {
-                if (paramTypes[i].isPrimitive()) {
-                    hasPrimitiveTypes = true;
-                    break;
-                }
-            }
-            if (method.getReturnType().isPrimitive() && method.getReturnType() != void.class) {
-                hasPrimitiveTypes = true;
-            }
-
-            // If no primitve types exist, optimize the method call by generating it
-            // The generated invoker does not yet support boxing/unboxing.
-            if (!hasPrimitiveTypes) {
-                return (Invoker<T>) GeneratedInvoker.create(method);
-            }
+            return (Invoker<T>) GeneratedInvoker.create(method);
+        } else {
+            return new ReflectionInvoker<T>(method);
         }
-        return new ReflectionInvoker<T>(method);
     }
 
 }

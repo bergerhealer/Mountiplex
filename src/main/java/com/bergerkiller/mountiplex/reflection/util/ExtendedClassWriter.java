@@ -5,6 +5,7 @@ import static net.sf.cglib.asm.Opcodes.*;
 import java.util.WeakHashMap;
 
 import net.sf.cglib.asm.ClassWriter;
+import net.sf.cglib.asm.MethodVisitor;
 import net.sf.cglib.asm.Type;
 
 /**
@@ -60,6 +61,47 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             return (T) type.getConstructor(parameterTypes).newInstance(initArgs);
         } catch (Throwable t) {
             throw new RuntimeException("Failed to generate class", t);
+        }
+    }
+
+    /**
+     * Includes instructions to box a primitive value on the stack.
+     * <i>void</i> types are turned into <i>null</i>.
+     * 
+     * @param mv method visitor
+     * @param primType primitive type to box (int -> Integer)
+     */
+    public static void visitBoxVariable(MethodVisitor mv, java.lang.Class<?> primType) {
+        if (primType == void.class) {
+            mv.visitInsn(ACONST_NULL);
+        } else if (primType.isPrimitive()) {
+            Class<?> boxedType = BoxedType.getBoxedType(primType);
+            if (boxedType != null) {
+                mv.visitMethodInsn(INVOKESTATIC, Type.getInternalName(boxedType),
+                        "valueOf", "(" + Type.getDescriptor(primType) + ")" + Type.getDescriptor(boxedType));
+            }
+        }
+    }
+
+    /**
+     * Includes instructions to unbox a boxed value to a primitive value on the stack.
+     * If no primitive type is requested, only a checked cast is performed.
+     * 
+     * @param mv method visitor
+     * @param outType type to unbox or cast to
+     */
+    public static void visitUnboxVariable(MethodVisitor mv, java.lang.Class<?> outType) {
+        if (outType.isPrimitive()) {
+            Class<?> boxedType = BoxedType.getBoxedType(outType);
+            if (boxedType != null) {
+                mv.visitTypeInsn(CHECKCAST, Type.getInternalName(boxedType));
+                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(boxedType),
+                        outType.getName() + "Value", "()" + Type.getDescriptor(outType));
+            }
+        } else if (outType.isArray()) {
+            mv.visitTypeInsn(CHECKCAST, Type.getDescriptor(outType));
+        } else {
+            mv.visitTypeInsn(CHECKCAST, Type.getInternalName(outType));
         }
     }
 
