@@ -5,6 +5,7 @@ import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 /**
  * Wraps around the java.lang.reflect.Method class to provide an error-free
@@ -13,24 +14,19 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
  * working
  */
 public class SafeMethod<T> implements MethodAccessor<T> {
+    private final FastMethod<T> method;
 
-    private Method method;
-    //private Class<?>[] parameterTypes;
-    //private boolean isStatic = false;
+    public SafeMethod(FastMethod<T> method) {
+        this.method = method;
+    }
 
     public SafeMethod(Method method) {
-        if (method == null) {
-            this.method = null;
-            //this.parameterTypes = null;
-            //this.isStatic = false;
-        } else {
-            this.method = method;
-            //this.parameterTypes = this.method.getParameterTypes();
-            //this.isStatic = Modifier.isStatic(this.method.getModifiers());
-        }
+        this.method = new FastMethod<T>();
+        this.method.init(method);
     }
 
     public SafeMethod(String methodPath, Class<?>... parameterTypes) {
+        this.method = new FastMethod<T>();
         if (methodPath == null || methodPath.isEmpty() || !methodPath.contains(".")) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Method path contains no class: " + methodPath);
             return;
@@ -47,10 +43,12 @@ public class SafeMethod<T> implements MethodAccessor<T> {
     }
 
     public SafeMethod(Object value, String name, Class<?>... parameterTypes) {
+        this.method = new FastMethod<T>();
         load(value == null ? null : value.getClass(), name, parameterTypes);
     }
 
     public SafeMethod(Class<?> source, String name, Class<?>... parameterTypes) {
+        this.method = new FastMethod<T>();
         load(source, name, parameterTypes);
     }
 
@@ -72,19 +70,10 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         dispName += ")";
 
         // try to find the method
-        try {
-            this.method = findRaw(source, fixedName, parameterTypes);
-            if (this.method != null) {
-                this.method.setAccessible(true);
-                //this.isStatic = Modifier.isStatic(this.method.getModifiers());
-                //this.parameterTypes = parameterTypes;
-                return;
-            }
-        } catch (SecurityException ex) {
-            new Exception("No permission to access method '" + dispName + "' in class file '" + source.getSimpleName() + "'").printStackTrace();
-            return;
+        this.method.init(findRaw(source, fixedName, parameterTypes));
+        if (this.method.getMethod() == null) {
+            MountiplexUtil.LOGGER.warning("Method '" + dispName + "' could not be found in class " + source.getName());
         }
-        MountiplexUtil.LOGGER.warning("Method '" + dispName + "' could not be found in class " + source.getName());
     }
 
     /**
@@ -105,8 +94,12 @@ public class SafeMethod<T> implements MethodAccessor<T> {
      */
     public boolean isOverridedIn(Class<?> type) {
         try {
-            Method m = type.getDeclaredMethod(method.getName(), method.getParameterTypes());
-            return m.getDeclaringClass() != method.getDeclaringClass();
+            Method sm = method.getMethod();
+            if (sm == null) {
+                return false;
+            }
+            Method m = type.getDeclaredMethod(sm.getName(), sm.getParameterTypes());
+            return m.getDeclaringClass() != sm.getDeclaringClass();
         } catch (Throwable t) {
             return false;
         }
@@ -114,20 +107,12 @@ public class SafeMethod<T> implements MethodAccessor<T> {
 
     @Override
     public boolean isValid() {
-        return this.method != null;
+        return this.method.getMethod() != null;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public T invoke(Object instance, Object... args) {
-        if (this.method != null) {
-            try {
-                return (T) this.method.invoke(instance, args);
-            } catch (Throwable ex) {
-                throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
-            }
-        }
-        return null;
+        return this.method.invoke(instance, args);
     }
 
     /**
@@ -173,19 +158,24 @@ public class SafeMethod<T> implements MethodAccessor<T> {
 
     @Override
     public boolean isMethod(Method method) {
+        Method sm = this.method.getMethod();
+        if (sm == null) {
+            return false;
+        }
+
         // Shortcut
-        if (this.method.equals(method)) {
+        if (sm.equals(method)) {
             return true;
         }
 
         // Check if the signatures of the two methods match up
-        if (!this.method.getName().equals(method.getName())) {
+        if (!sm.getName().equals(method.getName())) {
             return false;
         }
-        if (!this.method.getReturnType().equals(method.getReturnType())) {
+        if (!sm.getReturnType().equals(method.getReturnType())) {
             return false;
         }
-        Class<?>[] args_a = this.method.getParameterTypes();
+        Class<?>[] args_a = sm.getParameterTypes();
         Class<?>[] args_b = method.getParameterTypes();
         if (args_a.length != args_b.length) {
             return false;
@@ -197,7 +187,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         }
 
         // Check that the methods are both declared in the same class, or share superclass
-        Class<?> declare_a = this.method.getDeclaringClass();
+        Class<?> declare_a = sm.getDeclaringClass();
         Class<?> declare_b = method.getDeclaringClass();
         return (declare_a.isAssignableFrom(declare_b) || declare_b.isAssignableFrom(declare_a));
     }

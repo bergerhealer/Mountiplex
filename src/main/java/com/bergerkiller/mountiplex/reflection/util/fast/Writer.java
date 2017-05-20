@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex.reflection.util.field;
+package com.bergerkiller.mountiplex.reflection.util.fast;
 
 /**
  * Sets the field value.

@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex.reflection.util.field;
+package com.bergerkiller.mountiplex.reflection.util.fast;
 
 /**
  * Copies the member field value from one object to another.

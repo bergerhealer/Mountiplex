@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
 
@@ -312,19 +313,19 @@ public class Template {
         }
     }
 
-    public static class AbstractMethod extends TemplateElement<MethodDeclaration> {
-        protected java.lang.reflect.Method method = null;
+    public static class AbstractMethod<T> extends TemplateElement<MethodDeclaration> {
+        protected final FastMethod<T> method = new FastMethod<T>();
 
         // throws an exception when the method is not found
         protected final void failNotFound() {
-            if (this.method == null) {
+            if (this.method.getMethod() == null) {
                 throw new RuntimeException("Method not found");
             }
         }
 
         // throws an exception when arguments differ
         protected final void failInvalidArgs(Object[] arguments) {
-            java.lang.Class<?>[] params = method.getParameterTypes();
+            java.lang.Class<?>[] params = method.getMethod().getParameterTypes();
             if (params.length != arguments.length) {
                 throw new IllegalArgumentException("Invalid number of argument specified! Expected " +
                         params.length + " arguments, but got " + arguments.length);
@@ -345,14 +346,8 @@ public class Template {
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
             for (MethodDeclaration methodDec : dec.methods) {
                 if (methodDec.method != null && methodDec.name.real().equals(name)) {
-                    try {
-                        methodDec.method.setAccessible(true);
-                        this.method = methodDec.method;
-                        return methodDec;
-                    } catch (Throwable t) {
-                        MountiplexUtil.LOGGER.warning("Method '" + name + "' in template for " + dec.type.typePath + " not accessible");
-                        return null;
-                    }
+                    this.method.init(methodDec.method);
+                    return methodDec;
                 }
             }
             MountiplexUtil.LOGGER.warning("Method '" + name + "' not found in template for " + dec.type.typePath);
@@ -364,8 +359,9 @@ public class Template {
          * 
          * @return method accessor
          */
-        public <T> MethodAccessor<T> toMethodAccessor() {
-            return new SafeMethod<T>(this.method);
+        @SuppressWarnings("unchecked")
+        public <R> MethodAccessor<R> toMethodAccessor() {
+            return (MethodAccessor<R>) new SafeMethod<T>(this.method);
         }
     }
 
@@ -491,7 +487,7 @@ public class Template {
         }
     }
 
-    public static class AbstractMethodConverter<M extends AbstractMethod, T> extends AbstractParamsConverter<M, T, MethodDeclaration> {
+    public static class AbstractMethodConverter<M extends AbstractMethod<?>, T> extends AbstractParamsConverter<M, T, MethodDeclaration> {
 
         protected AbstractMethodConverter(M raw) {
             super(raw);
@@ -586,7 +582,7 @@ public class Template {
         }
     }
 
-    public static final class StaticMethod<T> extends AbstractMethod {
+    public static final class StaticMethod<T> extends AbstractMethod<T> {
 
         /**
          * Invokes this static method
@@ -594,15 +590,8 @@ public class Template {
          * @param arguments to pass along with the method
          * @return return value, null for void methods
          */
-        @SuppressWarnings("unchecked")
         public T invoke(Object... arguments) {
-            try {
-                return (T) this.method.invoke(null, arguments);
-            } catch (Throwable t) {
-                this.failNotFound();
-                this.failInvalidArgs(arguments);
-                throw new RuntimeException("Failed to invoke static method", t);
-            }
+            return this.method.invoke(null, arguments);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
@@ -632,7 +621,7 @@ public class Template {
         }
     }
 
-    public static final class Method<T> extends AbstractMethod {
+    public static final class Method<T> extends AbstractMethod<T> {
 
         /**
          * Invokes this method on the instance specified.
@@ -641,18 +630,8 @@ public class Template {
          * @param arguments to pass along with the method
          * @return return value, null for void methods
          */
-        @SuppressWarnings("unchecked")
         public T invoke(Object instance, Object... arguments) {
-            try {
-                return (T) this.method.invoke(instance, arguments);
-            } catch (Throwable t) {
-                this.failNotFound();
-                if (instance == null) {
-                    throw new IllegalArgumentException("Instance is null");
-                }
-                this.failInvalidArgs(arguments);
-                throw new RuntimeException("Failed to invoke method", t);
-            }
+            return this.method.invoke(instance, arguments);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<Method<Object>, T> {

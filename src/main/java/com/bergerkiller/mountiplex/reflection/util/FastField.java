@@ -3,10 +3,10 @@ package com.bergerkiller.mountiplex.reflection.util;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-import com.bergerkiller.mountiplex.reflection.util.field.Copier;
-import com.bergerkiller.mountiplex.reflection.util.field.Reader;
-import com.bergerkiller.mountiplex.reflection.util.field.ReflectionAccessor;
-import com.bergerkiller.mountiplex.reflection.util.field.Writer;
+import com.bergerkiller.mountiplex.reflection.util.fast.Copier;
+import com.bergerkiller.mountiplex.reflection.util.fast.Reader;
+import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
+import com.bergerkiller.mountiplex.reflection.util.fast.Writer;
 
 /**
  * Efficiently manages reflection delegating calls to getter and setter methods

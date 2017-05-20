@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex.reflection.util.field;
+package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import static net.sf.cglib.asm.Opcodes.*;
 
