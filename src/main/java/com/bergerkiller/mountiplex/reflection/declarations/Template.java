@@ -460,13 +460,35 @@ public class Template {
             }
         }
 
+        protected final void verifyConverterCount(int argCount) {
+            if (this.argConverters != null) {
+                if (this.argConverters.length != (argCount)) {
+                    throw new IllegalArgumentException("Invalid number of arguments (" +
+                            (this.argConverters.length - 1) + " expected, but got " + argCount + ")");
+                }
+            }
+        }
+
+        protected final Object convertArgument(int index, Object rawArgument) {
+            if (this.argConverters[index] != null) {
+                return this.argConverters[index].convert(rawArgument);
+            } else {
+                return rawArgument;
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        protected final T convertResult(Object result) {
+            if (this.resultConverter != null) {
+                return this.resultConverter.convert(result);
+            } else {
+                return (T) result;
+            }
+        }
+
         protected final Object[] convertArgs(Object[] arguments) {
             if (this.argConverters != null) {
-                // Verify correct number of arguments
-                if (this.argConverters.length != (arguments.length)) {
-                    throw new IllegalArgumentException("Invalid number of arguments (" +
-                            (this.argConverters.length - 1) + " expected, but got " + arguments.length + ")");
-                }
+                verifyConverterCount(arguments.length);
 
                 // Got to convert the parameters
                 Object[] convertedArgs = arguments.clone();
@@ -478,15 +500,6 @@ public class Template {
                 return convertedArgs;
             } else {
                 return arguments;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        protected final T convertResult(Object result) {
-            if (this.resultConverter != null) {
-                return this.resultConverter.convert(result);
-            } else {
-                return (T) result;
             }
         }
     }
@@ -721,9 +734,24 @@ public class Template {
                 super(new Method<Object>());
             }
 
+            private final void verifyConverters(int argCount) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                }
+                if (this.argConverters != null) {
+                    if (this.argConverters.length != (argCount)) {
+                        throw new IllegalArgumentException("Invalid number of arguments (" +
+                                (this.argConverters.length - 1) + " expected, but got " + argCount + ")");
+                    }
+                }
+            }
+
             /**
              * Invokes this method on the instance specified, performing parameter
              * and return type conversion as required.
+             * Uses variable arguments to allow for dynamic or >5 arguments to be used.
+             * Note that this incurs a performance overhead.
              * 
              * @param instance to invoke the method on
              * @param arguments to pass along with the method
@@ -733,12 +761,132 @@ public class Template {
                 if (!this.isConvertersInitialized) {
                     this.raw.failNotFound();
                     this.failNoConverter();
-                    return null; // never reached
                 }
-
                 Object[] convertedArgs = convertArgs(arguments);
                 Object rawResult = this.raw.invokeVA(instance, convertedArgs);
                 return convertResult(rawResult);
+            }
+
+            /**
+             * Invokes this method on the instance specified, performing
+             * return type conversion as required. No arguments are passed on.
+             * 
+             * @param instance to invoke the method on
+             * @return return value, null for void methods
+             */
+            public T invoke(Object instance) {
+                verifyConverters(0);
+                return convertResult(this.raw.invoke(instance));
+            }
+
+            /**
+             * Invokes this method on the instance specified, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param instance to invoke the method on
+             * @param arg0 first argument
+             * @return return value, null for void methods
+             */
+            public T invoke(Object instance, Object arg0) {
+                verifyConverters(1);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(instance, arg0));
+                } else {
+                    return convertResult(this.raw.invoke(instance,
+                            convertArgument(0, arg0)));
+                }
+            }
+
+            /**
+             * Invokes this method on the instance specified, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param instance to invoke the method on
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @return return value, null for void methods
+             */
+            public T invoke(Object instance, Object arg0, Object arg1) {
+                verifyConverters(2);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(instance, arg0, arg1));
+                } else {
+                    return convertResult(this.raw.invoke(instance,
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1)));
+                }
+            }
+
+            /**
+             * Invokes this method on the instance specified, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param instance to invoke the method on
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @return return value, null for void methods
+             */
+            public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
+                verifyConverters(3);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(instance, arg0, arg1, arg2));
+                } else {
+                    return convertResult(this.raw.invoke(instance,
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2)));
+                }
+            }
+
+            /**
+             * Invokes this method on the instance specified, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param instance to invoke the method on
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @param arg3 fourth argument
+             * @return return value, null for void methods
+             */
+            public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
+                verifyConverters(4);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(instance, arg0, arg1, arg2, arg3));
+                } else {
+                    return convertResult(this.raw.invoke(instance,
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2),
+                            convertArgument(3, arg3)));
+                }
+            }
+
+            /**
+             * Invokes this method on the instance specified, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param instance to invoke the method on
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @param arg3 fourth argument
+             * @param arg4 fifth argument
+             * @return return value, null for void methods
+             */
+            public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+                verifyConverters(5);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(instance, arg0, arg1, arg2, arg3, arg4));
+                } else {
+                    return convertResult(this.raw.invoke(instance,
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2),
+                            convertArgument(3, arg3),
+                            convertArgument(4, arg4)));
+                }
             }
         }
     }
