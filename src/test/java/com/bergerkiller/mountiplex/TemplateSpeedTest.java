@@ -1,17 +1,17 @@
 package com.bergerkiller.mountiplex;
 
-import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.MethodVisitor;
 import net.sf.cglib.asm.Type;
 import static net.sf.cglib.asm.Opcodes.*;
+import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-import com.bergerkiller.mountiplex.reflection.ClassTemplate;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.types.IntProperty;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.SpeedTestObjectHandle;
@@ -64,69 +64,89 @@ public class TemplateSpeedTest {
         }
     }
 
-    private static class OwnClassLoader extends ClassLoader {
-        
-        public OwnClassLoader(ClassLoader base) {
-            super(base);
+    public static abstract class GenSetterBase {
+        public final java.lang.reflect.Field field;
+
+        public GenSetterBase(java.lang.reflect.Field field) {
+            this.field = field;
         }
-        
-        public Class<?> defineClass(String name, byte[] b) {
-            return defineClass(name, b, 0, b.length);
+
+    }
+
+    public static class GenSetter extends GenSetterBase implements IntProperty {
+
+        public GenSetter(java.lang.reflect.Field field) {
+            super(field);
+        }
+
+        @Override
+        public void set(Object instance, int value) {
+        }
+
+        @Override
+        public int get(Object instance) {
+            return 0;
+        }
+
+        public void doStuff() {
+            System.out.println("STUFF");
         }
     }
 
-    private static Class<?> createClass(String name, byte[] b) {
-        return new OwnClassLoader(IntProperty.class.getClassLoader()).defineClass(name, b);
-    }
-
-    void createSetter(ClassWriter cw, String className, String propertyName, String type) {
-        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "set", "(Ljava/lang/Object;" + type + ")V", null, null);
-        mv.visitVarInsn(ALOAD, 1);
-        mv.visitTypeInsn(CHECKCAST, className);
-        mv.visitVarInsn(ILOAD, 2);
-        mv.visitFieldInsn(PUTFIELD, className, propertyName, type);
-        mv.visitInsn(RETURN);
-        mv.visitMaxs(0, 0);
-    }
-
-    void createGetter(ClassWriter cw, String className, String propertyName, String returnType) {
-        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "get", "(Ljava/lang/Object;)" + returnType, null, null);
-        mv.visitVarInsn(ALOAD, 1);
-        mv.visitTypeInsn(CHECKCAST, className);
-        mv.visitFieldInsn(GETFIELD, className, propertyName, returnType);
-        mv.visitInsn(IRETURN);
-        mv.visitMaxs(0, 0);
-    }
-
-    @SuppressWarnings("unchecked")
     @Test
     public void testPrimitive() {
         final SpeedTestObject object = new SpeedTestObject();
         final SpeedTestObjectHandle handle = SpeedTestObjectHandle.createHandle(object);
         final IntSetter setter = new IntSetter();
 
+        //TestUtil.printASM(BlaBla.class);
 
-        //TestUtil.printASM(IntSetter.class);
+        final String fieldType = Type.getDescriptor(int.class);
+        final String className = Type.getInternalName(SpeedTestObject.class);
+        final String propertyName = "i";
 
+        ExtendedClassWriter<GenSetter> cw = new ExtendedClassWriter<GenSetter>(0, GenSetter.class);
 
-        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        MethodVisitor mv;
+
+        mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/lang/reflect/Field;)V", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(GenSetter.class), "<init>", "(" + Type.getDescriptor(java.lang.reflect.Field.class) + ")V");
+        mv.visitInsn(RETURN);
+        mv.visitMaxs(2, 2);
+        mv.visitEnd();
+
+        mv = cw.visitMethod(ACC_PUBLIC, "get", "(Ljava/lang/Object;)" + fieldType, null, null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitTypeInsn(CHECKCAST, className);
+        mv.visitFieldInsn(GETFIELD, className, propertyName, fieldType);
+        mv.visitInsn(IRETURN);
+        mv.visitMaxs(1, 2);
+        mv.visitEnd();
+
+        mv = cw.visitMethod(ACC_PUBLIC, "set", "(Ljava/lang/Object;" + fieldType + ")V", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitTypeInsn(CHECKCAST, className);
+        mv.visitVarInsn(ILOAD, 2);
+        mv.visitFieldInsn(PUTFIELD, className, propertyName, fieldType);
+        mv.visitInsn(RETURN);
+        mv.visitMaxs(2, 3);
+        mv.visitEnd();
+
+        final GenSetter setterGen = cw.generateInstance(new Class<?>[] {java.lang.reflect.Field.class}, new Object[] { null });
         
-        String selfname = "MyGeneratedClass";
-        cw.visit(V1_7, ACC_PUBLIC, selfname, null, "java/lang/Object", new String[] {Type.getInternalName(IntProperty.class)});
+        object.i = 200;
+        assertEquals(200, setterGen.get(object));
         
-        createGetter(cw, Type.getInternalName(SpeedTestObject.class), "i", Type.getDescriptor(int.class));
-        createSetter(cw, Type.getInternalName(SpeedTestObject.class), "i", Type.getDescriptor(int.class));
-        cw.visitEnd();
+        setterGen.set(object, 300);
+        assertEquals(300, object.i);
         
-        Class<IntProperty> setterGenType = (Class<IntProperty>) createClass(selfname, cw.toByteArray());
-        ClassTemplate<IntProperty> templ = ClassTemplate.create(setterGenType);
         
-        final IntProperty setterGen;
-        try {
-            setterGen = templ.newInstanceNull();
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
-        }
+        setterGen.doStuff();
 
         measure("direct field access", new Runnable() {
             @Override
@@ -164,5 +184,11 @@ public class TemplateSpeedTest {
                 setterGen.set(object, setterGen.get(object) + 1);
             }
         });
+
+        SpeedTestObjectHandle.T.d.setDouble(object, 2.0);
+        assertEquals(2.0, SpeedTestObjectHandle.T.d.getDouble(object), 0.001);
+
+        SpeedTestObjectHandle.T.s.set(object, "test");
+        assertEquals("test", SpeedTestObjectHandle.T.s.get(object));
     }
 }

@@ -14,7 +14,7 @@ import com.bergerkiller.mountiplex.reflection.util.field.Writer;
  * 
  * @param <T> type of fast field
  */
-public class FastField<T> implements Reader<T>, Writer<T>, Copier {
+public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
     public Reader<T> reader = this;
     public Writer<T> writer = this;
     public Copier copier = this;
@@ -102,23 +102,14 @@ public class FastField<T> implements Reader<T>, Writer<T>, Copier {
     private Reader<T> read() {
         if (reader == this) {
             checkInit();
-            int mod = field.getModifiers();
-            if (Modifier.isPublic(mod)) {
-                if (Modifier.isStatic(mod)) {
-                    //TODO: Generated static accessor
-                    reader = new ReflectionAccessor<T>(field);
-                } else {
-                    //TODO: Generated local accessor
-                    reader = new ReflectionAccessor<T>(field);
-                }
-            } else {
-                // Non-public fields require reflection
+            if (!Modifier.isPublic(field.getModifiers())) {
                 makeAccessible();
-                if (writer instanceof ReflectionAccessor) {
-                    reader = (ReflectionAccessor<T>) writer;
-                } else {
-                    writer = new ReflectionAccessor<T>(field);
-                }
+            }
+
+            if (writer instanceof ReflectionAccessor) {
+                reader = (ReflectionAccessor<T>) writer;
+            } else {
+                reader = ReflectionAccessor.create(field);
             }
         }
         return reader;
@@ -128,22 +119,14 @@ public class FastField<T> implements Reader<T>, Writer<T>, Copier {
         if (writer == this) {
             checkInit();
             int mod = field.getModifiers();
-            if (Modifier.isPublic(mod) && !Modifier.isFinal(mod)) {
-                if (Modifier.isStatic(mod)) {
-                    //TODO: Generated static accessor
-                    writer = new ReflectionAccessor<T>(field);
-                } else {
-                    //TODO: Generated local accessor
-                    writer = new ReflectionAccessor<T>(field);
-                }
-            } else {
-                // Non-public or final fields require reflection
+            if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
                 makeAccessible();
-                if (reader instanceof ReflectionAccessor) {
-                    writer = (ReflectionAccessor<T>) reader;
-                } else {
-                    writer = new ReflectionAccessor<T>(field);
-                }
+            }
+
+            if (reader instanceof ReflectionAccessor) {
+                writer = (ReflectionAccessor<T>) reader;
+            } else {
+                writer = ReflectionAccessor.create(field);
             }
         }
         return writer;

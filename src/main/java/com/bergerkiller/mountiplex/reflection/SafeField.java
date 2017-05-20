@@ -64,22 +64,17 @@ public class SafeField<T> implements FieldAccessor<T> {
         // try to find the field
         String fixedName = Resolver.resolveFieldName(source, name);
         String dispName = name.equals(fixedName) ? name : (name + "[" + fixedName + "]");
-        try {
-            this.field.init(findRaw(source, fixedName));
-            if (this.field.getField() != null) {
-                if (fieldType != null && !this.field.getType().equals(fieldType)) {
-                    MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
-                                              " in class " + source.getName() +
-                                              " is of type " + this.field.getType().getSimpleName() +
-                                              " while we expect type " + fieldType.getSimpleName());
-                    this.field.init(null);
-                } else {
-                    return;
-                }
+        this.field.init(findRaw(source, fixedName));
+        if (this.field.getField() != null) {
+            if (fieldType != null && !this.field.getType().equals(fieldType)) {
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
+                                          " in class " + source.getName() +
+                                          " is of type " + this.field.getType().getSimpleName() +
+                                          " while we expect type " + fieldType.getSimpleName());
+                this.field.init(null);
+            } else {
+                return;
             }
-        } catch (SecurityException ex) {
-            new Exception("No permission to access field '" + dispName + "' in class file '" + source.getSimpleName() + "'").printStackTrace();
-            return;
         }
         MountiplexUtil.LOGGER.warning("Field '" + dispName + "' could not be found in class " + source.getName());
     }

@@ -1,14 +1,22 @@
 package com.bergerkiller.mountiplex.reflection.util.field;
 
+import static net.sf.cglib.asm.Opcodes.*;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import org.objectweb.asm.ClassWriter;
+
+import net.sf.cglib.asm.MethodVisitor;
+import net.sf.cglib.asm.Type;
+
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
 public class ReflectionAccessor<T> implements Reader<T>, Writer<T> {
     private final java.lang.reflect.Field f;
 
-    public ReflectionAccessor(java.lang.reflect.Field field) {
+    protected ReflectionAccessor(java.lang.reflect.Field field) {
         this.f = field;
     }
 
@@ -105,4 +113,91 @@ public class ReflectionAccessor<T> implements Reader<T>, Writer<T> {
     public void setBoolean(Object o, boolean v) {try{f.setBoolean(o, v);}catch(Throwable t){throw f(o,v,t);}}
     public Field getWriteField(){return f;}
     public void checkCanWrite(){}
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static <T> ReflectionAccessor<T> create(java.lang.reflect.Field field) {
+        int mod = field.getModifiers();
+        if (Modifier.isPublic(mod) && !Modifier.isStatic(mod)) {
+            // Optimize field access be generating the code to do it (its a public member)
+            ExtendedClassWriter<ReflectionAccessor<T>> cw = new ExtendedClassWriter<ReflectionAccessor<T>>(ClassWriter.COMPUTE_MAXS, (Class) ReflectionAccessor.class);
+            MethodVisitor mv;
+
+            // Constructor that calls the super constructor with the Field
+            mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/lang/reflect/Field;)V", null, null);
+            mv.visitCode();
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitVarInsn(ALOAD, 1);
+            mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(ReflectionAccessor.class), "<init>", "(" + Type.getDescriptor(java.lang.reflect.Field.class) + ")V");
+            mv.visitInsn(RETURN);
+            mv.visitMaxs(2, 2);
+            mv.visitEnd();
+
+            // Getter/setter makeup
+            String className = Type.getInternalName(field.getDeclaringClass());
+            Type fieldType = Type.getType(field.getType());
+            String fieldTypeName = fieldType.getDescriptor();
+            String fieldName = field.getName();
+            String accessorName = null;
+            if (field.getType().isPrimitive()) {
+                Class<?> unboxed = BoxedType.getBoxedType(field.getType());
+                if (unboxed != null) {
+                    accessorName = unboxed.getSimpleName();
+                }
+            }
+
+            if (accessorName == null) {
+                String fieldTypeInternalName = Type.getInternalName(field.getType());
+
+                // Get the Object field
+                mv = cw.visitMethod(ACC_PUBLIC, "get", "(Ljava/lang/Object;)Ljava/lang/Object;", null, null);
+                mv.visitCode();
+                mv.visitVarInsn(ALOAD, 1);
+                mv.visitTypeInsn(CHECKCAST, className);
+                mv.visitFieldInsn(GETFIELD, className, fieldName, fieldTypeName);
+                mv.visitInsn(ARETURN);
+                mv.visitMaxs(0, 0);
+                mv.visitEnd();
+
+                // Set the Object field (if not final)
+                if (!Modifier.isFinal(mod)) {
+                    mv = cw.visitMethod(ACC_PUBLIC, "set", "(Ljava/lang/Object;Ljava/lang/Object;)V", null, null);
+                    mv.visitCode();
+                    mv.visitVarInsn(ALOAD, 1);
+                    mv.visitTypeInsn(CHECKCAST, className);
+                    mv.visitVarInsn(ALOAD, 2);
+                    mv.visitTypeInsn(CHECKCAST, fieldTypeInternalName);
+                    mv.visitFieldInsn(PUTFIELD, className, fieldName, fieldTypeName);
+                    mv.visitInsn(RETURN);
+                    mv.visitMaxs(0, 0);
+                    mv.visitEnd();
+                }
+            } else {
+                // Get the primitive field
+                mv = cw.visitMethod(ACC_PUBLIC, "get" + accessorName, "(Ljava/lang/Object;)" + fieldTypeName, null, null);
+                mv.visitCode();
+                mv.visitVarInsn(ALOAD, 1);
+                mv.visitTypeInsn(CHECKCAST, className);
+                mv.visitFieldInsn(GETFIELD, className, fieldName, fieldTypeName);
+                mv.visitInsn(fieldType.getOpcode(IRETURN));
+                mv.visitMaxs(0, 0);
+                mv.visitEnd();
+
+                // Set the primitive field (if not final)
+                if (!Modifier.isFinal(mod)) {
+                    mv = cw.visitMethod(ACC_PUBLIC, "set" + accessorName, "(Ljava/lang/Object;" + fieldTypeName + ")V", null, null);
+                    mv.visitCode();
+                    mv.visitVarInsn(ALOAD, 1);
+                    mv.visitTypeInsn(CHECKCAST, className);
+                    mv.visitVarInsn(fieldType.getOpcode(ILOAD), 2);
+                    mv.visitFieldInsn(PUTFIELD, className, fieldName, fieldTypeName);
+                    mv.visitInsn(RETURN);
+                    mv.visitMaxs(0, 0);
+                    mv.visitEnd();
+                }
+            }
+
+            return cw.generateInstance(new Class<?>[] {java.lang.reflect.Field.class}, new Object[] { field });
+        }
+        return new ReflectionAccessor<T>(field);
+    }
 }
