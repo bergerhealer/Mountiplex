@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -87,18 +88,8 @@ public class MountiplexMojo extends AbstractMojo {
                     gen.setRootDirectory(this.target_root);
                     gen.setPath(opt.target + "/" + path);
                     gen.setClass(classDec);
-                    generators.put(classDec.type, gen);
-                }
-
-                // Map base classes to their generators for resolving template extensions
-                for (TemplateGenerator generator : generators.values()) {
-                    TypeDeclaration baseType = generator.getClassType().base;
-                    if (baseType != null) {
-                        TemplateGenerator baseGenerator = generators.get(baseType);
-                        if (baseGenerator != null) {
-                            generator.setBase(baseGenerator);
-                        }
-                    }
+                    gen.setPool(generators);
+                    registerGenerators(generators, classDec, gen);
                 }
 
                 // Proceed with generation
@@ -111,4 +102,10 @@ public class MountiplexMojo extends AbstractMojo {
         }
     }
 
+    private static void registerGenerators(Map<TypeDeclaration, TemplateGenerator> pool, ClassDeclaration cDec, TemplateGenerator gen) {
+        pool.put(cDec.type, gen);
+        for (ClassDeclaration subCDec : cDec.subclasses) {
+            registerGenerators(pool, subCDec, gen);
+        }
+    }
 }

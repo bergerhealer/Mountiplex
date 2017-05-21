@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.HashMap;
+import java.util.Map;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
@@ -15,7 +16,7 @@ public class TemplateGenerator {
     private StringBuilder builder = new StringBuilder();
     private HashMap<String, String> imports = new HashMap<String, String>();
     private int indent = 0;
-    private TemplateGenerator base = null;
+    private Map<TypeDeclaration, TemplateGenerator> generatorPool = null;
 
     public void setClass(ClassDeclaration classDec) {
         this.rootClassDec = classDec;
@@ -25,8 +26,8 @@ public class TemplateGenerator {
         return this.rootClassDec;
     }
 
-    public void setBase(TemplateGenerator base) {
-        this.base = base;
+    public void setPool(Map<TypeDeclaration, TemplateGenerator> generatorPool) {
+        this.generatorPool = generatorPool;
     }
 
     public void setRootDirectory(File rootDir) {
@@ -60,7 +61,7 @@ public class TemplateGenerator {
                 continue;
             }
             // Verify this import is not another import in the same package
-            if (importPath.startsWith(this.path) && importPath.substring(this.path.length() + 1).contains(".")) {
+            if (importPath.startsWith(this.path) && !importPath.substring(this.path.length() + 1).contains(".")) {
                 continue;
             }
             addLine("import " + importPath);
@@ -83,10 +84,32 @@ public class TemplateGenerator {
         }
     }
 
+    private String findClassName(ClassDeclaration root, String path, TypeDeclaration type) {
+        String new_path = path + "." + handleName(root);
+        if (root.type.equals(type)) {
+            return new_path;
+        } else {
+            for (ClassDeclaration sub : root.subclasses) {
+                String result = findClassName(sub, new_path, type);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+    }
+
     private void addClass(ClassDeclaration classDec) {
         String extendedHandleType = "Template.Handle";
-        if (base != null && classDec == rootClassDec) {
-            extendedHandleType = resolveImport(base.path + "." + base.handleName(base.rootClassDec));
+        TypeDeclaration baseType = classDec.base;
+        if (baseType != null && generatorPool != null) {
+            TemplateGenerator baseGen = generatorPool.get(baseType);
+            if (baseGen != null) {
+                String path = baseGen.findClassName(baseGen.rootClassDec, baseGen.path, classDec.base);
+                if (path != null) {
+                    extendedHandleType = resolveImport(path);
+                }
+            }
         }
 
         String classHeadStatic = "";
