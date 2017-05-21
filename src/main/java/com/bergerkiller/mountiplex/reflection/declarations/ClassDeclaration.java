@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.lang.reflect.Modifier;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -315,14 +316,90 @@ public class ClassDeclaration extends Declaration {
         }
     }
 
+    /**
+     * Attempts to find the method matching the declaration in this Class
+     * 
+     * @param declaration to find
+     * @return method declaration, <i>null</i> if not found
+     */
+    public MethodDeclaration findMethod(MethodDeclaration declaration) {
+        for (MethodDeclaration mDec : this.methods) {
+            if (mDec.match(declaration)) {
+                return mDec;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Attempts to find the Java Reflection Method in this Class Declaration.
+     * 
+     * @param method to find
+     * @return method declaration for the method, <i>null</i> if not found
+     */
+    public MethodDeclaration findMethod(java.lang.reflect.Method method) {
+        if (Modifier.isPrivate(method.getModifiers())) {
+            // Private methods are only matchable when the Class is exactly the same
+            if (!this.type.type.equals(method.getDeclaringClass())) {
+                return null;
+            }
+
+            // Go by all the methods; only match with equals()
+            for (MethodDeclaration mDec : this.methods) {
+                if (mDec.method != null && mDec.method.equals(method)) {
+                    return mDec;
+                }
+            }
+
+            return null; // not found
+        } else {
+            // First check if the methods declared in this Class Declaration even apply
+            if (!this.type.type.isAssignableFrom(method.getDeclaringClass())) {
+                return null;
+            }
+
+            // Check all non-private methods to see if they match
+            Class<?>[] mParams = method.getParameterTypes();
+            for (MethodDeclaration mDec : this.methods) {
+                if (mDec.method == null || Modifier.isPrivate(mDec.method.getModifiers())) {
+                    continue;
+                }
+                if (!mDec.method.getName().equals(method.getName())) {
+                    continue;
+                }
+
+                boolean paramsMatch = true;
+                Class<?>[] mDecParams = mDec.method.getParameterTypes();
+                if (mDecParams.length != mParams.length) {
+                    continue;
+                }
+                for (int i = 0; i < mParams.length; i++) {
+                    if (!mParams[i].equals(mDecParams[i])) {
+                        paramsMatch = false;
+                        break;
+                    }
+                }
+                if (!paramsMatch) {
+                    continue;
+                }
+
+                return mDec;
+            }
+            return null; // not found
+        }
+    }
+
     @Override
     public boolean isResolved() {
-        return false;
+        return this.type.isResolved();
     }
 
     @Override
     public boolean match(Declaration declaration) {
-        return false; // don't even bother
+        if (declaration instanceof ClassDeclaration) {
+            return ((ClassDeclaration) declaration).type.match(this.type);
+        }
+        return false;
     }
 
     @Override

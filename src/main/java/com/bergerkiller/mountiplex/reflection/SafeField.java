@@ -229,7 +229,7 @@ public class SafeField<T> implements FieldAccessor<T> {
      * class type
      *
      * @param type - class type to find the field in
-     * @param name - field name
+     * @param fieldname - field name
      * @return new SafeField
      */
     public static <T> SafeField<T> create(Class<?> type, String fieldname, Class<T> fieldType) {
@@ -265,7 +265,7 @@ public class SafeField<T> implements FieldAccessor<T> {
      * Tries to recursively find a field in a Class
      *
      * @param type of Class
-     * @param name of the field
+     * @param fieldName of the field
      * @return the Field, or null if not found
      */
     private static Field findRaw(Class<?> type, String fieldName) {

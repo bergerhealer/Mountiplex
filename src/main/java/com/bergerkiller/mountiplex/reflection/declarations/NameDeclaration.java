@@ -135,7 +135,15 @@ public class NameDeclaration extends Declaration {
     @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof NameDeclaration) {
-            return ((NameDeclaration) declaration)._name.equals(this._name);
+            // When both specify an alias, we check against the alias instead.
+            // Runtime-created declarations (from Reflection methods) never have aliases
+            // This allows for matching two declarations both referring to the same, renamed method
+            NameDeclaration other = (NameDeclaration) declaration;
+            if (this.hasAlias() && other.hasAlias()) {
+                return other._alias.equals(this._alias);
+            } else {
+                return other._name.equals(this._name);
+            }
         }
         return false;
     }

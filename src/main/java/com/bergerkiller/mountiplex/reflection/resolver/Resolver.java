@@ -6,6 +6,9 @@ import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
@@ -163,6 +166,112 @@ public class Resolver {
             }
         }
         return null;
+    }
+
+    /**
+     * Attempts to find the method in the template class declarations available.
+     * If not found, a new one is created purely for this Method, lacking metadata.
+     * 
+     * @param method to find
+     * @return method declaration matching it
+     */
+    public static MethodDeclaration resolveMethod(java.lang.reflect.Method method) {
+        TypeDeclaration type = TypeDeclaration.fromClass(method.getDeclaringClass());
+        MethodDeclaration result;
+
+        // First attempt resolving it, which will provide metadata information such as aliases
+        result = resolveMethodInType(type, method);
+        if (result != null) {
+            return result;
+        }
+        for (TypeDeclaration superType : type.getSuperTypes()) {
+            result = resolveMethodInType(superType, method);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        // Not found. Simply return a new Method Declaration from the method.
+        ClassResolver resolver = new ClassResolver();
+        resolver.addClassImports(method.getDeclaringClass());
+        return new MethodDeclaration(resolver, method);
+    }
+
+    private static MethodDeclaration resolveMethodInType(TypeDeclaration type,
+            java.lang.reflect.Method method) {
+        ClassDeclaration cDec = resolveClassDeclaration(type.type);
+        return (cDec == null) ? null : cDec.findMethod(method);
+    }
+    
+    
+    /**
+     * Attempts to find the resolved Method Declaration from a given declaration.
+     * First template declarations are queried. If that fails, the class itself is inspected.
+     * 
+     * @param type class to start looking for the method
+     * @param declaration to parse and look for
+     * @return found method declaration, <i>null</i> on failure
+     */
+    public static MethodDeclaration findMethod(Class<?> type, String declaration) {
+        ClassResolver resolver = new ClassResolver();
+        resolver.addClassImports(type);
+        MethodDeclaration mDec = new MethodDeclaration(resolver, declaration);
+        return findMethod(type, mDec);
+    }
+
+    /**
+     * Attempts to find the resolved Method Declaration from a given declaration.
+     * First template declarations are queried. If that fails, the class itself is inspected.
+     * 
+     * @param type class to start looking for the method
+     * @param declaration to find
+     * @return found method declaration, <i>null</i> on failure
+     */
+    public static MethodDeclaration findMethod(Class<?> type, MethodDeclaration declaration) {
+        if (!declaration.isResolved()) {
+            return null;
+        }
+
+        TypeDeclaration typeDec = TypeDeclaration.fromClass(type);
+        MethodDeclaration result;
+
+        // First attempt to find it in the templates we have defined
+        // Also check for interfaces or base classes that may have the declaration we need
+        result = findInTemplates(typeDec, declaration);
+        if (result != null) {
+            return result;
+        }
+        for (TypeDeclaration superType : typeDec.getSuperTypes()) {
+            result = findInTemplates(superType, declaration);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        // No templates. Try looking through the class itself
+        result = findInClass(typeDec, declaration);
+        if (result != null) {
+            return result;
+        }
+        for (TypeDeclaration superType : typeDec.getSuperTypes()) {
+            result = findInClass(superType, declaration);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        // Not found
+        return null;
+    }
+
+    private static MethodDeclaration findInTemplates(TypeDeclaration type, MethodDeclaration declaration) {
+        ClassDeclaration cDec = resolveClassDeclaration(type.type);
+        return (cDec == null) ? null : cDec.findMethod(declaration);
+    }
+
+    private static MethodDeclaration findInClass(TypeDeclaration type, MethodDeclaration declaration) {
+        ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, type.type);
+        return cDec.findMethod(declaration);
     }
 
     private static class ClassMeta {

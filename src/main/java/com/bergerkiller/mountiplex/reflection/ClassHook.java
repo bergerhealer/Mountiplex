@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
-import com.bergerkiller.mountiplex.reflection.util.InputTypeSet;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 
 import net.sf.cglib.proxy.MethodProxy;
 
@@ -32,22 +32,16 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
     @Override
     protected Invokable getCallback(Method method) {
-        Class<?> method_class = method.getDeclaringClass();
-
-        ClassTemplate<?> typeTemplate = ClassTemplate.create(method_class);
-        ClassResolver resolver = new ClassResolver();
-        resolver.addClassImports(method_class);
-        MethodDeclaration methodDec = new MethodDeclaration(resolver, method);
+        TypeDeclaration method_type = TypeDeclaration.fromClass(method.getDeclaringClass());
+        MethodDeclaration methodDec = Resolver.resolveMethod(method);
 
         for (HookMethodEntry entry : methods.entries) {
             // Check if signature matches with method
-            MethodDeclaration m = new MethodDeclaration(resolver, entry.name);
-            if (!m.isValid() || !m.isResolved()) {
-                continue;
-            }
-            if (m.match(methodDec) && method.equals(entry.findMethodIn(typeTemplate))) {
-                //Logging.LOGGER_REFLECTION.info("[" + method.getDeclaringClass().getSimpleName() + "] Hooked " + getMethodName(method) + " to " + getMethodName(entry.method));
-                entry.supportedTypes.add(TypeDeclaration.fromClass(method_class));
+            MethodDeclaration m = new MethodDeclaration(methodDec.getResolver(), entry.declaration);
+            if (m.isValid() && m.isResolved() && m.match(methodDec)) {
+                entry.setMethod(method_type, method);
+                //System.out.println("[" + method.getDeclaringClass().getSimpleName() + "] " +
+                //        "Hooked " + methodDec.toString() + " to " + m.toString());
                 return entry;
             }
         }
@@ -62,7 +56,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         // Those missing will be logged for debugging
         TypeDeclaration ht = TypeDeclaration.fromClass(hookedType);
         for (HookMethodEntry method : methods.entries) {
-            if (!method.optional && !method.supportedTypes.contains(ht)) {
+            if (!method.optional && !method.foundMethod(ht)) {
                 MountiplexUtil.LOGGER.warning("Hooked method " + method.toString() +
                         " was not found in " + hookedType.getName());
             }
@@ -125,10 +119,10 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                             // Find a method proxy to use for calling the super method, and cache it
                             MethodProxy proxy = entry.superMethodProxyMap.get(enhancedType);
                             if (proxy == null) {
-                                ClassTemplate<?> baseTypeTemplate = ((EnhancedObject) enhancedInstance).CI_getBaseTypeTemplate();
-                                Method m = entry.findMethodIn(baseTypeTemplate);
+                                Class<?> baseType = ((EnhancedObject) enhancedInstance).CI_getBaseType();
+                                Method m = entry.findMethodIn(TypeDeclaration.fromClass(baseType));
                                 if (m == null) {
-                                    throw new UnsupportedOperationException("Class " + baseTypeTemplate.getType().getName() + 
+                                    throw new UnsupportedOperationException("Class " + baseType.getName() + 
                                             " does not contain method " + entry.toString());
                                 }
 
@@ -144,8 +138,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                             }
                         } else {
                             // Not an enhanced instance, find the method in the class and invoke
-                            ClassTemplate<?> enhancedTypeTemplate = ClassTemplate.create(enhancedType);
-                            Method m = entry.findMethodIn(enhancedTypeTemplate);
+                            Method m = entry.findMethodIn(TypeDeclaration.fromClass(enhancedType));
                             if (m == null) {
                                 throw new UnsupportedOperationException("Class " + enhancedType.getName() + 
                                         " does not contain method " + entry.toString());
@@ -165,32 +158,43 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     }
 
     private static class HookMethodEntry extends MethodInvokable {
-        private final Map<Class<?>, Method> superMethodMap = new HashMap<Class<?>, Method>();
+        public final InputTypeMap<Method> superMethodMap = new InputTypeMap<Method>();
         public final Map<Class<?>, MethodProxy> superMethodProxyMap = new HashMap<Class<?>, MethodProxy>();
-        public final InputTypeSet supportedTypes = new InputTypeSet();
-        public final String name;
+        public final String declaration;
         public final boolean optional;
 
         public HookMethodEntry(Method method, String name, boolean optional) {
             super(method);
-            this.name = name;
+            this.declaration = name;
             this.optional = optional;
         }
 
         @Override
         public String toString() {
-            return name;
+            return declaration;
         }
 
-        public Method findMethodIn(ClassTemplate<?> typeTemplate) {
-            if (typeTemplate == null || !typeTemplate.isValid()) {
+        public boolean foundMethod(TypeDeclaration type) {
+            return superMethodMap.containsKey(type);
+        }
+
+        public void setMethod(TypeDeclaration type, Method method) {
+            superMethodMap.put(type, method);
+        }
+
+        public Method findMethodIn(TypeDeclaration type) {
+            if (type == null || !type.isResolved()) {
                 return null;
             }
-            Method m = superMethodMap.get(typeTemplate.getType());
+
+            Method m = superMethodMap.get(type);
             if (m == null) {
-                m = typeTemplate.selectRawMethod(name, false);
-                if (m != null) {
-                    superMethodMap.put(typeTemplate.getType(), m);
+                MethodDeclaration mDec = Resolver.findMethod(type.type, this.declaration);
+                if (mDec != null) {
+                    m = mDec.method;
+                    if (m != null) {
+                        superMethodMap.put(type, m);
+                    }
                 }
             }
             return m;
