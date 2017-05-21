@@ -102,13 +102,17 @@ public class MethodSpeedTest {
         }
     }
 
+    public static interface SomeInterface {
+        public void save();
+    }
+    
     @Test
     public void testMethodSpeed() {
         final SpeedTestObject object = new SpeedTestObject();
         final CustomGenSet setter = new CustomGenSet(SpeedTestObjectHandle.T.setS.toJavaMethod());
         final CustomGenGet getter = new CustomGenGet(SpeedTestObjectHandle.T.getS.toJavaMethod());
 
-       // TestUtil.printASM(CustomGenGet.class);
+        //TestUtil.printASM(CustomGenGet.class);
         
         //if (true) return;
         

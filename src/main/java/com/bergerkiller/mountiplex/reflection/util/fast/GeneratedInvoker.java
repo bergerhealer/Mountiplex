@@ -152,7 +152,13 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
                 mv.visitVarInsn(ALOAD, 2 + i);
                 ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
             }
-            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method));
+
+            if (instanceType.isInterface()) {
+                mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), Type.getMethodDescriptor(method));
+            } else {
+                mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method));
+            }
+
             ExtendedClassWriter.visitBoxVariable(mv, returnType);
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);
