@@ -315,6 +315,10 @@ public class Conversion {
 
         // finds the (chain) converter for a particular input type
         public final Converter<Object, Object> find(TypeDeclaration input) {
+            if (input.type == null) {
+                throw new IllegalArgumentException("Unresolved input type: " + input.toString());
+            }
+
             // 'Object' inputs can have any real object assigned to it
             // Just return our very own input converter in that case
             // This resolves the incoming object type into a proper converter at runtime
