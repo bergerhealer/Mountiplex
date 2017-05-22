@@ -496,17 +496,22 @@ public class TemplateGenerator {
 
     // adds/resolves the imports for a class type, returning the keyword to use in the source file
     private String resolveImport(String typePath) {
+        String importPath = typePath;
+        while (importPath.endsWith("[]")) {
+            importPath = importPath.substring(0, importPath.length() - 2);
+        }
         String typeName = typePath.substring(typePath.lastIndexOf('.') + 1);
-        String oldImport = this.imports.get(typeName);
+        String importName = importPath.substring(importPath.indexOf('.') + 1);
+        String oldImport = this.imports.get(importName);
         String fullType;
         if (oldImport != null) {
-            if (oldImport.equals(typePath)) {
+            if (oldImport.equals(importPath)) {
                 fullType = typeName;
             } else {
                 fullType = typePath;
             }
         } else {
-            this.imports.put(typeName, typePath);
+            this.imports.put(importName, importPath);
             fullType = typeName;
         }
         return fullType;

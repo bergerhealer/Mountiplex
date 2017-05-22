@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 
 /**
@@ -127,6 +128,11 @@ public class ClassResolver {
             return resolvePath(type);
         }
 
+        // Handle array types proper.
+        if (name.endsWith("[]")) {
+            return resolvePath(name.substring(0, name.length() - 2)) + "[]";
+        }
+
         // retrieve the first word of the class, before the .
         int nameFirstEnd = name.indexOf('.');
         String nameFirst = (nameFirstEnd == -1) ? name : name.substring(0, nameFirstEnd);
@@ -148,7 +154,7 @@ public class ClassResolver {
             return packagePath + "." + name;
         }
     }
-    
+
     /**
      * Resolves a class name to a class.
      * 
@@ -159,6 +165,16 @@ public class ClassResolver {
         // Return Object for generic typings (T, K, etc.)
         if (name.length() == 1) {
             return Object.class;
+        }
+
+        // Array types
+        if (name.endsWith("[]")) {
+            Class<?> componentType = resolveClass(name.substring(0, name.length() - 2));
+            if (componentType != null) {
+                return MountiplexUtil.getArrayType(componentType);
+            } else {
+                return null;
+            }
         }
 
         Class<?> fieldType = Resolver.loadClass(name, false);
