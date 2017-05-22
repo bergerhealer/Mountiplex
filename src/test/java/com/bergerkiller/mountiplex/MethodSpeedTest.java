@@ -84,10 +84,10 @@ public class MethodSpeedTest {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {
-            if (args.length != 0) {
+            if (args.length != 3) {
                 throw failArgs(args.length);
             } else {
-                return invoke(instance);
+                return invoke(instance, args[0], args[1], args[2]);
             }
         }
 
@@ -100,12 +100,23 @@ public class MethodSpeedTest {
         public Object invoke(Object instance, Object arg0, Object arg1) {
             return ((SpeedTestObject) instance).test((String) arg0, (Integer) arg1);
         }
+        
+        @Override
+        public Object invoke(Object instance, Object arg0, Object arg1, Object arg2) {
+            return Double.valueOf(((SomeClass2) instance).calculateDistance(((Double) arg0).doubleValue(), ((Double) arg1).doubleValue(), ((Double) arg2).doubleValue()));
+        }
     }
 
+    public static class SomeClass2 {
+        public double calculateDistance(double x, double y, double z) {
+            return 0.0;
+        }
+    }
+    
     public static interface SomeInterface {
         public void save();
     }
-    
+
     @Test
     public void testMethodSpeed() {
         final SpeedTestObject object = new SpeedTestObject();

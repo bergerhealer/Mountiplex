@@ -123,17 +123,9 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
             mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
             mv.visitVarInsn(ALOAD, 0);
             mv.visitVarInsn(ALOAD, 1);
-            if (paramTypes.length == 0) {
-            } else if (paramTypes.length == 1) {
+            for (int i = 0; i < paramTypes.length; i++) {
                 mv.visitVarInsn(ALOAD, 2);
-                mv.visitInsn(ICONST_0);
-                mv.visitInsn(AALOAD);
-            } else if (paramTypes.length == 2) {
-                mv.visitVarInsn(ALOAD, 2);
-                mv.visitInsn(ICONST_0);
-                mv.visitInsn(AALOAD);
-                mv.visitVarInsn(ALOAD, 2);
-                mv.visitInsn(ICONST_1);
+                mv.visitInsn(ICONST_0 + i);
                 mv.visitInsn(AALOAD);
             }
             mv.visitMethodInsn(INVOKEVIRTUAL, cw.getInternalName(), "invoke", argsStr);
