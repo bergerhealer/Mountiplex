@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
@@ -14,7 +15,7 @@ public class TemplateGenerator {
     private File rootDir = null;
     private String path = "";
     private StringBuilder builder = new StringBuilder();
-    private HashMap<String, String> imports = new HashMap<String, String>();
+    private Map<String, String> imports = new TreeMap<String, String>();
     private int indent = 0;
     private Map<TypeDeclaration, TemplateGenerator> generatorPool = null;
 
