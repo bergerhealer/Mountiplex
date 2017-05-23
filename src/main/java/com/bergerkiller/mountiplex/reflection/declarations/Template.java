@@ -237,6 +237,13 @@ public class Template {
             }
         }
 
+        public static Handle createHandle(Object instance) {
+            if (instance == null) return null;
+            Handle h = new Handle();
+            h.instance = instance;
+            return h;
+        }
+
         @InitMethod
         protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath) {
             try {
