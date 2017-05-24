@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.ClassMetadata;
 
 /**
  * Represents a (generic) Type declaration and allows for type matching.
@@ -361,8 +362,7 @@ public class TypeDeclaration extends Declaration {
      * @return Superclass type information
      */
     public TypeDeclaration getSuperType() {
-        Type superClass = this.type.getGenericSuperclass();
-        return (superClass == null) ? null : resolveSuperType(superClass);
+        return resolveSuperType(ClassMetadata.get(this.type).superType);
     }
 
     /**
@@ -398,11 +398,11 @@ public class TypeDeclaration extends Declaration {
 
     private void addInterfaces(ArrayList<TypeDeclaration> types) {
         if (this.type != null) {
-            for (Type iif : this.type.getGenericInterfaces()) {
-                TypeDeclaration iifType = this.resolveSuperType(iif);
-                if (!types.contains(iifType)) {
-                    types.add(iifType);
-                    iifType.addInterfaces(types);
+            for (TypeDeclaration iif : ClassMetadata.get(this.type).interfaces) {
+                iif = resolveSuperType(iif);
+                if (!types.contains(iif)) {
+                    types.add(iif);
+                    iif.addInterfaces(types);
                 }
             }
         }
@@ -525,12 +525,16 @@ public class TypeDeclaration extends Declaration {
         return (index >= 0 && index < this.genericTypes.length) ? this.genericTypes[index] : OBJECT;
     }
 
-    private final TypeDeclaration resolveSuperType(Type superClass) {
-        TypeDeclaration superType = new TypeDeclaration(this.getResolver(), superClass);
+    private final TypeDeclaration resolveSuperType(TypeDeclaration superType) {
+        if (superType == null) {
+            return null;
+        }
         if (superType.genericTypes.length > 0 && this.genericTypes.length > 0) {
+
             // Correct super type generic types to use the types declared in this type
             // For example, HashMap<Integer, ?> should turn into AbstractMap<Integer, ?>
             // Without this, it would turn into AbstractMap<K, V>
+            TypeDeclaration[] newTypeParams = superType.genericTypes.clone();
             TypeVariable<?>[] params = this.type.getTypeParameters();
             if (params.length == this.genericTypes.length) {
                 for (int i = 0; i < superType.genericTypes.length; i++) {
@@ -540,12 +544,13 @@ public class TypeDeclaration extends Declaration {
                     }
                     for (int j = 0; j < params.length; j++) {
                         if (params[j].getName().equals(name)) {
-                            superType.genericTypes[i] = this.genericTypes[j];
+                            newTypeParams[i] = this.genericTypes[j];
                             break;
                         }
                     }
                 }
             }
+            return superType.setGenericTypes(newTypeParams);
         }
         return superType;
     }
@@ -738,6 +743,20 @@ public class TypeDeclaration extends Declaration {
      */
     public static TypeDeclaration fromType(ClassResolver classResolver, Type type) {
         return new TypeDeclaration(classResolver, type);
+    }
+
+    /**
+     * Creates a Type Declaration by inspecting a type, caching the result if possible
+     * 
+     * @param type to retrieve
+     * @return Type Declaration for the type
+     */
+    public static TypeDeclaration fromType(Type type) {
+        if (type instanceof Class) {
+            return fromClass((Class<?>) type);
+        } else {
+            return new TypeDeclaration(ClassResolver.DEFAULT, type);
+        }
     }
 
     /**
