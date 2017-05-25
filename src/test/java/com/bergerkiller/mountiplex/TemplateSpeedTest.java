@@ -91,7 +91,7 @@ public class TemplateSpeedTest {
         }
 
         public void doStuff() {
-            System.out.println("STUFF");
+            System.out.println("doStuff() was successfully called");
         }
     }
 

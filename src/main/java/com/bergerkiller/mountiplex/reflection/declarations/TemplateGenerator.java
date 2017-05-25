@@ -101,6 +101,9 @@ public class TemplateGenerator {
     }
 
     private void addClass(ClassDeclaration classDec) {
+        if (classDec.type.typePath.equals("")) {
+            return; // don't know why this happens, but it does
+        }
         String extendedHandleType = "Template.Handle";
         TypeDeclaration baseType = classDec.base;
         if (baseType != null && generatorPool != null) {

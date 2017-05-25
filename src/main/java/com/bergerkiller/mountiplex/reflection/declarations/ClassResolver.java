@@ -3,8 +3,10 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -18,6 +20,7 @@ public class ClassResolver {
 
     private final HashSet<String> imports;
     private final List<String> manualImports;
+    private final HashMap<String, String> variables = new HashMap<String, String>();
     private String packagePath;
 
     private ClassResolver(ClassResolver src) {
@@ -111,6 +114,148 @@ public class ClassResolver {
     public void addImport(String path) {
         this.imports.add(path);
         this.manualImports.add(path);
+    }
+
+    /**
+     * Saves all set variables to a String declaration, used for parsing template sources
+     * 
+     * @return variables declaration
+     */
+    public String saveDeclaration() {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+            result.append("#setpath ").append(entry.getKey()).append(' ').append(entry.getValue()).append('\n');
+        }
+        return result.toString();
+    }
+
+    /**
+     * Sets an environment variable used during parsing of template sources
+     * 
+     * @param name variable name
+     * @param value variable value
+     */
+    public void setVariable(String name, String value) {
+        variables.put(name, value);
+    }
+
+    /**
+     * Evaluates a simple logical expression using the variables set
+     *
+     * @param expression to evaluate
+     * @return True if the expression evaluates as True, False if not
+     */
+    public boolean evaluateExpression(String expression) {
+        // =============== Tokenize the expression ================
+        expression = expression.trim();
+        String varName = null;
+        for (int cIdx = 0; cIdx < expression.length(); cIdx++) {
+            char c = expression.charAt(cIdx);
+            if (cIdx == ' ' || !Character.isLetter(c)) {
+                varName = expression.substring(0, cIdx);
+                expression = expression.substring(cIdx).trim();
+                break;
+            }
+        }
+        if (varName == null) {
+            varName = expression;
+            expression = "";
+        }
+        String value1 = this.variables.get(varName);
+        if (value1 == null) {
+            // Edge cases: true/false constants
+            if (varName.equals("1") || varName.equalsIgnoreCase("true")) {
+                return true;
+            }
+            return false; // variable not found; never evaluates to True
+        }
+        int logicEndIdx = expression.indexOf(' ');
+        if (logicEndIdx == -1) {
+            // #if <varname> simply checks if the variable exists
+            return true;
+        }
+        String logic = expression.substring(0, logicEndIdx);
+        String value2 = expression.substring(logicEndIdx + 1).trim();
+
+        // ============== Evaluate the simple expression ================
+        int comp = compareValues(value1, value2);
+        if (logic.equals("==")) {
+            return comp == 0;
+        } else if (logic.equals("!=")) {
+            return comp != 0;
+        } else if (logic.equals(">")) {
+            return comp > 0;
+        } else if (logic.equals("<")) {
+            return comp < 0;
+        } else if (logic.equals(">=")) {
+            return comp >= 0;
+        } else if (logic.equals("<=")) {
+            return comp <= 0;
+        } else {
+            return false;
+        }
+    }
+
+    // compares value1 with value2. Here in case we need to handle some edge cases to handle numbers/version tokens
+    private static int compareValues(String value1, String value2) {
+        return new ValueToken(value1).compareTo(new ValueToken(value2));
+    }
+
+    private static class ValueToken implements Comparable<ValueToken> {
+        public boolean number;
+        public int value;
+        public String text;
+        public ValueToken next;
+
+        public ValueToken(String text) {
+            this.number = false;
+            this.value = 0;
+            int cIdx = 0;
+            for (; cIdx < text.length() && Character.isDigit(text.charAt(cIdx)); cIdx++) {
+                this.number = true;
+            }
+            if (this.number) {
+                // A number, attempt parsing it
+                this.text = text.substring(0, cIdx);
+                try {
+                    this.value = Integer.parseInt(this.text);
+                } catch (NumberFormatException ex) {
+                    this.number = false;
+                }
+            }
+            if (!this.number) {
+                // Not a number, seek until we find a digit of something that is
+                for (; cIdx < text.length() && !Character.isDigit(text.charAt(cIdx)); cIdx++);
+                this.text = text.substring(0, cIdx);
+            }
+
+            // Parse next value token, if it exists
+            if (cIdx < text.length()) {
+                this.next = new ValueToken(text.substring(cIdx));
+            } else {
+                this.next = null;
+            }
+        }
+
+        @Override
+        public int compareTo(ValueToken o) {
+            int result;
+            if (this.number && o.number) {
+                result = Integer.compare(this.value, o.value);
+            } else {
+                result = this.text.compareTo(o.text);
+            }
+            if (result == 0) {
+                if (this.next != null && o.next != null) {
+                    return this.next.compareTo(o.next);
+                } else if (this.next != null) {
+                    return 1;
+                } else if (o.next != null) {
+                    return -1;
+                }
+            }
+            return result;
+        }
     }
 
     /**
@@ -262,6 +407,11 @@ public class ClassResolver {
 
         @Override
         public void addImport(String path) {
+            throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
+
+        @Override
+        public void setVariable(String name, String value) {
             throw new UnsupportedOperationException("Class Resolver is immutable");
         }
     }

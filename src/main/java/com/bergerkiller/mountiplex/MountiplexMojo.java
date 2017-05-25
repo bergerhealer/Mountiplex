@@ -52,6 +52,13 @@ public class MountiplexMojo extends AbstractMojo {
          * @parameter
          */
         public String target;
+
+        /**
+         * Variables to use to process the source files
+         * 
+         * @parameter
+         */
+        public Map<String, String> variables;
     }
 
     /**
@@ -80,7 +87,7 @@ public class MountiplexMojo extends AbstractMojo {
                 System.out.println("Target: " + opt.target);
 
                 // Create template generators for all found classes
-                SourceDeclaration dec = SourceDeclaration.loadFromDisk(source_root, opt.source);
+                SourceDeclaration dec = SourceDeclaration.loadFromDisk(source_root, opt.source, opt.variables);
                 HashMap<TypeDeclaration, TemplateGenerator> generators = new HashMap<TypeDeclaration, TemplateGenerator>();
                 for (ClassDeclaration classDec : dec.classes) {
                     String path = classDec.getResolver().getPackage().replace('.', '/');
