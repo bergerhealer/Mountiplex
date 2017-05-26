@@ -75,7 +75,7 @@ public class InputTypeMap<T> {
     private final Bin getBin(TypeDeclaration type) {
         Bin bin = map.get(type);
         if (bin == null) {
-            bin = new Bin();
+            bin = new Bin(type);
             for (Entry<TypeDeclaration, Bin> entry : map.entrySet()) {
                 if (entry.getKey().isInstanceOf(type)) {
                     entry.getValue().link(bin);
@@ -88,14 +88,20 @@ public class InputTypeMap<T> {
         return bin;
     }
 
-    private class Bin {
+    private class Bin implements Comparable<Bin> {
+        public final TypeDeclaration type;
         public Collection<T> values = Collections.emptyList();
-        public final ArrayList<Bin> parents = new ArrayList<Bin>(1);
-        public final ArrayList<Bin> children = new ArrayList<Bin>(1);
+        private final ArrayList<Bin> parents = new ArrayList<Bin>(1);
+        private final ArrayList<Bin> children = new ArrayList<Bin>(1);
         private ArrayList<T> cache = null;
+
+        public Bin(TypeDeclaration type) {
+            this.type = type;
+        }
 
         public final void link(Bin other) {
             this.parents.add(other);
+            Collections.sort(this.parents);
             other.children.add(this);
             other.clearCache();
         }
@@ -119,6 +125,17 @@ public class InputTypeMap<T> {
                 }
             }
             return this.cache;
+        }
+
+        @Override
+        public int compareTo(Bin o) {
+            if (o.type.equals(this.type)) {
+                return 0;
+            } else if (this.type.isAssignableFrom(o.type)) {
+                return 1;
+            } else {
+                return -1;
+            }
         }
     }
 }
