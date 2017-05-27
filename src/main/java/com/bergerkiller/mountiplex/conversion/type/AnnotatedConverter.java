@@ -18,6 +18,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 public class AnnotatedConverter extends RawConverter {
     public final Method method;
     public final boolean isUpcast;
+    private final boolean nullInput;
 
     public AnnotatedConverter(Method method, TypeDeclaration input, TypeDeclaration output) {
         this(method, input, output, false);
@@ -27,6 +28,9 @@ public class AnnotatedConverter extends RawConverter {
         super(input, output);
         this.method = method;
         this.isUpcast = isUpcast;
+
+        ConverterMethod annot = method.getAnnotation(ConverterMethod.class);
+        this.nullInput = (annot != null && annot.acceptsNull());
     }
 
     @Override
@@ -46,6 +50,11 @@ public class AnnotatedConverter extends RawConverter {
             e.printStackTrace();
         }
         return null;
+    }
+
+    @Override
+    public boolean acceptsNullInput() {
+        return this.nullInput;
     }
 
     public static TypeDeclaration parseType(Method method, boolean input) {

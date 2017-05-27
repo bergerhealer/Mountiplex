@@ -298,6 +298,8 @@ public class Conversion {
         private final InputTypeMap<Node> lazyMapping = new InputTypeMap<Node>();
         private final ArrayList<Node> lastNodes = new ArrayList<Node>();
         private final ArrayList<Node> nextNodes = new ArrayList<Node>();
+        private Converter<?, Object> nullConverter = null;
+        private boolean nullConverterSearched = false;
         public final InputConverter<Object> converter;
 
         public OutputConverterTree(TypeDeclaration output) {
@@ -308,6 +310,24 @@ public class Conversion {
                 public Converter<Object, Object> getConverter(TypeDeclaration input) {
                     synchronized (lock) {
                         return (Converter<Object, Object>) find(input);
+                    }
+                }
+
+                @Override
+                @SuppressWarnings("unchecked")
+                public Converter<?, Object> getNullConverter() {
+                    synchronized (lock) {
+                        if (!nullConverterSearched) {
+                            nullConverterSearched = true;
+                            nullConverter = null;
+                            for (Converter<?, ?> converter : OutputConverterList.get(output).getConverters()) {
+                                if (converter.acceptsNullInput()) {
+                                    nullConverter = (Converter<?, Object>) converter;
+                                    break;
+                                }
+                            }
+                        }
+                        return nullConverter;
                     }
                 }
             };
@@ -398,6 +418,7 @@ public class Conversion {
 
         // resets, causing regeneration at a later time
         public final void reset() {
+            this.nullConverterSearched = false;
             this.lazyMapping.clear();
             this.mapping.clear();
             this.mapping.put(this.root.converter.input, this.root);

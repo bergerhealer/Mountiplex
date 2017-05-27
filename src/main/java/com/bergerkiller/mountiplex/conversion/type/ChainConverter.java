@@ -9,11 +9,13 @@ import com.bergerkiller.mountiplex.conversion.Converter;
  */
 public final class ChainConverter<I, O> extends Converter<I, O> {
     private final Converter<Object, Object>[] converters;
+    private final boolean acceptsNull;
 
     @SuppressWarnings("unchecked")
     public ChainConverter(List<Converter<?, ?>> chain) {
         super(chain.get(0).input, chain.get(chain.size() - 1).output);
         this.converters = chain.toArray(new Converter[chain.size()]);
+        this.acceptsNull = this.converters[0].acceptsNullInput();
     }
 
     @Override
@@ -29,4 +31,8 @@ public final class ChainConverter<I, O> extends Converter<I, O> {
         return (O) v;
     }
 
+    @Override
+    public boolean acceptsNullInput() {
+        return this.acceptsNull;
+    }
 }

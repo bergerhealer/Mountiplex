@@ -13,4 +13,5 @@ import java.lang.annotation.Target;
 public @interface ConverterMethod {
     String input() default "";
     String output() default "";
+    boolean acceptsNull() default false;
 }

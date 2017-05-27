@@ -40,7 +40,11 @@ public abstract class Converter<I, O> {
         if (inputType.isPrimitive()) {
             inputType = BoxedType.getBoxedType(inputType);
         }
-        if (value != null && inputType.isAssignableFrom(value.getClass())) {
+        if (value == null) {
+            if (this.acceptsNullInput()) {
+                result = convertInput(null);
+            }
+        } else if (inputType.isAssignableFrom(value.getClass())) {
             result = convertInput((I) value);
         }
         if (result == null && this.output.type.isPrimitive()) {
@@ -61,7 +65,7 @@ public abstract class Converter<I, O> {
     @SuppressWarnings("unchecked")
     public final O convert(Object value, O defaultValue) {
         O result = null;
-        if (value != null && this.input.type.isAssignableFrom(value.getClass())) {
+        if ((value == null) ? this.acceptsNullInput() : this.input.type.isAssignableFrom(value.getClass())) {
             result = convert(value);
         }
         if (result == null) {
@@ -86,6 +90,17 @@ public abstract class Converter<I, O> {
      * @return True if lazy, False if not
      */
     public boolean isLazy() {
+        return false;
+    }
+
+    /**
+     * Gets whether <i>null</i> is allowed as input to this converter.
+     * By default <i>false</i>, indicating it should return <i>null</i> without
+     * performing conversion.
+     * 
+     * @return True if <i>null</i> is a valid input to this converter, False if not
+     */
+    public boolean acceptsNullInput() {
         return false;
     }
 

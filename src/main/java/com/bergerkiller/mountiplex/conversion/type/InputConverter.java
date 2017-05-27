@@ -19,6 +19,21 @@ public abstract class InputConverter <T> extends Converter<Object, T> {
     }
 
     /**
+     * Gets the Converter used to convert null input, to the output type of this
+     * InputConverter. If no such converter exists, null can be returned instead.
+     * 
+     * @return null input converter
+     */
+    public Converter<?, T> getNullConverter() {
+        return null;
+    }
+
+    @Override
+    public boolean acceptsNullInput() {
+        return getNullConverter() != null;
+    }
+
+    /**
      * Gets the Converter used to convert from the input type specified, to the output type
      * of this InputConverter.
      * 
@@ -64,12 +79,16 @@ public abstract class InputConverter <T> extends Converter<Object, T> {
     @Override
     @SuppressWarnings("unchecked")
     public final T convertInput(Object value) {
-        Converter<Object, T> converter = (Converter<Object, T>) this.getConverter(TypeDeclaration.fromClass(value.getClass()));
+        Converter<Object, T> converter;
+        if (value == null) {
+            converter = (Converter<Object, T>) this.getNullConverter();
+        } else {
+            converter = (Converter<Object, T>) this.getConverter(TypeDeclaration.fromClass(value.getClass()));
+        }
         if (converter != null) {
             return converter.convertInput(value);
         } else {
             return null;
         }
     }
-
 }
