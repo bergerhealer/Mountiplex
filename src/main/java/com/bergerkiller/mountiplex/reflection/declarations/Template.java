@@ -206,6 +206,17 @@ public class Template {
         }
 
         /**
+         * Gets the raw instance backing this Handle.
+         * If this Handle is <i>null</i>, <i>null</i> is returned safely.
+         * 
+         * @param handle to get the raw instance from
+         * @return raw instance
+         */
+        public static final Object getRaw(Handle handle) {
+            return (handle == null) ? null : handle.instance;
+        }
+
+        /**
          * Casts this handle to a different handle Class type.
          * If casting fails, an exception is thrown.
          * 
