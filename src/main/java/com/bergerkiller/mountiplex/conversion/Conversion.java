@@ -300,6 +300,7 @@ public class Conversion {
         private final ArrayList<Node> nextNodes = new ArrayList<Node>();
         private Converter<?, Object> nullConverter = null;
         private boolean nullConverterSearched = false;
+        private boolean isReset = false;
         public final InputConverter<Object> converter;
 
         public OutputConverterTree(TypeDeclaration output) {
@@ -352,12 +353,16 @@ public class Conversion {
             }
 
             // generate more layers deeper into the tree until we find our type
+            isReset = false;
             while (node == null && !nextNodes.isEmpty()) {
                 lastNodes.clear();
                 lastNodes.addAll(nextNodes);
                 nextNodes.clear();
                 for (Node nextNode : lastNodes) {
                     nextNode.step();
+                    if (this.isReset) {
+                        return find(input);
+                    }
                     nextNodes.addAll(nextNode.children);
                 }
                 if (nextNodes.isEmpty()) {
@@ -425,6 +430,7 @@ public class Conversion {
             this.lastNodes.clear();
             this.nextNodes.clear();
             this.nextNodes.add(this.root);
+            this.isReset = true; // to avoid concurrent modification errors
         }
 
         private final class Node {
