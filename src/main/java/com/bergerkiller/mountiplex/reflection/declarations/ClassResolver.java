@@ -124,7 +124,7 @@ public class ClassResolver {
     public String saveDeclaration() {
         StringBuilder result = new StringBuilder();
         for (Map.Entry<String, String> entry : variables.entrySet()) {
-            result.append("#setpath ").append(entry.getKey()).append(' ').append(entry.getValue()).append('\n');
+            result.append("#set ").append(entry.getKey()).append(' ').append(entry.getValue()).append('\n');
         }
         return result.toString();
     }
@@ -174,88 +174,9 @@ public class ClassResolver {
             // #if <varname> simply checks if the variable exists
             return true;
         }
-        String logic = expression.substring(0, logicEndIdx);
+        String operand = expression.substring(0, logicEndIdx);
         String value2 = expression.substring(logicEndIdx + 1).trim();
-
-        // ============== Evaluate the simple expression ================
-        int comp = compareValues(value1, value2);
-        if (logic.equals("==")) {
-            return comp == 0;
-        } else if (logic.equals("!=")) {
-            return comp != 0;
-        } else if (logic.equals(">")) {
-            return comp > 0;
-        } else if (logic.equals("<")) {
-            return comp < 0;
-        } else if (logic.equals(">=")) {
-            return comp >= 0;
-        } else if (logic.equals("<=")) {
-            return comp <= 0;
-        } else {
-            return false;
-        }
-    }
-
-    // compares value1 with value2. Here in case we need to handle some edge cases to handle numbers/version tokens
-    private static int compareValues(String value1, String value2) {
-        return new ValueToken(value1).compareTo(new ValueToken(value2));
-    }
-
-    private static class ValueToken implements Comparable<ValueToken> {
-        public boolean number;
-        public int value;
-        public String text;
-        public ValueToken next;
-
-        public ValueToken(String text) {
-            this.number = false;
-            this.value = 0;
-            int cIdx = 0;
-            for (; cIdx < text.length() && Character.isDigit(text.charAt(cIdx)); cIdx++) {
-                this.number = true;
-            }
-            if (this.number) {
-                // A number, attempt parsing it
-                this.text = text.substring(0, cIdx);
-                try {
-                    this.value = Integer.parseInt(this.text);
-                } catch (NumberFormatException ex) {
-                    this.number = false;
-                }
-            }
-            if (!this.number) {
-                // Not a number, seek until we find a digit of something that is
-                for (; cIdx < text.length() && !Character.isDigit(text.charAt(cIdx)); cIdx++);
-                this.text = text.substring(0, cIdx);
-            }
-
-            // Parse next value token, if it exists
-            if (cIdx < text.length()) {
-                this.next = new ValueToken(text.substring(cIdx));
-            } else {
-                this.next = null;
-            }
-        }
-
-        @Override
-        public int compareTo(ValueToken o) {
-            int result;
-            if (this.number && o.number) {
-                result = Integer.compare(this.value, o.value);
-            } else {
-                result = this.text.compareTo(o.text);
-            }
-            if (result == 0) {
-                if (this.next != null && o.next != null) {
-                    return this.next.compareTo(o.next);
-                } else if (this.next != null) {
-                    return 1;
-                } else if (o.next != null) {
-                    return -1;
-                }
-            }
-            return result;
-        }
+        return MountiplexUtil.evaluateText(value1, operand, value2);
     }
 
     /**

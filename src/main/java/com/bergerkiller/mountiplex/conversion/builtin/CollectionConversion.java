@@ -3,7 +3,9 @@ package com.bergerkiller.mountiplex.conversion.builtin;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 
 import com.bergerkiller.mountiplex.conversion.Conversion;
@@ -12,7 +14,9 @@ import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
+import com.bergerkiller.mountiplex.conversion.util.ConvertingIterable;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
+import com.bergerkiller.mountiplex.conversion.util.ConvertingQueue;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingSet;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
@@ -24,16 +28,25 @@ public class CollectionConversion {
         Conversion.registerProvider(new ConverterProvider() {
             @Override
             public void getConverters(final TypeDeclaration output, List<Converter<?, ?>> converters) {
-                // Only handle conversions to types that are Collections
-                if (!Collection.class.isAssignableFrom(output.type)) {
-                    return;
+                if (output.type.equals(Iterable.class)) {
+                    converters.add(new CollectionConverter<Iterable<?>>(output) {
+                        @Override
+                        protected Iterable<?> change(Collection<?> original) {
+                            return original; // all collections are iterables
+                        }
+
+                        @Override
+                        protected Iterable<?> create(Iterable<?> original, DuplexConverter<Object, Object> elementConverter) {
+                            return new ConvertingIterable<Object>(original, elementConverter);
+                        }
+                    });
                 }
 
                 // Converting to a Collection type, from an unknown type
                 if (output.type.equals(Collection.class)) {
                     converters.add(new CollectionConverter<Collection<?>>(output) {
                         @Override
-                        protected Collection<?> convert(Collection<?> original) {
+                        protected Collection<?> change(Collection<?> original) {
                             return original;
                         }
 
@@ -44,11 +57,26 @@ public class CollectionConversion {
                     });
                 }
 
+                // Converting to a Queue type, from an unknown type
+                if (output.type.equals(Queue.class)) {
+                    converters.add(new CollectionConverter<Queue<?>>(output) {
+                        @Override
+                        protected Queue<?> change(Collection<?> original) {
+                            return new LinkedList<Object>(original);
+                        }
+
+                        @Override
+                        protected Queue<?> create(Queue<?> original, DuplexConverter<Object, Object> elementConverter) {
+                            return new ConvertingQueue<Object>(original, elementConverter);
+                        }
+                    });
+                }
+
                 // Converting to a List type, from an unknown type
                 if (output.type.equals(List.class)) {
                     converters.add(new CollectionConverter<List<?>>(output) {
                         @Override
-                        protected List<?> convert(Collection<?> original) {
+                        protected List<?> change(Collection<?> original) {
                             return new ArrayList<Object>(original);
                         }
 
@@ -63,7 +91,7 @@ public class CollectionConversion {
                 if (output.type.equals(Set.class)) {
                     converters.add(new CollectionConverter<Set<?>>(output) {
                         @Override
-                        protected Set<?> convert(Collection<?> original) {
+                        protected Set<?> change(Collection<?> original) {
                             return new HashSet<Object>(original);
                         }
 
@@ -77,13 +105,13 @@ public class CollectionConversion {
         });
     }
 
-    private static abstract class CollectionConverter <T extends Collection<?>> extends InputConverter<T> {
+    private static abstract class CollectionConverter <T extends Iterable<?>> extends InputConverter<T> {
 
         public CollectionConverter(TypeDeclaration output) {
             super(TypeDeclaration.fromClass(Collection.class), output);
         }
 
-        protected abstract T convert(Collection<?> original);
+        protected abstract T change(Collection<?> original);
 
         protected abstract T create(T original, DuplexConverter<Object, Object> elementConverter);
 
@@ -115,7 +143,11 @@ public class CollectionConversion {
             @Override
             public final T convertInput(T value) {
                 if (this.convertCollection) {
-                    value = CollectionConverter.this.convert(value);
+                    if (value instanceof Collection) {
+                        value = CollectionConverter.this.change((Collection<?>) value);
+                    } else {
+                        return null;
+                    }
                 }
                 return CollectionConverter.this.create(value, elementConverter);
             }
@@ -124,7 +156,11 @@ public class CollectionConversion {
             public final T convertOutput(T value) {
                 T result = CollectionConverter.this.create(value, elementConverter.reverse());
                 if (this.convertCollection) {
-                    result = CollectionConverter.this.convert(result);
+                    if (result instanceof Collection) {
+                        result = CollectionConverter.this.change((Collection<?>) result);
+                    } else {
+                        return null;
+                    }
                 }
                 return result;
             }

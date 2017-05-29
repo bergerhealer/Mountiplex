@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -87,5 +88,23 @@ public class TemplateTest {
         assertEquals("MainClass2", source.classes[1].type.typeName);
         assertEquals("MainClass1.NestedClass1", source.classes[0].subclasses[0].type.typeName);
         assertEquals("MainClass2.NestedClass2", source.classes[1].subclasses[0].type.typeName);
+    }
+
+    @Test
+    public void testVariables() {
+        ClassResolver resolver = new ClassResolver();
+        resolver.setVariable("version", "1.12-pre5");
+        assertTrue(resolver.evaluateExpression("version == 1.12-pre5"));
+        assertTrue(resolver.evaluateExpression("version >= 1.12-pre5"));
+        assertTrue(resolver.evaluateExpression("version <= 1.12-pre5"));
+        assertFalse(resolver.evaluateExpression("version != 1.12-pre5"));
+        assertFalse(resolver.evaluateExpression("version < 1.12-pre5"));
+        assertFalse(resolver.evaluateExpression("version > 1.12-pre5"));
+        assertTrue(resolver.evaluateExpression("version >= 1.11-pre5"));
+        assertTrue(resolver.evaluateExpression("version > 1.11-pre5"));
+        assertTrue(resolver.evaluateExpression("version <= 1.13-pre5"));
+        assertTrue(resolver.evaluateExpression("version < 1.13-pre5"));
+        assertTrue(resolver.evaluateExpression("version >= 1.12"));
+        assertFalse(resolver.evaluateExpression("version >= 1.12-pre6"));
     }
 }

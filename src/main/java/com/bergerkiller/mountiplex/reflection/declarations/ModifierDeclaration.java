@@ -13,6 +13,7 @@ public class ModifierDeclaration extends Declaration {
     private final String _modifiersStr;
     private final boolean _constant;
     private final boolean _unknown;
+    private final boolean _optional;
 
     static {
         int[] modifiers = new int[] {
@@ -31,6 +32,7 @@ public class ModifierDeclaration extends Declaration {
         this._modifiersStr = Modifier.toString(modifiers);
         this._constant = false;
         this._unknown = false;
+        this._optional = false;
     }
 
     public ModifierDeclaration(ClassResolver resolver, String declaration) {
@@ -42,12 +44,14 @@ public class ModifierDeclaration extends Declaration {
             this._modifiersStr = "";
             this._constant = false;
             this._unknown = false;
+            this._optional = false;
             this.setInvalid();
             return;
         }
 
         boolean isConstant = false;
         boolean isUnknown = false;
+        boolean isOptional = false;
         int modifiers = 0;
         String modifiersStr = "";
         String postfix = declaration;
@@ -73,12 +77,17 @@ public class ModifierDeclaration extends Declaration {
                 } else if (token.equals("constant")) {
                     //isConstant = true;
                     //validToken = true;
+                } else if (token.equals("optional")) {
+                    isOptional = true;
+                    validToken = true;
                 }
                 if (validToken) {
-                    if (modifiersStr.length() > 0) {
-                        modifiersStr += " ";
+                    if (m != null) {
+                        if (modifiersStr.length() > 0) {
+                            modifiersStr += " ";
+                        }
+                        modifiersStr += token;
                     }
-                    modifiersStr += token;
                     postfix = postfix.substring(spaceIdx + 1);
                     continue;
                 }
@@ -93,6 +102,7 @@ public class ModifierDeclaration extends Declaration {
         this._modifiersStr = modifiersStr;
         this._constant = isConstant;
         this._unknown = isUnknown;
+        this._optional = isOptional;
         this.setPostfix(postfix);
     }
 
@@ -105,6 +115,20 @@ public class ModifierDeclaration extends Declaration {
      */
     public final boolean isUnknown() {
         return this._unknown;
+    }
+
+    /**
+     * Gets whether the custom 'optional' modifier is set.
+     * This modifier indicates that the upcoming declaration does not have to be present
+     * on the server at all times, and will require User-code switching to work with.<br>
+     * <br>
+     * In generated code, all declarations names will have <i>opt_</i> prefixed, and no
+     * getter/setter code will be included.
+     * 
+     * @return True if optional, False if not
+     */
+    public final boolean isOptional() {
+        return this._optional;
     }
 
     /**

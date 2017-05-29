@@ -248,7 +248,7 @@ public class ClassDeclaration extends Declaration {
         // Log all fields we could not find in our template
         // The fields in the underlying Class are not important (yet)
         for (FieldLCSResolver.Pair failPair : pairs) {
-            if (failPair.b == null) {
+            if (failPair.b == null && !failPair.a.modifiers.isOptional()) {
                 MountiplexUtil.LOGGER.warning("Failed to find field " + failPair.a);
             }
         }
@@ -276,7 +276,7 @@ public class ClassDeclaration extends Declaration {
                     break;
                 }
             }
-            if (!found) {
+            if (!found && !method.modifiers.isOptional()) {
                 MountiplexUtil.LOGGER.warning("Failed to find method " + method);
                 MountiplexUtil.LOGGER.warning("Alternatives:");
                 for (MethodDeclaration m : realMethods) {
@@ -310,7 +310,7 @@ public class ClassDeclaration extends Declaration {
                     break;
                 }
             }
-            if (!found) {
+            if (!found && !constructor.modifiers.isOptional()) {
                 MountiplexUtil.LOGGER.warning("Failed to find constructor " + constructor);
             }
         }

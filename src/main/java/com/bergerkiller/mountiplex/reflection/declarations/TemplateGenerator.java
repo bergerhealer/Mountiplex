@@ -130,7 +130,7 @@ public class TemplateGenerator {
             {
                 // Enumeration constants
                 for (FieldDeclaration fDec : classDec.fields) {
-                    if (!fDec.isEnum) {
+                    if (!fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
 
@@ -142,7 +142,7 @@ public class TemplateGenerator {
 
                 // Static constant fields
                 for (FieldDeclaration fDec : classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isConstant() || fDec.isEnum) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isConstant() || fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
 
@@ -166,6 +166,9 @@ public class TemplateGenerator {
 
                 // Constructors turned into static create functions, with converted parameters
                 for (ConstructorDeclaration cDec : classDec.constructors) {
+                    if (cDec.modifiers.isOptional()) {
+                        continue;
+                    }
                     String cHeader = "public static final " + getExposedTypeStr(cDec.type) + " createNew";
                     addLine(cHeader + getParamsBody(cDec.parameters));
                     addLine("return T." + cDec.getName() + ".newInstance(" + getArgsBody(cDec.parameters) + ")");
@@ -177,7 +180,7 @@ public class TemplateGenerator {
 
                 // Static fields
                 for (FieldDeclaration fDec : classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isConstant() || fDec.isEnum) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isConstant() || fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
                     String primTypeStr = getPrimFieldType(fDec);
@@ -197,7 +200,7 @@ public class TemplateGenerator {
 
                 // Static methods
                 for (MethodDeclaration mDec : classDec.methods) {
-                    if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic()) {
+                    if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
                     addMethodBody(mDec);
@@ -205,7 +208,7 @@ public class TemplateGenerator {
 
                 // Local methods
                 for (MethodDeclaration mDec : classDec.methods) {
-                    if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic()) {
+                    if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
                     addMethodBody(mDec);
@@ -226,7 +229,7 @@ public class TemplateGenerator {
 
                 // Local fields
                 for (FieldDeclaration fDec : classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic() || fDec.isEnum) {
+                    if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic() || fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
                     String primTypeStr = getPrimFieldType(fDec);
@@ -261,6 +264,9 @@ public class TemplateGenerator {
                         fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
                     }
 
+                    if (fDec.modifiers.isOptional()) {
+                        addLine("@Template.Optional");
+                    }
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                     hasEnumFields = true;
                 }
@@ -279,6 +285,9 @@ public class TemplateGenerator {
                         constrTypeStr += "<" + getTypeStr(cDec.type) + ">";
                     }
 
+                    if (cDec.modifiers.isOptional()) {
+                        addLine("@Template.Optional");
+                    }
                     addLine("public final " + constrTypeStr + " " + cDec.getName() + " = new " + constrTypeStr + "()");
                     hasConstructors = true;
                 }
@@ -303,6 +312,10 @@ public class TemplateGenerator {
                         } else {
                             fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
                         }
+                    }
+
+                    if (fDec.modifiers.isOptional()) {
+                        addLine("@Template.Optional");
                     }
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                     hasStaticFields = true;
@@ -329,6 +342,10 @@ public class TemplateGenerator {
                             fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
                         }
                     }
+
+                    if (fDec.modifiers.isOptional()) {
+                        addLine("@Template.Optional");
+                    }
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                     hasLocalFields = true;
                 }
@@ -343,6 +360,10 @@ public class TemplateGenerator {
                         continue;
                     }
                     String methodTypeStr = "Template.StaticMethod" + getMethodAppend(mDec);
+
+                    if (mDec.modifiers.isOptional()) {
+                        addLine("@Template.Optional");
+                    }
                     addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
                     hasStaticMethods = true;
                 }
@@ -357,6 +378,10 @@ public class TemplateGenerator {
                         continue;
                     }
                     String methodTypeStr = "Template.Method" + getMethodAppend(mDec);
+
+                    if (mDec.modifiers.isOptional()) {
+                        addLine("@Template.Optional");
+                    }
                     addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
                     hasLocalMethods = true;
                 }
@@ -618,7 +643,7 @@ public class TemplateGenerator {
         this.builder.append(line);
         if (line.endsWith("{")) {
             this.indent(1);
-        } else if (!line.endsWith("}") && !line.startsWith("//") && !line.startsWith("/*")) {
+        } else if (!line.endsWith("}") && !line.startsWith("//") && !line.startsWith("/*") && !line.startsWith("@")) {
             this.builder.append(';');
         }
         this.builder.append('\n');

@@ -152,8 +152,11 @@ public class SourceDeclaration extends Declaration {
 
                         if (!inclSourceStr.isEmpty()) {
                             // Load this source file
-                            inclSourceStr = "#setpath " + name +  "\n" + getResolver().saveDeclaration() + inclSourceStr;
-                            SourceDeclaration inclSource = new SourceDeclaration(classLoader, sourceDirectory, inclSourceStr);
+                            String subSource = "";
+                            subSource += getResolver().saveDeclaration() + "\n";
+                            subSource += "#setpath " + name +  "\n";
+                            subSource += inclSourceStr;
+                            SourceDeclaration inclSource = new SourceDeclaration(classLoader, sourceDirectory, subSource);
                             classes.addAll(Arrays.asList(inclSource.classes));
                         }
                     }
@@ -249,6 +252,11 @@ public class SourceDeclaration extends Declaration {
                 continue; // ignore
             }
 
+            // Ignore comments
+            if (lineLower.startsWith("//")) {
+                continue;
+            }
+
             // The below statements are all included in the source
             result.append(line).append('\n');
             if (lineLower.startsWith("#set ")) {
@@ -330,7 +338,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parseFromResources(ClassLoader classLoader, String sourceInclude, Map<String, String> variables) {
-        return new SourceDeclaration(classLoader, null, "#include " + sourceInclude + "\n" + saveVars(variables));
+        return new SourceDeclaration(classLoader, null, saveVars(variables) + "\n" + "#include " + sourceInclude);
     }
 
     /**
@@ -342,7 +350,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude, Map<String, String> variables) {
-        return new SourceDeclaration(null, sourceDirectory, "#include " + sourceInclude + "\n" + saveVars(variables));
+        return new SourceDeclaration(null, sourceDirectory, saveVars(variables) + "\n" + "#include " + sourceInclude);
     }
 
     /**

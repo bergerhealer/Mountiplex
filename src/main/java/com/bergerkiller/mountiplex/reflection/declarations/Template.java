@@ -1,5 +1,9 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -89,8 +93,12 @@ public class Template {
                 try {
                     Object templateField = templateFieldRef.get(this);
                     if (templateField instanceof TemplateElement) {
-                        Object result = ((TemplateElement<?>) templateField).init(dec, templateFieldName);
-                        if (result == null) {
+                        TemplateElement<?> element = (TemplateElement<?>) templateField;
+                        if (templateFieldRef.getAnnotation(Optional.class) != null) {
+                            element.setOptional();
+                        }
+                        Object result = element.init(dec, templateFieldName);
+                        if (result == null && !element._optional) {
                             valid = false;
                         }
                     }
@@ -298,11 +306,41 @@ public class Template {
     // provides a default 'init' method to use when initializing the Template
     // all declared class element types must extend this type
     public static abstract class TemplateElement<T extends Declaration> {
+        private boolean _optional = false;
+
         protected abstract T init(ClassDeclaration dec, String name);
+
+        /**
+         * Gets whether this Class element is initialized. If it is not initialized,
+         * it indicates it is not available. This should always be checked when accessing
+         * {@link #isOptional()} elements.
+         * 
+         * @return True if initialized, False if not
+         */
+        public abstract boolean isAvailable();
 
         protected final <V> V failGetSafe(RuntimeException ex, V def) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get static field value", ex);
             return def;
+        }
+
+        protected final void initFail(String message) {
+            if (!isOptional()) {
+                MountiplexUtil.LOGGER.warning(message);
+            }
+        }
+
+        protected void setOptional() {
+            this._optional = true;
+        }
+
+        /**
+         * Gets whether this Class element is optional, and could possibly not exist at runtime
+         * 
+         * @return True if optional, False if not
+         */
+        public boolean isOptional() {
+            return this._optional;
         }
     }
 
@@ -317,8 +355,13 @@ public class Template {
                     return fieldDec;
                 }
             }
-            MountiplexUtil.LOGGER.warning("Field '" + name + "' not found in template for " + dec.type.typePath);
+            initFail("Field '" + name + "' not found in template for " + dec.type.typePath);
             return null;
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return field.getField() != null;
         }
 
         /**
@@ -368,8 +411,13 @@ public class Template {
                     return methodDec;
                 }
             }
-            MountiplexUtil.LOGGER.warning("Method '" + name + "' not found in template for " + dec.type.typePath);
+            initFail("Method '" + name + "' not found in template for " + dec.type.typePath);
             return null;
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return method.getMethod() != null;
         }
 
         /**
@@ -409,11 +457,22 @@ public class Template {
             if (fDec != null) {
                 this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
                 if (this.converter == null) {
-                    MountiplexUtil.LOGGER.warning("Converter for field " + fDec.name.toString() + 
-                                                  " not found: " + fDec.type.toString());
+                    initFail("Converter for field " + fDec.name.toString() + 
+                             " not found: " + fDec.type.toString());
                 }
             }
             return fDec;
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return raw.isAvailable();
+        }
+
+        @Override
+        protected void setOptional() {
+            super.setOptional();
+            raw.setOptional();
         }
 
         /**
@@ -426,7 +485,7 @@ public class Template {
         }
     }
 
-    public static abstract class AbstractParamsConverter<R, T, D extends Declaration> extends TemplateElement<D> {
+    public static abstract class AbstractParamsConverter<R extends TemplateElement<?>, T, D extends Declaration> extends TemplateElement<D> {
         public final R raw;
         protected Converter<?, T> resultConverter = null;
         protected Converter<?, ?>[] argConverters = null;
@@ -476,6 +535,17 @@ public class Template {
             if (!hasArgumentConversion) {
                 this.argConverters = null;
             }
+        }
+
+        @Override
+        protected void setOptional() {
+            super.setOptional();
+            raw.setOptional();
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return raw.isAvailable();
         }
 
         protected final void verifyConverterCount(int argCount) {
@@ -556,6 +626,11 @@ public class Template {
             }
         }
 
+        @Override
+        public boolean isAvailable() {
+            return constructor != null;
+        }
+
         // throws an exception when the method is not found
         protected final void failNotFound() {
             if (this.constructor == null) {
@@ -577,7 +652,7 @@ public class Template {
                     }
                 }
             }
-            MountiplexUtil.LOGGER.warning("Constructor '" + name + "' not found in template for " + dec.type.typePath);
+            initFail("Constructor '" + name + "' not found in template for " + dec.type.typePath);
             return null;
         }
 
@@ -926,7 +1001,7 @@ public class Template {
                 if (fDec.isEnum && fDec.name.real().equals(name)) {
                     // Check if the class is initialized
                     if (dec.type.type == null) {
-                        MountiplexUtil.LOGGER.warning("Enumeration constant " + name + " in class " +
+                        initFail("Enumeration constant " + name + " in class " +
                                 dec.type + " not initialized: class not found");
                         return null;
                     }
@@ -940,12 +1015,17 @@ public class Template {
                     }
 
                     // Not found, despite being declared
-                    MountiplexUtil.LOGGER.warning("Enumeration constant " + name + " missing in class " + dec.type);
+                    initFail("Enumeration constant " + name + " missing in class " + dec.type);
                     return null;
                 }
             }
-            MountiplexUtil.LOGGER.warning("Failed to find enumeration field " + name + " in class " + dec.type);
+            initFail("Failed to find enumeration field " + name + " in class " + dec.type);
             return null;
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return constant != null;
         }
 
         public static final class Converted<T> extends TemplateElement<FieldDeclaration> {
@@ -1000,6 +1080,11 @@ public class Template {
                     }
                 }
                 return fDec;
+            }
+
+            @Override
+            public boolean isAvailable() {
+                return raw.isAvailable();
             }
         }
     }
@@ -1442,4 +1527,11 @@ public class Template {
         }
     }
 
+    /**
+     * Indicates a declaration statement is optional and not guaranteed to exist
+     */
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Optional {
+    }
 }
