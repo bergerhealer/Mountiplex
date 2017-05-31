@@ -1,7 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -180,11 +179,12 @@ public abstract class ClassInterceptor {
         }
 
         @Override
-        public final Object invoke(Object instance, Object... args) {
+        public final Object invoke(Object instanceObject, Object... args) {
+            Object instance = ((EnhancedObject) instanceObject).CI_getInterceptor();
             try {
-                return method.invoke(((EnhancedObject) instance).CI_getInterceptor(), args);
-            } catch (Throwable e) {
-                throw new RuntimeException("Failed to invoke method " + this.method.toString(), e);
+                return method.invoke(instance, args);
+            } catch (Throwable ex) {
+                throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
             }
         }
     }
@@ -282,8 +282,8 @@ public abstract class ClassInterceptor {
             } else {
                 return method.invoke(instance, args);
             }
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to invoke super method " + method.toString());
+        } catch (Throwable ex) {
+            throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
         }
     }
 
@@ -558,7 +558,7 @@ public abstract class ClassInterceptor {
                     if (callback == null) {
                         callback = interceptor.getCallback(method);
                         if (callback == null) {
-                            callback = new SuperClassInvokable(proxy);
+                            callback = new SuperClassInvokable(method, proxy);
                         }
                         stack.methodDelegates.put(method, callback);
 
@@ -573,10 +573,11 @@ public abstract class ClassInterceptor {
 
                 // Make sure to inline the MethodCallbackDelegate to avoid a stack frame
                 if (callback instanceof MethodInvokable) {
+                    java.lang.reflect.Method callbackMethod = ((MethodInvokable) callback).method;
                     try {
-                        return ((MethodInvokable) callback).method.invoke(this.interceptor, args);
-                    } catch (InvocationTargetException e) {
-                        throw e.getCause();
+                        return callbackMethod.invoke(this.interceptor, args);
+                    } catch (Throwable ex) {
+                        throw ReflectionUtil.fixMethodInvokeException(callbackMethod, this.interceptor, args, ex);
                     }
                 }
 
@@ -595,8 +596,10 @@ public abstract class ClassInterceptor {
      */
     private static final class SuperClassInvokable implements Invokable {
         private final MethodProxy proxy;
+        private final Method method;
 
-        public SuperClassInvokable(MethodProxy proxy) {
+        public SuperClassInvokable(Method method, MethodProxy proxy) {
+            this.method = method;
             this.proxy = proxy;
         }
 
@@ -604,8 +607,8 @@ public abstract class ClassInterceptor {
         public Object invoke(Object instance, Object... args) {
             try {
                 return proxy.invokeSuper(instance, args);
-            } catch (Throwable e) {
-                throw new RuntimeException("Failed to invoke super method " + proxy.getSignature().toString(), e);
+            } catch (Throwable ex) {
+                throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
             }
         }
     };

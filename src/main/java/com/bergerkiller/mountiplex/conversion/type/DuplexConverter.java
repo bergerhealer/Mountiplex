@@ -1,9 +1,9 @@
 package com.bergerkiller.mountiplex.conversion.type;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
@@ -230,14 +230,9 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         public B convertInput(A value) {
             try {
                 return (B) this.converterMethod.invoke(null, value);
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                e.printStackTrace();
+            } catch (Throwable ex) {
+                throw ReflectionUtil.fixMethodInvokeException(this.converterMethod, null, new Object[] {value}, ex);
             }
-            return null;
         }
 
         @Override
@@ -245,14 +240,9 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         public A convertOutput(B value) {
             try {
                 return (A) this.reverseMethod.invoke(null, value);
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                e.printStackTrace();
+            } catch (Throwable ex) {
+                throw ReflectionUtil.fixMethodInvokeException(this.reverseMethod, null, new Object[] {value}, ex);
             }
-            return null;
         }
 
         @Override

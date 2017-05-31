@@ -5,8 +5,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.ListIterator;
 
+import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ReflectionUtil {
@@ -141,74 +144,161 @@ public class ReflectionUtil {
      * @return a suitable exception to throw
      */
     public static RuntimeException fixMethodInvokeException(Method method, Object instance, Object[] args, Throwable ex) {
-        // Validate the instance object that was used to invoke the method
         RuntimeException result = null;
-        if (Modifier.isStatic(method.getModifiers())) {
-            if (instance != null) {
-                result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
-                        " is static and can not be invoked on instance of type " + stringifyType(instance.getClass()));
-            }
+        if (ex instanceof InvocationTargetException) {
+            // In this case we know for certain something got invoked
+            // There is no use checking for argument mismatches here
+            ex = getCleanCause(ex);
+        } else if (ex instanceof IllegalAccessException) {
+            // Problems accessing a method. Arguments do not matter here.
+            // Illegal access exception thrown by invoke() - wrap in a clean runtime exception
+            filterInvokeTraceElements(ex, 0);
+            result = new RuntimeException("Failed to invoke method " + stringifyMethodSignature(method), ex);
+            result.setStackTrace(new StackTraceElement[0]);
+            return result;
         } else {
-            if (instance == null) {
-                result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
-                        " is not static and requires an instance passed in (instance is null)");
-            } else {
-                Class<?> m_type = findMethodClass(method);
-                if (!m_type.isInstance(instance)) {
+            // Validate the instance object that was used to invoke the method
+            if (Modifier.isStatic(method.getModifiers())) {
+                if (instance != null) {
                     result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
-                            " is declared in class " + stringifyType(m_type) +
-                            " and can not be invoked on object of type " + stringifyType(instance.getClass()));
+                            " is static and can not be invoked on instance of type " + stringifyType(instance.getClass()));
                 }
-            }
-        }
-
-        // Validate the parameters used to invoke the method
-        if (result == null) {
-            Class<?>[] m_params = method.getParameterTypes();
-            if (args.length != m_params.length) {
-                result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
-                        " Illegal amount of arguments provided (" + args.length + "), " + 
-                        "expected " + m_params.length + " - check method signature");
             } else {
-                for (int i = 0; i < m_params.length; i++) {
-                    Object arg = args[i];
-                    if (m_params[i].isPrimitive() && arg == null) {
+                if (instance == null) {
+                    result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
+                            " is not static and requires an instance passed in (instance is null)");
+                } else {
+                    Class<?> m_type = findMethodClass(method);
+                    if (!m_type.isInstance(instance)) {
                         result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
-                                " Passed in null for primitive type parameter #" + (i + 1));
-                        break;
-                    } else if (arg != null && !BoxedType.tryBoxType(m_params[i]).isInstance(arg)) {
-                        result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
-                                " Passed in wrong type for parameter #" + (i + 1) + " (" + stringifyType(m_params[i]) + " expected" +
-                                ", but was " + stringifyType(arg.getClass()) + ")");
-                        break;
+                                " is declared in class " + stringifyType(m_type) +
+                                " and can not be invoked on object of type " + stringifyType(instance.getClass()));
                     }
                 }
             }
-        }
 
-        // For exception created in here, remove traces of the function call itself
-        if (result != null) {
-            StackTraceElement[] elems = result.getStackTrace();
-            if (elems.length > 2) {
-                StackTraceElement[] newElems = new StackTraceElement[elems.length - 1];
-                for (int i = 0; i < newElems.length; i++) {
-                    newElems[i] = elems[i + 1];
+            // Validate the parameters used to invoke the method
+            if (result == null) {
+                Class<?>[] m_params = method.getParameterTypes();
+                if (args.length != m_params.length) {
+                    result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
+                            " Illegal number of arguments provided. " + 
+                            "Expected " + m_params.length + ", but got " + args.length);
+                } else {
+                    for (int i = 0; i < m_params.length; i++) {
+                        Object arg = args[i];
+                        if (m_params[i].isPrimitive() && arg == null) {
+                            result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
+                                    " Passed in null for primitive type parameter #" + (i + 1));
+                            break;
+                        } else if (arg != null && !BoxedType.tryBoxType(m_params[i]).isInstance(arg)) {
+                            result = new IllegalArgumentException("Method " + stringifyMethodSignature(method) +
+                                    " Passed in wrong type for parameter #" + (i + 1) + " (" + stringifyType(m_params[i]) + " expected" +
+                                    ", but was " + stringifyType(arg.getClass()) + ")");
+                            break;
+                        }
+                    }
                 }
-                result.setStackTrace(newElems);
             }
-            return result;
+
+            // This probably will never happen, but in case we miss parameter checks
+            if (result == null && ex instanceof IllegalArgumentException) {
+                result = (IllegalArgumentException) ex;
+            }
+
+            // For exception created in here, take over stack trace and filter the invoke() elements
+            if (result != null) {
+                result.setStackTrace(ex.getStackTrace());
+                filterInvokeTraceElements(result, 0);
+                addMethodTraceElement(result, method);
+                return result;
+            }
         }
 
-        // Handle other types of exceptions
-        if (ex instanceof InvocationTargetException) {
-            ex = ((InvocationTargetException) ex).getCause();
+        // When errors happen in the static initializer, show that cleanly
+        if (ex instanceof ExceptionInInitializerError) {
+            ExceptionInInitializerError e = (ExceptionInInitializerError) ex;
+            filterCause(e);
+            filterInvokeTraceElements(e, 0);
+        }
+
+        // Re-throw unchecked errors
+        if (ex instanceof Error) {
+            throw (Error) ex;
         }
 
         // Wrap the exception as a proper RuntimeException so it doesn't show a pointless 'caused by'
         if (ex instanceof RuntimeException) {
-            return ((RuntimeException) ex);
+            result = ((RuntimeException) ex);
         } else {
-            return new RuntimeException(ex);
+            result = new RuntimeException("Failed to invoke method " + stringifyMethodSignature(method), ex);
+            result.setStackTrace(new StackTraceElement[0]);
         }
+        return result;
+    }
+
+    private static Throwable getCleanCause(Throwable ex) {
+        Throwable cause = ex.getCause();
+        int index = cause.getStackTrace().length - ex.getStackTrace().length;
+        filterInvokeTraceElements(cause, index);
+        return cause;
+    }
+
+    private static void filterCause(Throwable t) {
+        if (t.getCause() != null) {
+            filterCause(t.getCause());
+
+            List<StackTraceElement> newElem = new ArrayList<StackTraceElement>(Arrays.asList(t.getCause().getStackTrace()));
+            StackTraceElement[] parentElem = t.getStackTrace();
+            for (int i = parentElem.length - 1; i >= 0; --i) {
+                if (newElem.get(newElem.size() - 1).equals(parentElem[i])) {
+                    newElem.remove(newElem.size() - 1);
+                } else {
+                    break;
+                }
+            }
+            t.getCause().setStackTrace(newElem.toArray(new StackTraceElement[newElem.size()]));
+        }
+    }
+
+    /**
+     * Removes invoke() call information from a stack trace
+     * 
+     * @param t throwable containing the stack trace
+     * @param offset amount of elements to skip checking
+     */
+    private static void filterInvokeTraceElements(Throwable t, int offset) {
+        List<StackTraceElement> stack_trace = new ArrayList<StackTraceElement>(Arrays.asList(t.getStackTrace()));
+        if (offset >= 0 && offset < stack_trace.size()) {
+            ListIterator<StackTraceElement> iter = stack_trace.listIterator(offset);
+            while (iter.hasNext()) {
+                //java.lang.reflect.Method.invoke
+                StackTraceElement e = iter.next();
+                String c = e.getClassName();
+                if (c.equals("java.lang.reflect.Method") && e.getMethodName().equals("invoke")) {
+                    break;
+                }
+                if (c.startsWith("java.lang.reflect.") || c.startsWith("sun.reflect.")) {
+                    iter.remove();
+                } else {
+                    break;
+                }
+            }
+            t.setStackTrace(stack_trace.toArray(new StackTraceElement[stack_trace.size()]));
+        }
+    }
+
+    /**
+     * Adds the method as a stack trace element at the top of the stack'
+     * 
+     * @param t throwable to change the stack trace of
+     * @param m method to add at the top
+     */
+    private static void addMethodTraceElement(Throwable t, Method m) {
+        StackTraceElement[] oldTrace = t.getStackTrace();
+        StackTraceElement[] newTrace = new StackTraceElement[oldTrace.length + 1];
+        System.arraycopy(oldTrace, 0, newTrace, 1, oldTrace.length);
+        newTrace[0] = ASMUtil.findMethodDetails(m);
+        t.setStackTrace(newTrace);
     }
 }

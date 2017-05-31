@@ -1,6 +1,5 @@
 package com.bergerkiller.mountiplex.conversion.type;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -8,6 +7,7 @@ import java.util.List;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
@@ -42,14 +42,9 @@ public class AnnotatedConverter extends RawConverter {
             } else {
                 return null;
             }
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
+        } catch (Throwable ex) {
+            throw ReflectionUtil.fixMethodInvokeException(method, null, new Object[] {value}, ex);
         }
-        return null;
     }
 
     @Override
