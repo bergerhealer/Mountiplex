@@ -4,8 +4,18 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionInvoker;
 
 public class FastMethod<T> implements Invoker<T> {
-    public Invoker<T> invoker = this;
-    private java.lang.reflect.Method method = null;
+    public Invoker<T> invoker;
+    private java.lang.reflect.Method method;
+
+    public FastMethod() {
+        this.method = null;
+        this.invoker = this;
+    }
+
+    public FastMethod(java.lang.reflect.Method method) {
+        this.method = method;
+        this.invoker = this;
+    }
 
     public final void init(java.lang.reflect.Method method) {
         this.method = method;

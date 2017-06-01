@@ -7,43 +7,39 @@ import java.util.List;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
-import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 /**
  * A converter that calls a static method, preferably annotated with a
  * {@link ConverterMethod} annotation
  */
 public class AnnotatedConverter extends RawConverter {
-    public final Method method;
+    public final FastMethod<?> method;
     public final boolean isUpcast;
     private final boolean nullInput;
 
-    public AnnotatedConverter(Method method, TypeDeclaration input, TypeDeclaration output) {
+    public AnnotatedConverter(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output) {
         this(method, input, output, false);
     }
 
-    public AnnotatedConverter(Method method, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
+    public AnnotatedConverter(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
         super(input, output);
         this.method = method;
         this.isUpcast = isUpcast;
 
-        ConverterMethod annot = method.getAnnotation(ConverterMethod.class);
+        ConverterMethod annot = method.getMethod().getAnnotation(ConverterMethod.class);
         this.nullInput = (annot != null && annot.acceptsNull());
     }
 
     @Override
     public Object convertInput(Object value) {
-        try {
-            Object result = method.invoke(null, value);
-            if (!isUpcast || this.output.isAssignableFrom(result)) {
-                return result;
-            } else {
-                return null;
-            }
-        } catch (Throwable ex) {
-            throw ReflectionUtil.fixMethodInvokeException(method, null, new Object[] {value}, ex);
+        Object result = method.invoke(null, value);
+        if (!isUpcast || this.output.isAssignableFrom(result)) {
+            return result;
+        } else {
+            return null;
         }
     }
 
@@ -95,9 +91,9 @@ public class AnnotatedConverter extends RawConverter {
     public static class GenericProvider implements ConverterProvider {
         public final TypeDeclaration input;
         public final TypeDeclaration output;
-        public final Method method;
+        public final FastMethod<?> method;
 
-        public GenericProvider(Method method, TypeDeclaration input, TypeDeclaration output) {
+        public GenericProvider(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output) {
             this.input = input;
             this.output = output;
             this.method = method;

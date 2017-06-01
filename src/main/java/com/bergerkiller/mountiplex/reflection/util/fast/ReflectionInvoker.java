@@ -127,7 +127,7 @@ public class ReflectionInvoker<T> implements Invoker<T> {
     public static <T> Invoker<T> create(java.lang.reflect.Method method) {
         int mod = method.getModifiers();
         Class<?>[] paramTypes = method.getParameterTypes();
-        if (Modifier.isPublic(mod) && !Modifier.isStatic(mod) && paramTypes.length <= 5) {
+        if (Modifier.isPublic(mod) && paramTypes.length <= 5) {
             return (Invoker<T>) GeneratedInvoker.create(method);
         } else {
             return new ReflectionInvoker<T>(method);

@@ -21,4 +21,8 @@ public class TestObject {
     private static int g(int a, int b) {
         return (a * b);
     }
+
+    public static int h(int a, int b) {
+        return (a * b);
+    }
 }

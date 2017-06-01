@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -387,6 +388,27 @@ public class MountiplexUtil {
                 }
             }
             return result;
+        }
+    }
+
+    /**
+     * Throws a throwable as an unchecked exception.
+     * 
+     * @param t throwable
+     * @return runtime exception to throw
+     */
+    public static RuntimeException uncheckedRethrow(Throwable t) {
+        if (t instanceof InvocationTargetException) {
+            t = t.getCause();
+        }
+        if (t instanceof Error) {
+            throw (Error) t;
+        } else if (t instanceof RuntimeException) {
+            return (RuntimeException) t;
+        } else {
+            RuntimeException r = new RuntimeException("An exception occurred", t);
+            r.setStackTrace(new StackTraceElement[0]);
+            return r;
         }
     }
 }

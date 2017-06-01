@@ -1,11 +1,9 @@
 package com.bergerkiller.mountiplex.conversion.type;
 
-import java.lang.reflect.Method;
-
 import com.bergerkiller.mountiplex.conversion.Converter;
-import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 /**
  * Special type of converter that can also perform the same conversion in reverse,
@@ -212,8 +210,8 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     private static final class DuplexAnnotatedConverter<A, B> extends DuplexConverter<A, B> {
-        private final Method converterMethod;
-        private final Method reverseMethod;
+        private final FastMethod<?> converterMethod;
+        private final FastMethod<?> reverseMethod;
         private final boolean converterAcceptNull;
         private final boolean reverseAcceptNull;
 
@@ -228,21 +226,13 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         @Override
         @SuppressWarnings("unchecked")
         public B convertInput(A value) {
-            try {
-                return (B) this.converterMethod.invoke(null, value);
-            } catch (Throwable ex) {
-                throw ReflectionUtil.fixMethodInvokeException(this.converterMethod, null, new Object[] {value}, ex);
-            }
+            return (B) this.converterMethod.invoke(null, value);
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public A convertOutput(B value) {
-            try {
-                return (A) this.reverseMethod.invoke(null, value);
-            } catch (Throwable ex) {
-                throw ReflectionUtil.fixMethodInvokeException(this.reverseMethod, null, new Object[] {value}, ex);
-            }
+            return (A) this.reverseMethod.invoke(null, value);
         }
 
         @Override

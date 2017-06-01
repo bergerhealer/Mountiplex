@@ -17,4 +17,20 @@ public class TestUtil {
             t.printStackTrace();
         }
     }
+
+    public static void measure(String testName, Runnable runnable) {
+        // First run the loop shortly without measuring
+        // This makes sure we exclude initialization time from the measurement
+        for (int i = 0; i < 100; i++) {
+            runnable.run();
+        }
+
+        // Run the test in a tight loop while measuring
+        long startTime = System.currentTimeMillis();
+        for (long ctr = 0; ctr < 2000000L; ctr++) {
+            runnable.run();
+        }
+        long endTime = System.currentTimeMillis();
+        System.out.println("Execution time of " + testName + ": " + (endTime - startTime) + "ms");
+    }
 }

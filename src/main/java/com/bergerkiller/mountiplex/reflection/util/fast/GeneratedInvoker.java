@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import java.lang.reflect.Modifier;
+
 import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.Label;
 import net.sf.cglib.asm.MethodVisitor;
@@ -69,6 +71,7 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
         String instanceName = Type.getInternalName(instanceType);
         Class<?>[] paramTypes = method.getParameterTypes();
         Class<?> returnType = method.getReturnType();
+        boolean isStatic = Modifier.isStatic(method.getModifiers());
         if (paramTypes.length > 5) {
             throw new IllegalArgumentException("Method has too many parameters to be optimizable");
         }
@@ -138,19 +141,21 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
         {
             mv = cw.visitMethod(ACC_PUBLIC, "invoke", argsStr, null, null);
             mv.visitCode();
-            mv.visitVarInsn(ALOAD, 1);
-            mv.visitTypeInsn(CHECKCAST, instanceName);
+            if (!isStatic) {
+                mv.visitVarInsn(ALOAD, 1);
+                mv.visitTypeInsn(CHECKCAST, instanceName);
+            }
             for (int i = 0; i < paramTypes.length; i++) {
                 mv.visitVarInsn(ALOAD, 2 + i);
                 ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
             }
-
-            if (instanceType.isInterface()) {
+            if (isStatic) {
+                mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), Type.getMethodDescriptor(method));
+            } else if (instanceType.isInterface()) {
                 mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), Type.getMethodDescriptor(method));
             } else {
                 mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method));
             }
-
             ExtendedClassWriter.visitBoxVariable(mv, returnType);
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);

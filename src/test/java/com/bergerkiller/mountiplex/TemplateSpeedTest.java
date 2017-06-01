@@ -40,22 +40,6 @@ public class TemplateSpeedTest {
         });
     }
 
-    private void measure(String testName, Runnable runnable) {
-        // First run the loop shortly without measuring
-        // This makes sure we exclude initialization time from the measurement
-        for (int i = 0; i < 100; i++) {
-            runnable.run();
-        }
-
-        // Run the test in a tight loop while measuring
-        long startTime = System.currentTimeMillis();
-        for (long ctr = 0; ctr < 2000000L; ctr++) {
-            runnable.run();
-        }
-        long endTime = System.currentTimeMillis();
-        System.out.println("Execution time of " + testName + ": " + (endTime - startTime) + "ms");
-    }
-
     public static class IntSetter {
         public void set(Object instance, int value) {
             ((SpeedTestObject) instance).i = value;
@@ -150,37 +134,37 @@ public class TemplateSpeedTest {
         
         setterGen.doStuff();
 
-        measure("direct field access", new Runnable() {
+        TestUtil.measure("direct field access", new Runnable() {
             @Override
             public void run() {
                 object.i++;
             }
         });
-        measure("property field access", new Runnable() {
+        TestUtil.measure("property field access", new Runnable() {
             @Override
             public void run() {
                 object.setI(object.getI() + 1);
             }
         });
-        measure("handle field access", new Runnable() {
+        TestUtil.measure("handle field access", new Runnable() {
             @Override
             public void run() {
                 handle.setI(handle.getI() + 1);
             }
         });
-        measure("class field access", new Runnable() {
+        TestUtil.measure("class field access", new Runnable() {
             @Override
             public void run() {
                 SpeedTestObjectHandle.T.i.setInteger(object, SpeedTestObjectHandle.T.i.getInteger(object) + 1);
             }
         });
-        measure("compiled property field access", new Runnable() {
+        TestUtil.measure("compiled property field access", new Runnable() {
             @Override
             public void run() {
                 setter.set(object, setter.get(object) + 1);
             }
         });
-        measure("generated property field access", new Runnable() {
+        TestUtil.measure("generated property field access", new Runnable() {
             @Override
             public void run() {
                 setterGen.set(object, setterGen.get(object) + 1);

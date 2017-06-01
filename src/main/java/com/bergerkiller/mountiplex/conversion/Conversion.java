@@ -34,6 +34,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 
 public class Conversion {
@@ -106,10 +107,11 @@ public class Conversion {
                 try {
                     TypeDeclaration input = AnnotatedConverter.parseType(method, true);
                     TypeDeclaration output = AnnotatedConverter.parseType(method, false);
+                    FastMethod<?> fastMethod = new FastMethod<Object>(method);
                     if (input.hasTypeVariables() || output.hasTypeVariables()) {
-                        registerProvider(new AnnotatedConverter.GenericProvider(method, input, output));
+                        registerProvider(new AnnotatedConverter.GenericProvider(fastMethod, input, output));
                     } else {
-                        registerConverter(new AnnotatedConverter(method, input, output));
+                        registerConverter(new AnnotatedConverter(fastMethod, input, output));
                     }
                 } catch (Throwable t) {
                     MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
