@@ -103,16 +103,14 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                 Iterator<HookMethodEntry> iter = entries.iterator();
                 do {
                     if (!iter.hasNext()) return null;
-                } while (!(foundEntry = iter.next()).method.equals(method));
+                } while (!(foundEntry = iter.next()).getMethod().equals(method));
 
                 final HookMethodEntry entry = foundEntry;
                 return new Invokable() {
                     @Override
                     public Object invoke(Object instance, Object... args) {
-                        ClassHook<?> hook = ((ClassHook<?>) instance);
-
                         // Figure out what object we are currently handling and what type it is
-                        Object enhancedInstance = hook.instance();
+                        Object enhancedInstance = ((ClassHook<?>) instance).instance();
                         Class<?> enhancedType = enhancedInstance.getClass();
 
                         if (enhancedInstance instanceof EnhancedObject) {
@@ -133,8 +131,10 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                             // Call invokeSuper() on the MethodProxy to call the base class method
                             try {
                                 return proxy.invokeSuper(enhancedInstance, args);
-                            } catch (Throwable e) {
-                                throw new RuntimeException("Failed to invoke super method " + proxy.getSignature().toString(), e);
+                            } catch (Throwable ex) {
+                                Class<?> baseType = ((EnhancedObject) enhancedInstance).CI_getBaseType();
+                                Method m = entry.findMethodIn(TypeDeclaration.fromClass(baseType));
+                                throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
                             }
                         } else {
                             // Not an enhanced instance, find the method in the class and invoke
@@ -147,8 +147,8 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                             // Invoke the method directly
                             try {
                                 return m.invoke(enhancedInstance, args);
-                            } catch (Throwable e) {
-                                throw new RuntimeException("Failed to invoke method " + m.toString(), e);
+                            } catch (Throwable ex) {
+                                throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
                             }
                         }
                     }

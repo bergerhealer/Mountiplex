@@ -11,6 +11,7 @@ import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 import net.sf.cglib.asm.Type;
 import net.sf.cglib.core.Signature;
@@ -94,7 +95,7 @@ public abstract class ClassInterceptor {
     }
 
     /**
-     * Creates an extension of the object intercepting the callbacks as specified by @getCallback.
+     * Creates an extension of the object intercepting the callbacks as specified by {@link #getCallback}.
      * The object state (fields) are copied over from the old object to the new one.
      * 
      * @param object to hook
@@ -168,24 +169,18 @@ public abstract class ClassInterceptor {
     /**
      * Special callback delegate optimized for invoking a method in the ClassInterceptor instance
      */
-    public static class MethodInvokable implements Invokable {
-        public final Method method;
+    public static class MethodInvokable extends FastMethod<Object> implements Invokable {
 
         public MethodInvokable(Method method) {
-            this.method = method;
             if (method == null) {
                 throw new IllegalArgumentException("Method can not be null");
             }
+            init(method);
         }
 
         @Override
         public final Object invoke(Object instanceObject, Object... args) {
-            Object instance = ((EnhancedObject) instanceObject).CI_getInterceptor();
-            try {
-                return method.invoke(instance, args);
-            } catch (Throwable ex) {
-                throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
-            }
+            return invokeVA(((EnhancedObject) instanceObject).CI_getInterceptor(), args);
         }
     }
 
@@ -239,9 +234,9 @@ public abstract class ClassInterceptor {
      * @return Underlying Object
      */
     protected final Object instance() {
-        StackInformation stack = this.stackInfo.get();
-        if (stack.current.instance != null) {
-            return stack.current.instance;
+        Object stack_instance = this.stackInfo.get().current_instance;
+        if (stack_instance != null) {
+            return stack_instance;
         } else if (lastHookedObject.value == null) {
             throw new IllegalStateException("No object is handled right now");
         } else {
@@ -302,7 +297,8 @@ public abstract class ClassInterceptor {
         // Fast access: check if the last-called proxy matches the method
         // This is a common case where a handler calls a base method
         // Doing it this way avoids a map get/put call
-        StackFrame frame = this.stackInfo.get().current;
+        StackInformation stack = this.stackInfo.get();
+        StackFrame frame = stack.frames[stack.current_index];
         if (instance == frame.instance && method.equals(frame.method)) {
             return frame.proxy;
         }
@@ -539,15 +535,23 @@ public abstract class ClassInterceptor {
             StackInformation stack = this.interceptor.stackInfo.get();
             try {
                 // Push stack element
-                // Inlined linked list is much faster than using a LinkedList with method calls
-                if (stack.current.next == null) {
-                    stack.current.next = new StackFrame();
-                    stack.current.next.previous = stack.current;
+                if (stack.current_index == (stack.frames.length - 1)) {
+                    // Double the stack size
+                    StackFrame[] new_frames = new StackFrame[stack.frames.length * 2];
+                    for (int i = 0; i < new_frames.length; i++) {
+                        if (i < stack.frames.length) {
+                            new_frames[i] = stack.frames[i];
+                        } else {
+                            new_frames[i] = new StackFrame();
+                        }
+                    }
+                    stack.frames = new_frames;
                 }
-                stack.current = stack.current.next;
-                stack.current.instance = obj;
-                stack.current.proxy = proxy;
-                stack.current.method = method;
+                StackFrame frame = stack.frames[++stack.current_index];
+                frame.instance = obj;
+                frame.proxy = proxy;
+                frame.method = method;
+                stack.current_instance = obj;
 
                 // Find method callback delegate if we don't know yet
                 Invokable callback = stack.methodDelegates.get(method);
@@ -573,20 +577,14 @@ public abstract class ClassInterceptor {
 
                 // Make sure to inline the MethodCallbackDelegate to avoid a stack frame
                 if (callback instanceof MethodInvokable) {
-                    java.lang.reflect.Method callbackMethod = ((MethodInvokable) callback).method;
-                    try {
-                        return callbackMethod.invoke(this.interceptor, args);
-                    } catch (Throwable ex) {
-                        throw ReflectionUtil.fixMethodInvokeException(callbackMethod, this.interceptor, args, ex);
-                    }
+                    return ((MethodInvokable) callback).invokeVA(this.interceptor, args);
                 }
 
                 // Execute the callback
                 return callback.invoke(obj, args);
             } finally {
                 // Pop stack element
-                stack.current.instance = null; // invalidate
-                stack.current = stack.current.previous;
+                stack.current_index--;
             }
         }
     }
@@ -628,8 +626,15 @@ public abstract class ClassInterceptor {
     private static final class StackInformation {
         public final Map<Method, Invokable> methodDelegates = new HashMap<Method, Invokable>();
 
-        public StackFrame frames = new StackFrame();
-        public StackFrame current = frames;
+        public StackFrame[] frames;
+        public Object current_instance;
+        public int current_index;
+
+        public StackInformation() {
+            this.frames = new StackFrame[] {new StackFrame()};
+            this.current_index = 0;
+            this.current_instance = null;
+        }
     }
 
     /**
@@ -639,8 +644,6 @@ public abstract class ClassInterceptor {
         public Object instance = null;
         public MethodProxy proxy = null;
         public Method method = null;
-        public StackFrame next = null;
-        public StackFrame previous = null;
     }
 
     /**

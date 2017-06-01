@@ -3,7 +3,7 @@ package com.bergerkiller.mountiplex.reflection.util;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionInvoker;
 
-public final class FastMethod<T> implements Invoker<T> {
+public class FastMethod<T> implements Invoker<T> {
     public Invoker<T> invoker = this;
     private java.lang.reflect.Method method = null;
 

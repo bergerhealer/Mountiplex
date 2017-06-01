@@ -87,6 +87,12 @@ public class ClassHookTest {
     }
 
     private static void testTimings(String info, Dog dog) {
+        // Call a couple times up-front to make sure everything is cached and ready for fair timings
+        for (int i = 0; i < 10; i++) {
+            dog.woof();
+        }
+
+        // Call woof() a whole lot of times and measure execution time
         long start = System.nanoTime();
         for (long i = 0; i < 1000000; i++) {
             dog.woof();
