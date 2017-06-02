@@ -107,6 +107,9 @@ public class Conversion {
                 try {
                     TypeDeclaration input = AnnotatedConverter.parseType(method, true);
                     TypeDeclaration output = AnnotatedConverter.parseType(method, false);
+                    if (input == null || output == null) {
+                        continue; // ignore optional types that can not be resolved
+                    }
                     FastMethod<?> fastMethod = new FastMethod<Object>(method);
                     if (input.hasTypeVariables() || output.hasTypeVariables()) {
                         registerProvider(new AnnotatedConverter.GenericProvider(fastMethod, input, output));

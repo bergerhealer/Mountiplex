@@ -1,9 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
-import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -117,6 +115,16 @@ public class Template {
          */
         public boolean isValid() {
             return valid;
+        }
+
+        /**
+         * Gets whether this entire Class Template is declared {@link Optional}.
+         * If this returns True it indicates the class is not guaranteed to exist at runtime.
+         * 
+         * @return True if optional, False if it is guaranteed to exist
+         */
+        public final boolean isOptional() {
+            return this.handleType.getAnnotation(Optional.class) != null; 
         }
 
         /**
@@ -266,16 +274,20 @@ public class Template {
         @InitMethod
         protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath) {
             try {
+                Class<?> handleClass = ((Class<?>) handleType.getField("T").get(null));
+
                 // Load the class at the path and retrieve the Class Declaration belonging to it
                 java.lang.Class<?> classType = Resolver.loadClass(classPath, false);
                 if (classType == null) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classPath + " not found; Template '" +
-                            handleType.getSimpleName() + " not initialized.");
+                    if (!handleClass.isOptional()) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classPath + " not found; Template '" +
+                                handleType.getSimpleName() + " not initialized.");
+                    }
                     return;
                 }
 
                 // Initialize the template class fields
-                ((Class<?>) handleType.getField("T").get(null)).init(classType);
+                handleClass.init(classType);
             } catch (Throwable t) {
                 MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register " + handleType.getName(), t);
             }
@@ -1530,7 +1542,6 @@ public class Template {
     /**
      * Indicates a declaration statement is optional and not guaranteed to exist
      */
-    @Target(ElementType.FIELD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Optional {
     }

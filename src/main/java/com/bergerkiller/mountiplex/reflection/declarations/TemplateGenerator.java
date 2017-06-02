@@ -121,6 +121,10 @@ public class TemplateGenerator {
             classHeadStatic = "static ";
         }
 
+        addLine();
+        if (classDec.modifiers.isOptional()) {
+            addLine("@Template.Optional");
+        }
         addLine("public " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
         {
             addLine("public static final " + className(classDec) + " T = new " + className(classDec) + "()");
@@ -153,8 +157,8 @@ public class TemplateGenerator {
                     addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".get" + primTypeStr + "Safe()");
                 }
 
-                addLine();
                 addLine("/* ============================================================================== */");
+                addLine();
 
                 // Create from existing handle; important for use by converters
                 addLine("public static " + handleName(classDec) + " createHandle(Object handleInstance) {");
@@ -175,8 +179,8 @@ public class TemplateGenerator {
                     addLine("}");
                 }
 
-                addLine();
                 addLine("/* ============================================================================== */");
+                addLine();
 
                 // Static fields
                 for (FieldDeclaration fDec : classDec.fields) {
@@ -634,16 +638,15 @@ public class TemplateGenerator {
         if (line.endsWith("}")) {
             this.indent(-1);
         }
-        if (line.endsWith("{")) {
-            this.builder.append('\n');
-        }
         for (int i = 0; i < indent; i++) {
             this.builder.append("    ");
         }
         this.builder.append(line);
         if (line.endsWith("{")) {
             this.indent(1);
-        } else if (!line.endsWith("}") && !line.startsWith("//") && !line.startsWith("/*") && !line.startsWith("@")) {
+        } else if (line.endsWith("}")) {
+            this.builder.append('\n');
+        } else if (!line.startsWith("//") && !line.startsWith("/*") && !line.startsWith("@")) {
             this.builder.append(';');
         }
         this.builder.append('\n');

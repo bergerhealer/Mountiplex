@@ -74,7 +74,11 @@ public class AnnotatedConverter extends RawConverter {
                 throw new IllegalArgumentException("Type is invalid: " + type.toString());
             }
             if (!type.isResolved()) {
-                throw new IllegalArgumentException("Type could not be resolved: " + type.toString());
+                if (annot.optional()) {
+                    return null;
+                } else {
+                    throw new IllegalArgumentException("Type could not be resolved: " + type.toString());
+                }
             }
             return type;
         } else {
