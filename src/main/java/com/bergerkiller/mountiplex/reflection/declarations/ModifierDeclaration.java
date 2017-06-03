@@ -8,10 +8,10 @@ import java.util.HashMap;
  */
 public class ModifierDeclaration extends Declaration {
     private static final HashMap<String, Integer> _tokens = new HashMap<String, Integer>();
-    private static final int _token_mask = (Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.STATIC | Modifier.FINAL | Modifier.VOLATILE | Modifier.TRANSIENT);
+    private static final int _token_mask = (Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.STATIC | Modifier.VOLATILE | Modifier.TRANSIENT);
     private final int _modifiers;
     private final String _modifiersStr;
-    private final boolean _constant;
+    private final boolean _final;
     private final boolean _unknown;
     private final boolean _optional;
 
@@ -30,7 +30,7 @@ public class ModifierDeclaration extends Declaration {
         super(resolver);
         this._modifiers = modifiers;
         this._modifiersStr = Modifier.toString(modifiers);
-        this._constant = false;
+        this._final = Modifier.isFinal(this._modifiers);
         this._unknown = false;
         this._optional = false;
     }
@@ -42,14 +42,13 @@ public class ModifierDeclaration extends Declaration {
         if (declaration == null) {
             this._modifiers = 0;
             this._modifiersStr = "";
-            this._constant = false;
+            this._final = false;
             this._unknown = false;
             this._optional = false;
             this.setInvalid();
             return;
         }
 
-        boolean isConstant = false;
         boolean isUnknown = false;
         boolean isOptional = false;
         int modifiers = 0;
@@ -74,9 +73,6 @@ public class ModifierDeclaration extends Declaration {
                 } else if (token.equals("unknown")) {
                     isUnknown = true;
                     validToken = true;
-                } else if (token.equals("constant")) {
-                    //isConstant = true;
-                    //validToken = true;
                 } else if (token.equals("optional")) {
                     isOptional = true;
                     validToken = true;
@@ -97,10 +93,9 @@ public class ModifierDeclaration extends Declaration {
             postfix = postfix.substring(startIdx);
             break;
         }
-        isConstant = Modifier.isFinal(modifiers); // do we need a 'constant' modifier?
+        this._final = Modifier.isFinal(modifiers);
         this._modifiers = modifiers;
         this._modifiersStr = modifiersStr;
-        this._constant = isConstant;
         this._unknown = isUnknown;
         this._optional = isOptional;
         this.setPostfix(postfix);
@@ -137,7 +132,7 @@ public class ModifierDeclaration extends Declaration {
      * @return True if final, False if not
      */
     public final boolean isFinal() {
-        return Modifier.isFinal(this._modifiers);
+        return this._final;
     }
 
     /**
@@ -149,22 +144,16 @@ public class ModifierDeclaration extends Declaration {
         return Modifier.isStatic(this._modifiers);
     }
 
-    /**
-     * Gets whether the custom 'constant' modifier is set.
-     * This modifier indicates that the value is not supposed to be changed at runtime.
-     * It is a level up from 'final'
-     * @return
-     */
-    public final boolean isConstant() {
-        return this._constant;
-    }
-
     @Override
     public final boolean match(Declaration modifier) {
-        if (modifier instanceof ModifierDeclaration) {
-            return (this._modifiers & _token_mask) == (((ModifierDeclaration) modifier)._modifiers & _token_mask);
+        if (!(modifier instanceof ModifierDeclaration)) {
+            return false;
         }
-        return false;
+        ModifierDeclaration other = (ModifierDeclaration) modifier;
+        if ((this._modifiers & _token_mask) != (other._modifiers & _token_mask)) {
+            return false;
+        }
+        return true;
     }
 
     @Override

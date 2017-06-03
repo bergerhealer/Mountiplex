@@ -146,7 +146,7 @@ public class TemplateGenerator {
 
                 // Static constant fields
                 for (FieldDeclaration fDec : classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isConstant() || fDec.isEnum || fDec.modifiers.isOptional()) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || !fDec.modifiers.isFinal() || fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
 
@@ -184,7 +184,7 @@ public class TemplateGenerator {
 
                 // Static fields
                 for (FieldDeclaration fDec : classDec.fields) {
-                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isConstant() || fDec.isEnum || fDec.modifiers.isOptional()) {
+                    if (fDec.modifiers.isUnknown() || !fDec.modifiers.isStatic() || fDec.modifiers.isFinal() || fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
                     String primTypeStr = getPrimFieldType(fDec);
