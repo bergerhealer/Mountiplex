@@ -277,12 +277,21 @@ public class ClassDeclaration extends Declaration {
                 }
             }
             if (!found && !method.modifiers.isOptional()) {
-                MountiplexUtil.LOGGER.warning("Failed to find method " + method);
-                MountiplexUtil.LOGGER.warning("Alternatives:");
+                boolean hasAlternatives = false;
                 for (MethodDeclaration m : realMethods) {
                     if (m.parameters.parameters.length == method.parameters.parameters.length) {
-                        MountiplexUtil.LOGGER.warning(" - " + m.toString());
+                        if (m.returnType.match(method.returnType)) {
+                            if (!hasAlternatives) {
+                                hasAlternatives = true;
+                                MountiplexUtil.LOGGER.warning("Failed to find method " + method);
+                                MountiplexUtil.LOGGER.warning("Alternatives:");
+                            }
+                            MountiplexUtil.LOGGER.warning(" - " + m.toString());
+                        }
                     }
+                }
+                if (!hasAlternatives) {
+                    MountiplexUtil.LOGGER.warning("Failed to find method " + method + " (No alternatives)");
                 }
             }
         }
