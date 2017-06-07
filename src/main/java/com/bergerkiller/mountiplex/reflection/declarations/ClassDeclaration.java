@@ -404,6 +404,11 @@ public class ClassDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	return 0.0; // not implemented
+    }
+
+    @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof ClassDeclaration) {
             return ((ClassDeclaration) declaration).type.match(this.type);

@@ -60,6 +60,11 @@ public class ConstructorDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	return 0.0; //TODO!!!!!!!!!!!!!!!!
+    }
+
+    @Override
     public boolean isResolved() {
         return type.isResolved() && parameters.isResolved();
     }

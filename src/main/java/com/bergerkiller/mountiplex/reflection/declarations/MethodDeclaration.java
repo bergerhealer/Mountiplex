@@ -47,6 +47,11 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	return 0.0; //TODO!!!!!!!!!!!!!!!!
+    }
+
+    @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof MethodDeclaration) {
             MethodDeclaration method = (MethodDeclaration) declaration;

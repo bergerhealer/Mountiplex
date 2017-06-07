@@ -145,6 +145,35 @@ public class ModifierDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	if (!(other instanceof ModifierDeclaration)) {
+    		return 0.0;
+    	}
+    	ModifierDeclaration m = (ModifierDeclaration) other;
+
+    	// Obtain the total number of modifiers used in both declarations
+    	int allModifiers = (m._modifiers | this._modifiers) & _token_mask;
+    	int numberTotal = 0;
+    	int numberMatched = 0;
+    	for (int b = 0; b < 31; b++) {
+    		int mask = (1 << b);
+    		if ((allModifiers & mask) != 0) {
+    			numberTotal++;
+    			if ((m._modifiers & mask) == (this._modifiers & mask)) {
+    				numberMatched++;
+    			}
+    		}
+    	}
+
+    	// Turn this into a double value. Do handle /div0
+    	if (numberTotal == 0) {
+    		return 1.0;
+    	} else {
+    		return (double) numberMatched / (double) numberTotal;
+    	}
+    }
+    
+    @Override
     public final boolean match(Declaration modifier) {
         if (!(modifier instanceof ModifierDeclaration)) {
             return false;

@@ -18,7 +18,7 @@ public class FieldLCSResolver {
         Sequence mainSequence = new Sequence(Arrays.asList(a), Arrays.asList(b));
         Sequence skipped = new Sequence();
         for (FieldDeclaration da : mainSequence.a) {
-            if (da.name.value().length() <= 2) {
+            if (da.name.isObfuscated()) {
                 skipped.a.add(da);
                 continue;
             }
@@ -44,7 +44,7 @@ public class FieldLCSResolver {
                 int i = 0;
                 while (i < skipped.b.size()) {
                     FieldDeclaration db = skipped.b.get(i);
-                    if (db.name.value().length() <= 2) {
+                    if (db.name.isObfuscated()) {
                         i++;
                     } else {
                         pairs.add(new Pair(null, db));

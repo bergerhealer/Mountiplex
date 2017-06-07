@@ -83,6 +83,38 @@ public class ParameterListDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	if (!(other instanceof ParameterListDeclaration)) {
+    		return 0.0;
+    	}
+    	ParameterListDeclaration pl = (ParameterListDeclaration) other;
+
+    	// Noth no-args, fully similar
+    	if (pl.parameters.length == 0 && this.parameters.length == 0) {
+    		return 1.0;
+    	}
+
+		// Same number of parameters - simple calculation
+    	if (pl.parameters.length == this.parameters.length) {
+    		double similarity = 0.0;
+    		for (int i = 0; i < this.parameters.length; i++) {
+    			similarity += this.parameters[i].similarity(pl.parameters[i]);
+    		}
+    		similarity /= this.parameters.length;
+    		return similarity;
+    	}
+
+    	// Compare up to the amount of arguments we have. Missing arguments count towards failure.
+    	int minCnt = Math.min(pl.parameters.length, this.parameters.length);
+    	double similarity = 0.0;
+    	for (int i = 0; i < minCnt; i++) {
+    		similarity += this.parameters[i].similarity(pl.parameters[i]);
+    	}
+    	similarity /= Math.max(pl.parameters.length, this.parameters.length);
+    	return similarity;
+    }
+
+    @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof ParameterListDeclaration) {
             ParameterListDeclaration param = (ParameterListDeclaration) declaration;

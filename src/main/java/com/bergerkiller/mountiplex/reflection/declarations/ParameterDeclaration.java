@@ -23,6 +23,14 @@ public class ParameterDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	if (!(other instanceof ParameterDeclaration)) {
+    		return 0.0;
+    	}
+    	return this.type.similarity(((ParameterDeclaration) other).type);
+    }
+
+    @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof ParameterDeclaration) {
             return type.match(((ParameterDeclaration) declaration).type);

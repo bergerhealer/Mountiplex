@@ -146,7 +146,8 @@ public class SourceDeclaration extends Declaration {
                         MountiplexUtil.LOGGER.warning("Could not resolve include while parsing template: " + name);
                         MountiplexUtil.LOGGER.warning("Template file: " + templatefile);
                     } else {
-                        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+                        java.util.Scanner s = new java.util.Scanner(is);
+                        s.useDelimiter("\\A");
                         String inclSourceStr = (s.hasNext() ? s.next() : "");
                         s.close();
 
@@ -308,6 +309,11 @@ public class SourceDeclaration extends Declaration {
     protected void debugString(StringBuilder str, String indent) {
     }
 
+    @Override
+    public double similarity(Declaration other) {
+    	return 0.0; // not implemented
+    }
+    
     /**
      * Parses the full source contents into a Source Declaration from a String
      * 

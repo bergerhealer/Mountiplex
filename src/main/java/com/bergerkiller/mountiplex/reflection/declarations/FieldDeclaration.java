@@ -52,6 +52,17 @@ public class FieldDeclaration extends Declaration {
     }
 
     @Override
+    public double similarity(Declaration other) {
+    	if (!(other instanceof FieldDeclaration)) {
+    		return 0.0;
+    	}
+    	FieldDeclaration f = (FieldDeclaration) other;
+    	return 0.1 * this.modifiers.similarity(f.modifiers) +
+               0.2 * this.name.similarity(f.name) +
+               0.7 * this.type.similarity(f.type);
+    }
+
+    @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof FieldDeclaration) {
             FieldDeclaration field = (FieldDeclaration) declaration;

@@ -1,5 +1,9 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
 /**
@@ -211,6 +215,18 @@ public abstract class Declaration {
 
     protected abstract void debugString(StringBuilder str, String indent); // must implement
 
+    /**
+     * Computes the similarity between this declaration and another.
+     * The higher the return value, the more similar the declarations are.
+     * A return value of 1.0 indicates the declarations are equal.
+     * A return value of 0.0 indicates the declarations are completely different,
+     * or could not be compared.
+     * 
+     * @param other to compute a difference for
+     * @return difference between this declaration and the other (0.0 - 1.0)
+     */
+    public abstract double similarity(Declaration other);
+
     @Override
     public final boolean equals(Object other) {
         if (this == other) {
@@ -234,5 +250,29 @@ public abstract class Declaration {
             this._longDeclare = this.toString(true);
         }
         return this._longDeclare.hashCode();
+    }
+
+    /**
+     * Sorts a list of declarations based on the similarity with a compared type.
+     * The most similar declarations are sorted to the beginning of the list.
+     * 
+     * @param compare declaration to compare with
+     * @param list to sort
+     */
+    public static <T extends Declaration> void sortSimilarity(final T compare, List<T> list) {
+    	Collections.sort(list, new Comparator<T>() {
+			@Override
+			public int compare(T o1, T o2) {
+				double s1 = compare.similarity(o1);
+				double s2 = compare.similarity(o2);
+				if (s1 == s2) {
+					return 0;
+				} else if (s1 > s2) {
+					return -1;
+				} else {
+					return 1;
+				}
+			}
+    	});
     }
 }

@@ -132,6 +132,38 @@ public class NameDeclaration extends Declaration {
         return _alias != null;
     }
 
+    /**
+     * Gets whether this name is an obfuscated name
+     * 
+     * @return True if the name is obfuscated (such as 'aB', 'e', '_Y')
+     */
+    public final boolean isObfuscated() {
+    	return _name.length() <= 2;
+    }
+
+    @Override
+    public double similarity(Declaration other) {
+    	if (!(other instanceof NameDeclaration)) {
+    		return 0.0;
+    	}
+    	NameDeclaration n = (NameDeclaration) other;
+    	if (n._name.equals(this._name)) {
+    		return 1.0;
+    	}
+    	if (n.isObfuscated() && this.isObfuscated()) {
+    		// Names are both obfuscated so comparisons do not really make sense here
+    		// Return a constant '0.9' to allow for further matching
+    		return 0.9;
+    	} else if (n.isObfuscated() || this.isObfuscated()) {
+    		// One is obfuscated, the other is deobfuscated. A field being deobfuscated
+    		// is quite rare, so assume they are not similar (0.1)
+    		return 0.1;
+    	} else {
+    		// Both are deobfuscated, calculate similarity of the two names
+    		return MountiplexUtil.similarity(n._name, this._name);
+    	}
+    }
+    
     @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof NameDeclaration) {
