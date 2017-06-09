@@ -14,6 +14,7 @@ public class ModifierDeclaration extends Declaration {
     private final boolean _final;
     private final boolean _unknown;
     private final boolean _optional;
+    private final boolean _rawtype;
 
     static {
         int[] modifiers = new int[] {
@@ -33,6 +34,7 @@ public class ModifierDeclaration extends Declaration {
         this._final = Modifier.isFinal(this._modifiers);
         this._unknown = false;
         this._optional = false;
+        this._rawtype = false;
     }
 
     public ModifierDeclaration(ClassResolver resolver, String declaration) {
@@ -45,12 +47,14 @@ public class ModifierDeclaration extends Declaration {
             this._final = false;
             this._unknown = false;
             this._optional = false;
+            this._rawtype = false;
             this.setInvalid();
             return;
         }
 
         boolean isUnknown = false;
         boolean isOptional = false;
+        boolean isRawtype = false;
         int modifiers = 0;
         String modifiersStr = "";
         String postfix = declaration;
@@ -76,6 +80,9 @@ public class ModifierDeclaration extends Declaration {
                 } else if (token.equals("optional")) {
                     isOptional = true;
                     validToken = true;
+                } else if (token.equals("rawtype")) {
+                    isRawtype = true;
+                    validToken = true;
                 }
                 if (validToken) {
                     if (m != null) {
@@ -98,6 +105,7 @@ public class ModifierDeclaration extends Declaration {
         this._modifiersStr = modifiersStr;
         this._unknown = isUnknown;
         this._optional = isOptional;
+        this._rawtype = isRawtype;
         this.setPostfix(postfix);
     }
 
@@ -124,6 +132,17 @@ public class ModifierDeclaration extends Declaration {
      */
     public final boolean isOptional() {
         return this._optional;
+    }
+
+    /**
+     * Gets whether the custom 'rawtype' modifier is set.
+     * This modifier indicates that the upcoming declaration contains raw unparameterized types,
+     * and the warning for it must be ignored.
+     * 
+     * @return True if a raw type is used
+     */
+    public final boolean isRawtype() {
+        return this._rawtype;
     }
 
     /**

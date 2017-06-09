@@ -4,6 +4,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.logging.Level;
 
+import org.objenesis.ObjenesisHelper;
+import org.objenesis.instantiator.ObjectInstantiator;
+
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
@@ -26,6 +29,7 @@ public class Template {
         private java.lang.Class<?> classType = null;
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
+        private ObjectInstantiator<Object> instantiator = null;
 
         @SuppressWarnings("unchecked")
         public Class() {
@@ -48,6 +52,41 @@ public class Template {
                 throw new RuntimeException("Failed to instantiate", e);
             } catch (IllegalAccessException e) {
                 throw new RuntimeException("Could not construct new handle", e);
+            }
+        }
+
+        /**
+         * Creates a new instance of this Class Type without calling any constructors.
+         * All member fields will be initialized to their default values (null, 0, false, etc.).
+         * The object will be returned wrapped in a Handle for this Class Type.
+         * 
+         * @return Handle to an uninitialized object of this Class Type
+         */
+        public final H newHandleNull() {
+            return createHandle(newInstanceNull());
+        }
+
+        /**
+         * Creates a new instance of this Class Type without calling any constructors.
+         * All member fields will be initialized to their default values (null, 0, false, etc.).
+         * 
+         * @return Uninitialized object of this Class Type
+         */
+        @SuppressWarnings("unchecked")
+        public final Object newInstanceNull() {
+            if (this.classType == null) {
+                throw new IllegalStateException("Class is not available");
+            }
+            if (this.instantiator == null) {
+                this.instantiator = (ObjectInstantiator<Object>) ObjenesisHelper.getInstantiatorOf(this.classType);
+                if (this.instantiator == null) {
+                    throw new IllegalStateException("Class of type " + this.classType.getName() + " could not be instantiated");
+                }
+            }
+            try {
+                return this.instantiator.newInstance();
+            } catch (Throwable t) {
+                throw MountiplexUtil.uncheckedRethrow(t);
             }
         }
 

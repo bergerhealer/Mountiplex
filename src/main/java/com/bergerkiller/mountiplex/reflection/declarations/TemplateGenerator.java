@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -41,7 +40,7 @@ public class TemplateGenerator {
 
     public void generate() {
         this.builder = new StringBuilder();
-        this.imports = new HashMap<String, String>();
+        this.imports = new TreeMap<String, String>();
         this.imports.put("Template", Template.class.getName());
         this.imports.put("StaticInitHelper", StaticInitHelper.class.getName());
         this.indent = 0;
@@ -122,11 +121,13 @@ public class TemplateGenerator {
         }
 
         addLine();
-        if (classDec.modifiers.isOptional()) {
-            addLine("@Template.Optional");
-        }
+        addComment("Instance wrapper handle for type <b>" + classDec.type.typePath + "</b>.\n" +
+                   "To access members without creating a handle type, use the static {@link #T} member.\n" +
+                   "New handles can be created from raw instances using {@link #createHandle(Object)}.");
+        populateModifiers(classDec.modifiers);
         addLine("public " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
         {
+            addComment("@See {@link " + className(classDec) + "}");
             addLine("public static final " + className(classDec) + " T = new " + className(classDec) + "()");
             addLine("static final StaticInitHelper _init_helper = new StaticInitHelper(" + handleName(classDec) + ".class, \"" + classDec.type.typePath + "\")");
             addLine();
@@ -141,6 +142,7 @@ public class TemplateGenerator {
                     String typeStr = getFieldTypeStr(fDec);
                     String fName = fDec.name.real();
 
+                    populateModifiers(fDec.modifiers);
                     addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".getSafe()");
                 }
 
@@ -154,6 +156,7 @@ public class TemplateGenerator {
                     String typeStr = getFieldTypeStr(fDec);
                     String fName = fDec.name.real();
 
+                    populateModifiers(fDec.modifiers);
                     addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".get" + primTypeStr + "Safe()");
                 }
 
@@ -173,6 +176,8 @@ public class TemplateGenerator {
                     if (cDec.modifiers.isOptional()) {
                         continue;
                     }
+
+                    populateModifiers(cDec.modifiers);
                     String cHeader = "public static final " + getExposedTypeStr(cDec.type) + " createNew";
                     addLine(cHeader + getParamsBody(cDec.parameters));
                     addLine("return T." + cDec.getName() + ".newInstance(" + getArgsBody(cDec.parameters) + ")");
@@ -192,11 +197,13 @@ public class TemplateGenerator {
                     String fName = fDec.name.real();
 
                     // Getter
+                    populateModifiers(fDec.modifiers);
                     addLine("public static " + typeStr + " " + fName + "() {");
                     addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "()");
                     addLine("}");
 
                     // Setter
+                    populateModifiers(fDec.modifiers);
                     addLine("public static void " + fName + "_set(" + typeStr + " value) {");
                     addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(value)");
                     addLine("}");
@@ -240,17 +247,21 @@ public class TemplateGenerator {
                     String typeStr = getFieldTypeStr(fDec);
 
                     // Getter
+                    populateModifiers(fDec.modifiers);
                     addLine("public " + typeStr + " " + getGetterName(fDec) + "() {");
                     addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(instance)");
                     addLine("}");
 
                     // Setter
+                    populateModifiers(fDec.modifiers);
                     addLine("public void " + getSetterName(fDec) + "(" + typeStr + " value) {");
                     addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(instance, value)");
                     addLine("}");
                 }
             }
 
+            addComment("Stores class members for <b>" + classDec.type.typePath + "</b>.\n" +
+                       "Methods, fields, and constructors can be used without using Handle Objects.");
             addLine("public static final class " + className(classDec) + " extends Template.Class<" + handleName(classDec) + "> {");
             {
                 // Enumeration constants
@@ -268,9 +279,7 @@ public class TemplateGenerator {
                         fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
                     }
 
-                    if (fDec.modifiers.isOptional()) {
-                        addLine("@Template.Optional");
-                    }
+                    populateModifiers(fDec.modifiers);
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                     hasEnumFields = true;
                 }
@@ -289,9 +298,7 @@ public class TemplateGenerator {
                         constrTypeStr += "<" + getTypeStr(cDec.type) + ">";
                     }
 
-                    if (cDec.modifiers.isOptional()) {
-                        addLine("@Template.Optional");
-                    }
+                    populateModifiers(cDec.modifiers);
                     addLine("public final " + constrTypeStr + " " + cDec.getName() + " = new " + constrTypeStr + "()");
                     hasConstructors = true;
                 }
@@ -318,9 +325,7 @@ public class TemplateGenerator {
                         }
                     }
 
-                    if (fDec.modifiers.isOptional()) {
-                        addLine("@Template.Optional");
-                    }
+                    populateModifiers(fDec.modifiers);
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                     hasStaticFields = true;
                 }
@@ -347,9 +352,7 @@ public class TemplateGenerator {
                         }
                     }
 
-                    if (fDec.modifiers.isOptional()) {
-                        addLine("@Template.Optional");
-                    }
+                    populateModifiers(fDec.modifiers);
                     addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
                     hasLocalFields = true;
                 }
@@ -365,9 +368,7 @@ public class TemplateGenerator {
                     }
                     String methodTypeStr = "Template.StaticMethod" + getMethodAppend(mDec);
 
-                    if (mDec.modifiers.isOptional()) {
-                        addLine("@Template.Optional");
-                    }
+                    populateModifiers(mDec.modifiers);
                     addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
                     hasStaticMethods = true;
                 }
@@ -383,9 +384,7 @@ public class TemplateGenerator {
                     }
                     String methodTypeStr = "Template.Method" + getMethodAppend(mDec);
 
-                    if (mDec.modifiers.isOptional()) {
-                        addLine("@Template.Optional");
-                    }
+                    populateModifiers(mDec.modifiers);
                     addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
                     hasLocalMethods = true;
                 }
@@ -418,6 +417,15 @@ public class TemplateGenerator {
             return "is" + fName;
         } else {
             return "get" +  fName;
+        }
+    }
+
+    private void populateModifiers(ModifierDeclaration dec) {
+        if (dec.isRawtype()) {
+            addLine("@SuppressWarnings(\"rawtypes\")");
+        }
+        if (dec.isOptional()) {
+            addLine("@Template.Optional");
         }
     }
 
@@ -479,6 +487,8 @@ public class TemplateGenerator {
         }
         bodyStr += getArgsBody(mDec.parameters);
         bodyStr += ")";
+
+        populateModifiers(mDec.modifiers);
         addLine(bodyStr);
         addLine("}");
     }
@@ -630,6 +640,19 @@ public class TemplateGenerator {
         return name;
     }
 
+    private void addComment(String commentText) {
+        String[] lines = commentText.split("\\r?\\n");
+        if (lines.length == 1) {
+            addRawLine("/** " + lines[0] + " */");
+        } else {
+            addRawLine("/**");
+            for (String line : lines) {
+                addRawLine(" * " + line);
+            }
+            addRawLine(" */");
+        }
+    }
+
     private void addLine() {
         this.builder.append('\n');
     }
@@ -649,6 +672,14 @@ public class TemplateGenerator {
         } else if (!line.startsWith("//") && !line.startsWith("/*") && !line.startsWith("@")) {
             this.builder.append(';');
         }
+        this.builder.append('\n');
+    }
+
+    private void addRawLine(String line) {
+        for (int i = 0; i < indent; i++) {
+            this.builder.append("    ");
+        }
+        this.builder.append(line);
         this.builder.append('\n');
     }
 
