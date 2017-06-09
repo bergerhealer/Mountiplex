@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -85,13 +86,30 @@ public class FieldLCSResolver {
         // Now we have a bunch of sequences we must perform non-exact LCS on
         //TODO! Make this more resillient!
         for (Sequence seq : sequences) {
-            for (FieldDeclaration fa : seq.a) {
-                for (FieldDeclaration fb : seq.b) {
-                    if (fa.name.value().equals(fb.name.value())) {
-                        pairs.add(new Pair(fa, fb));
-                        break;
+            FieldDeclaration[] aa = seq.a.toArray(new FieldDeclaration[0]);
+            FieldDeclaration[] bb = seq.b.toArray(new FieldDeclaration[0]);
+            if (seq.a.size() > 0 && seq.b.size() > 0) {
+                Iterator<FieldDeclaration> fa_iter = seq.a.iterator();
+                while (fa_iter.hasNext()) {
+                    FieldDeclaration fa = fa_iter.next();
+                    Iterator<FieldDeclaration> fb_iter = seq.b.iterator();
+                    while (fb_iter.hasNext()) {
+                        FieldDeclaration fb = fb_iter.next();
+                        if (fa.name.value().equals(fb.name.value())) {
+                            pairs.add(new Pair(fa, fb, aa, bb));
+                            fa_iter.remove();
+                            fb_iter.remove();
+                            break;
+                        }
                     }
                 }
+            }
+            // Add any missing fields as 'failed'
+            for (FieldDeclaration fa : seq.a) {
+                pairs.add(new Pair(fa, null, aa, bb));
+            }
+            for (FieldDeclaration fb : seq.b) {
+                pairs.add(new Pair(null, fb, aa, bb));
             }
         }
 
@@ -101,10 +119,21 @@ public class FieldLCSResolver {
     public static class Pair {
         public final FieldDeclaration a;
         public final FieldDeclaration b;
+        public final FieldDeclaration[] aa;
+        public final FieldDeclaration[] bb;
 
         public Pair(FieldDeclaration a, FieldDeclaration b) {
             this.a = a;
             this.b = b;
+            this.aa = this.bb = new FieldDeclaration[0];
+        }
+
+        public Pair(FieldDeclaration a, FieldDeclaration b,
+                FieldDeclaration[] aa, FieldDeclaration[] bb) {
+            this.a = a;
+            this.b = b;
+            this.aa = aa;
+            this.bb = bb;
         }
     }
 

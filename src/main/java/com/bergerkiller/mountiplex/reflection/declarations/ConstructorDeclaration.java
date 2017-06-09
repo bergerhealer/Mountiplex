@@ -61,7 +61,12 @@ public class ConstructorDeclaration extends Declaration {
 
     @Override
     public double similarity(Declaration other) {
-    	return 0.0; //TODO!!!!!!!!!!!!!!!!
+        if (!(other instanceof ConstructorDeclaration)) {
+            return 0.0;
+        }
+        ConstructorDeclaration c = (ConstructorDeclaration) other;
+        return 0.1 * this.modifiers.similarity(c.modifiers) +
+               0.9 * this.parameters.similarity(c.parameters);
     }
 
     @Override

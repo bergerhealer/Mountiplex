@@ -48,7 +48,14 @@ public class MethodDeclaration extends Declaration {
 
     @Override
     public double similarity(Declaration other) {
-    	return 0.0; //TODO!!!!!!!!!!!!!!!!
+        if (!(other instanceof MethodDeclaration)) {
+            return 0.0;
+        }
+        MethodDeclaration m = (MethodDeclaration) other;
+        return 0.1 * this.modifiers.similarity(m.modifiers) +
+               0.3 * this.name.similarity(m.name) +
+               0.3 * this.returnType.similarity(m.returnType) +
+               0.3 * this.parameters.similarity(m.parameters);
     }
 
     @Override

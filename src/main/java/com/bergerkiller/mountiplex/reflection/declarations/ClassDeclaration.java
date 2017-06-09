@@ -1,6 +1,8 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -249,7 +251,11 @@ public class ClassDeclaration extends Declaration {
         // The fields in the underlying Class are not important (yet)
         for (FieldLCSResolver.Pair failPair : pairs) {
             if (failPair.b == null && !failPair.a.modifiers.isOptional()) {
-                MountiplexUtil.LOGGER.warning("Failed to find field " + failPair.a);
+                if (failPair.bb.length > 0) {
+                    logAlternatives("field", failPair.bb, failPair.a);
+                } else {
+                    logAlternatives("field", realFields, failPair.a);
+                }
             }
         }
     }
@@ -277,22 +283,7 @@ public class ClassDeclaration extends Declaration {
                 }
             }
             if (!found && !method.modifiers.isOptional()) {
-                boolean hasAlternatives = false;
-                for (MethodDeclaration m : realMethods) {
-                    if (m.parameters.parameters.length == method.parameters.parameters.length) {
-                        if (m.returnType.match(method.returnType)) {
-                            if (!hasAlternatives) {
-                                hasAlternatives = true;
-                                MountiplexUtil.LOGGER.warning("Failed to find method " + method);
-                                MountiplexUtil.LOGGER.warning("Alternatives:");
-                            }
-                            MountiplexUtil.LOGGER.warning(" - " + m.toString());
-                        }
-                    }
-                }
-                if (!hasAlternatives) {
-                    MountiplexUtil.LOGGER.warning("Failed to find method " + method + " (No alternatives)");
-                }
+                logAlternatives("method", realMethods, method);
             }
         }
     }
@@ -320,11 +311,29 @@ public class ClassDeclaration extends Declaration {
                 }
             }
             if (!found && !constructor.modifiers.isOptional()) {
-                MountiplexUtil.LOGGER.warning("Failed to find constructor " + constructor);
+                logAlternatives("constructor", realConstructors, constructor);
             }
         }
     }
 
+    private <T extends Declaration> void logAlternatives(String category, T[] alternatives, T declaration) {
+        MountiplexUtil.LOGGER.warning("A class member of " + this.type.toString(true) + " was not found!");
+        if (alternatives.length == 0) {
+            MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " (No alternatives)");
+        } else {
+            ArrayList<T> sorted = new ArrayList<T>(Arrays.asList(alternatives));
+            Declaration.sortSimilarity(declaration, sorted);
+            MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " - Alternatives:");
+            int limit = 8;
+            for (T alter : sorted) {
+                MountiplexUtil.LOGGER.warning("  - " + alter);
+                if (--limit == 0) {
+                    break;
+                }
+            }
+        }
+    }
+    
     /**
      * Attempts to find the method matching the declaration in this Class
      * 

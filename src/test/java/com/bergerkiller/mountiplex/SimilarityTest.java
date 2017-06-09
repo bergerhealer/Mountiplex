@@ -12,6 +12,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.Declaration;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.types.SimilarityTestType;
 
 public class SimilarityTest {
@@ -20,11 +21,22 @@ public class SimilarityTest {
 	@Test
 	public void testFieldSimilarity() {
 		assertFieldSorted("public Double intNumber", "public Integer intNumber");
-		assertFieldSorted("public String intNumber", "public String name");
+		assertFieldSorted("public String intNumber", "public Integer intNumber");
 		assertFieldSorted("private int m", "public int x");
 		assertFieldSorted("public Runnable r", "public Runnable runnable");
 	}
 
+	//@Test
+	public void testTemplateAlternatives() {
+	    // Shows template alternatives. Purely for debug while making changes to it.
+	    String declaration = "package com.bergerkiller.mountiplex.types;\n" +
+	                         "class SimilarityTestType {\n" +
+	                         "    public int ak;\n" +
+	                         "}";
+
+	    SourceDeclaration.parse(declaration);
+	}
+	
 	public static void assertFieldSorted(String declaration, String expected) {
 		List<FieldDeclaration> fields = new ArrayList<FieldDeclaration>();
 		fields.addAll(Arrays.asList(simDec.fields));
