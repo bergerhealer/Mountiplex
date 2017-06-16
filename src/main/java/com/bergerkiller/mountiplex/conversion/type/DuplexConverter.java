@@ -48,24 +48,39 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     public abstract A convertOutput(B value);
 
     /**
-     * Performs the reversed conversion of {@link #convert(value))}
+     * Performs the reversed conversion of {@link #convert(value))}.
+     * Returns null on failure.
      * 
      * @param value to be converted (B)
      * @return converted value (A)
      */
-    @SuppressWarnings("unchecked")
     public final A convertReverse(Object value) {
+        return convertReverse(value, null);
+    }
+
+    /**
+     * Performs the reversed conversion of {@link #convert(value, defaultValue))}
+     * 
+     * @param value to be converted (B)
+     * @param defaultValue to return on failure
+     * @return converted value (A)
+     */
+    @SuppressWarnings("unchecked")
+    public final A convertReverse(Object value, A defaultValue) {
         A result = null;
-        Class<?> outputType = this.output.type;
-        if (outputType.isPrimitive()) {
-            outputType = BoxedType.getBoxedType(outputType);
-        }
-        if (value == null) {
-            if (this.acceptsNullOutput()) {
-                result = convertOutput(null);
+        if (value != null) {
+            Class<?> outputType = this.output.type;
+            if (outputType.isPrimitive()) {
+                outputType = BoxedType.getBoxedType(outputType);
             }
-        } else if (outputType.isAssignableFrom(value.getClass())) {
-            result = convertOutput((B) value);
+            if (outputType.isAssignableFrom(value.getClass())) {
+                result = this.convertOutput((B) value);
+            }
+        } else if (this.acceptsNullOutput()) {
+            result = this.convertOutput(null);
+        }
+        if (result == null) {
+            result = defaultValue;
         }
         if (result == null && this.input.type.isPrimitive()) {
             result = (A) BoxedType.getDefaultValue(this.input.type);

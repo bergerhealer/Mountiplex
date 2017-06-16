@@ -74,6 +74,13 @@ public class ConversionTest {
     }
 
     @Test
+    public void testNumberDefault() {
+        Converter<String, Integer> conv = Conversion.find(String.class, int.class);
+        assertNotNull(conv);
+        assertEquals(12, conv.convert("helloworld", 12).intValue());
+    }
+
+    @Test
     public void testEnum() {
         testConversion("SUNDAY", Day.class, Day.SUNDAY);
         testConversion("MONDAY", Day.class, Day.MONDAY);
