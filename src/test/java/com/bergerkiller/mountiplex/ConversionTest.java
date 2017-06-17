@@ -15,6 +15,7 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.AnnotatedConverters;
@@ -139,6 +140,30 @@ public class ConversionTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testArrayToList() {
+        String[] valuesArray = new String[] {"12", "55", "534", "-6633", "633"};
+        ArrayList<Integer> valuesList = new ArrayList<Integer>(Arrays.asList(12, 55, 534, -6633, 633));
+
+        TypeDeclaration t_arr = TypeDeclaration.parse("String[]");
+        TypeDeclaration t_lst = TypeDeclaration.parse("List<Integer>");
+
+        // Verify both can be duplex converted to one another
+        assertFindConverter(t_arr, t_lst);
+        assertFindConverter(t_lst, t_arr);
+        DuplexConverter<Object, Object> conv = Conversion.findDuplex(t_arr, t_lst);
+        assertNotNull(conv);
+
+        List<Integer> valuesListResult = (List<Integer>) conv.convert(valuesArray);
+        String[] valuesArrayResult = (String[]) conv.convertReverse(valuesList);
+        assertNotNull(valuesListResult);
+        assertNotNull(valuesArrayResult);
+
+        assertCollectionSame(valuesListResult, (Object[]) valuesList.toArray(new Integer[0]));
+        assertCollectionSame(Arrays.asList(valuesArrayResult), (Object[]) valuesArray);
+    }
+    
+    @Test
     public void testMapValues() {
         TypeDeclaration tIntegerStringMap = TypeDeclaration.parse("Map<Integer, String>");
         TypeDeclaration tIntegerIntegerMap = TypeDeclaration.parse("Map<Integer, Integer>");
@@ -256,11 +281,7 @@ public class ConversionTest {
 
     @SuppressWarnings("unchecked")
     private static <T> T assertTypedConvert(TypeDeclaration input, TypeDeclaration output, Object value) {
-        Converter<Object, Object> converter = Conversion.find(input, output);
-        if (converter == null) {
-            Conversion.debugTree(input, output);
-            fail("Failed to find converter from " + input + " to " + output);
-        }
+        Converter<Object, Object> converter = assertFindConverter(input, output);
         Object result = converter.convert(value);
         if (result == null) {
             Conversion.debugTree(input, output);
@@ -273,6 +294,15 @@ public class ConversionTest {
 
         //Conversion.debugTree(input, output);
         return (T) result;
+    }
+
+    private static Converter<Object, Object> assertFindConverter(TypeDeclaration input, TypeDeclaration output) {
+        Converter<Object, Object> converter = Conversion.find(input, output);
+        if (converter == null) {
+            Conversion.debugTree(input, output);
+            fail("Failed to find converter from " + input + " to " + output);
+        }
+        return converter;
     }
 
     private static void assertCollectionSame(Collection<?> collection, Object... values) {

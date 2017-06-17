@@ -97,7 +97,6 @@ public class MountiplexUtil {
         return (T[]) Array.newInstance(type, length);
     }
 
-
     /**
      * A basic retainAll implementation. (does not call collection.retainAll)
      * After this call all elements not contained in elements are removed.

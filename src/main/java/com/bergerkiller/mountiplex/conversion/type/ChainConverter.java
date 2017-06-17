@@ -35,4 +35,15 @@ public final class ChainConverter<I, O> extends Converter<I, O> {
     public boolean acceptsNullInput() {
         return this.acceptsNull;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder(super.toString());
+        result.append(" {\n");
+        for (Converter<Object, Object> converter : this.converters) {
+            result.append("  -> ").append(converter.toString()).append("\n");
+        }
+        result.append("}");
+        return result.toString();
+    }
 }

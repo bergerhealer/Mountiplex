@@ -410,6 +410,31 @@ public class TypeDeclaration extends Declaration {
     }
 
     /**
+     * Checks whether this type is an array type
+     * 
+     * @return True if this type is an array type
+     */
+    public boolean isArray() {
+        //TODO: Also support unresolved types
+        return this.type != null && this.type.isArray();
+    }
+
+    /**
+     * Gets the component type if this type is an array. Returns null if this is not an array type.
+     * 
+     * @return array component type
+     */
+    public TypeDeclaration getComponentType() {
+        //TODO: Also support unresolved types
+        if (this.type != null && this.type.isArray()) {
+            TypeDeclaration componentType = new TypeDeclaration(this.getResolver(), this.type.getComponentType());
+            componentType.setGenericTypes(this.genericTypes);
+            return componentType;
+        }
+        return null;
+    }
+
+    /**
      * Gets whether this Type has any typed generic variables in it, which
      * would allow multiple different types to be represented
      * 

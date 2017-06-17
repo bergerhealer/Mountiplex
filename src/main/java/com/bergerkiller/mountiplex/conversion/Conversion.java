@@ -352,7 +352,7 @@ public class Conversion {
                 return this.converter;
             }
 
-            Node node = mapping.get(input);
+            Node node = findInMapping(input);
             if (node == null) {
                 initType(input);
             }
@@ -375,7 +375,7 @@ public class Conversion {
                     lastNodes.trimToSize();
                     nextNodes.trimToSize();
                 }
-                node = mapping.get(input);
+                node = findInMapping(input);
             }
 
             // Could not find, maybe a lazy converter can be used instead
@@ -408,6 +408,17 @@ public class Conversion {
             }
 
             return new ChainConverter<Object, Object>(converters);
+        }
+
+        private Node findInMapping(TypeDeclaration input) {
+            Node n = mapping.get(input);
+            if (n != null && n.converter instanceof InputConverter) {
+                InputConverter<Object> inputConv = (InputConverter<Object>) n.converter;
+                if (inputConv.getConverter(input) == null) {
+                    return null;
+                }
+            }
+            return n;
         }
 
         /*

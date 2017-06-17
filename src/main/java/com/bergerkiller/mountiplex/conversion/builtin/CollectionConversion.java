@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
+import com.bergerkiller.mountiplex.conversion.type.NullConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingIterable;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
@@ -117,10 +118,11 @@ public class CollectionConversion {
 
         @Override
         public final Converter<?, T> getConverter(TypeDeclaration input) {
+            // Converting something Input<Type> to Output<Type>
             TypeDeclaration inputElementType = input.getGenericType(0);
             TypeDeclaration outputElementType = this.output.getGenericType(0);
             if (inputElementType.equals(outputElementType)) {
-                return null;
+                return new ElementConverter(input, this.output, DuplexConverter.createNull(inputElementType));
             }
             DuplexConverter<Object, Object> elementConverter = Conversion.findDuplex(inputElementType, outputElementType);
             if (elementConverter != null) {
