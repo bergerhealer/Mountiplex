@@ -91,8 +91,9 @@ public class ArrayConversion {
 
                     // Also handle conversion from Collection<Type1> -> Type2[]
                     // This will also handle strange conversions, such as Set<Type> to Type[]
+                    TypeDeclaration collIn = TypeDeclaration.fromClass(Collection.class);
                     final TypeDeclaration outputElementType = output.getComponentType();
-                    converters.add(new InputConverter<Object>(output) {
+                    converters.add(new InputConverter<Object>(collIn, output) {
                         @Override
                         public Converter<?, Object> getConverter(TypeDeclaration input) {
                             if (!Collection.class.isAssignableFrom(input.type)) {
@@ -123,9 +124,9 @@ public class ArrayConversion {
                     });
 
                     // Conversions from TypeA[] to TypeB[]
-                    //TypeDeclaration input = TypeDeclaration.parse("Object[]");
+                    TypeDeclaration input = TypeDeclaration.parse("Object[]");
                     final TypeDeclaration elementOutput = output.getComponentType();
-                    converters.add(new InputConverter<Object>(output) {
+                    converters.add(new InputConverter<Object>(input, output) {
                         @Override
                         public Converter<?, Object> getConverter(TypeDeclaration input) {
                             if (!input.type.isArray()) {
@@ -145,7 +146,6 @@ public class ArrayConversion {
                                     Object result = Array.newInstance(elementOutput.type, arrSize);
                                     for (int i = 0; i < arrSize; i++) {
                                         Array.set(result, i, elementConverter.convert(Array.get(value, i)));
-                                        System.out.println(Array.get(result, i));;
                                     }
                                     return result;
                                 }
