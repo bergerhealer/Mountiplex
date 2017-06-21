@@ -201,6 +201,7 @@ public class SourceDeclaration extends Declaration {
         ClassResolver resolver = new ClassResolver();
         StringBuilder result = new StringBuilder();
         int disabledIfLevel = 0;
+        boolean disabledIfExpression = false;
         for (String line : declaration.split("\\r?\\n")) {
             String lineTrimmed = line.trim();
             String lineLower = lineTrimmed.toLowerCase(Locale.ENGLISH);
@@ -227,7 +228,7 @@ public class SourceDeclaration extends Declaration {
                         String expr = lineTrimmed.substring(ifIdx + 2).trim();
                         evaluates = resolver.evaluateExpression(expr);
                     }
-                    if (evaluates) {
+                    if (!disabledIfExpression && evaluates) {
                         // Evaluates - enter this if-block
                         disabledIfLevel--;
                     }
@@ -238,6 +239,7 @@ public class SourceDeclaration extends Declaration {
             // Over here all lines are allowed to be included
             // Parse if-statements in case we go a level deeper
             // All else-evaluations fail here
+            disabledIfExpression = false;
             if (lineLower.startsWith("#if")) {
                 String expr = lineTrimmed.substring(3).trim();
                 if (!resolver.evaluateExpression(expr)) {
@@ -247,6 +249,7 @@ public class SourceDeclaration extends Declaration {
             }
             if (lineLower.startsWith("#else")) {
                 disabledIfLevel++;
+                disabledIfExpression = true;
                 continue;
             }
             if (lineLower.startsWith("#endif")) {

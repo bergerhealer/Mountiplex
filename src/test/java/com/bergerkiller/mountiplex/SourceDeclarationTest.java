@@ -28,17 +28,26 @@ public class SourceDeclarationTest {
                              "#endif\n" +
                            "#endif\n" +
                            "AFTER ENDIF SHOULD EVALUATE\n" +
+                           "#if dummy >= 5\n" +
+                           "THIS SHOULD MATCH BECAUSE FIRST IF\n" +
+                           "#elseif dummy >= 4\n" +
+                           "THIS ONE SHOULD NOT\n" +
+                           "#else\n" +
+                           "DEFINITELY NOT\n" +
+                           "#endif\n" +
                            "/*\n" +
                            "#if dummy >= 5\n" +
                            "THIS SHOULD BE IGNORED, BLOCK COMMENT\n" +
                            "#endif\n" +
                            "*/";
 
+        System.out.println(sourceDec);;
         String expected = "#set test 1.23.55\n" +
                           "#set dummy 12\n" +
                           "THIS SHOULD EVALUATE\n" +
                           "DUMMY==12 SHOULD EVALUATE\n" +
-                          "AFTER ENDIF SHOULD EVALUATE\n";
+                          "AFTER ENDIF SHOULD EVALUATE\n" +
+                          "THIS SHOULD MATCH BECAUSE FIRST IF\n";
 
         String result = SourceDeclaration.preprocess(sourceDec);
         if (!result.equals(expected)) {
