@@ -41,7 +41,6 @@ public class SourceDeclarationTest {
                            "#endif\n" +
                            "*/";
 
-        System.out.println(sourceDec);;
         String expected = "#set test 1.23.55\n" +
                           "#set dummy 12\n" +
                           "THIS SHOULD EVALUATE\n" +
