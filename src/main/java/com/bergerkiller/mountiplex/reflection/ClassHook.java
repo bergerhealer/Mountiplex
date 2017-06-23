@@ -57,8 +57,15 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         TypeDeclaration ht = TypeDeclaration.fromClass(hookedType);
         for (HookMethodEntry method : methods.entries) {
             if (!method.optional && !method.foundMethod(ht)) {
+                Class<?> baseType = hookedType;
+                if (EnhancedObject.class.isAssignableFrom(hookedType)) {
+                    baseType = hookedType.getSuperclass();
+                    if (baseType.equals(Object.class) && hookedType.getInterfaces().length > 1) {
+                        baseType = hookedType.getInterfaces()[1];
+                    }
+                }
                 MountiplexUtil.LOGGER.warning("Hooked method " + method.toString() +
-                        " was not found in " + hookedType.getName());
+                        " was not found in " + baseType.getName());
             }
         }
     }
