@@ -141,6 +141,24 @@ public class NameDeclaration extends Declaration {
     	return _name.length() <= 2;
     }
 
+    /**
+     * Gets whether this name denotes only an alias, and no matching name.
+     * This is the case when using names like <i>clear:???</i>.
+     * 
+     * @return True if this name only contains an Alias, False if not
+     */
+    public final boolean isAliasOnly() {
+        if (!this.hasAlias()) {
+            return false;
+        }
+        for (int cidx = 0; cidx < this._name.length(); cidx++) {
+            if (this._name.charAt(cidx) != '?') {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public double similarity(Declaration other) {
     	if (!(other instanceof NameDeclaration)) {
@@ -168,11 +186,16 @@ public class NameDeclaration extends Declaration {
     public boolean match(Declaration declaration) {
         if (declaration instanceof NameDeclaration) {
             // When both specify an alias, we check against the alias instead.
+            // When an alias-only name is used ('clear:???'), we allow comparing between alias and name.
             // Runtime-created declarations (from Reflection methods) never have aliases
             // This allows for matching two declarations both referring to the same, renamed method
             NameDeclaration other = (NameDeclaration) declaration;
             if (this.hasAlias() && other.hasAlias()) {
                 return other._alias.equals(this._alias);
+            } else if (this.isAliasOnly()) {
+                return other._name.equals(this._alias);
+            } else if (other.isAliasOnly()) {
+                return this._name.equals(other._alias);
             } else {
                 return other._name.equals(this._name);
             }
