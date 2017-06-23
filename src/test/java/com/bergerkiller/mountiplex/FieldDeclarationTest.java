@@ -38,8 +38,10 @@ public class FieldDeclarationTest {
 
     @Test
     public void testEnumField() {
-        FieldDeclaration dec = new FieldDeclaration(ClassResolver.DEFAULT, "enum String TEST");
+        FieldDeclaration dec = new FieldDeclaration(ClassResolver.DEFAULT, "enum optional String TEST");
         assertTrue(dec.isEnum);
+        assertTrue(dec.modifiers.isOptional());
+        assertTrue(dec.modifiers.isFinal());
         assertEquals("enum java.lang.String TEST", dec.toString(true));
     }
 

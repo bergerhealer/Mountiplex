@@ -341,6 +341,15 @@ public class Template {
 
         @Override
         public final boolean equals(Object o) {
+            if (this.instance == null) {
+                if (o == null) {
+                    return true;
+                } else if (o instanceof Handle) {
+                    return ((Handle) o).instance == null;
+                } else {
+                    return false;
+                }
+            }
             if (this == o) {
                 return true;
             } else if (o instanceof Handle) {
@@ -675,7 +684,7 @@ public class Template {
             try {
                 return (T) constructor.newInstance(args);
             } catch (Throwable t) {
-                throw new RuntimeException(t);
+                throw MountiplexUtil.uncheckedRethrow(t);
             }
         }
 
@@ -1139,6 +1148,12 @@ public class Template {
                     }
                 }
                 return fDec;
+            }
+
+            @Override
+            protected void setOptional() {
+                super.setOptional();
+                this.raw.setOptional();
             }
 
             @Override

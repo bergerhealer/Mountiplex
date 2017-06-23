@@ -33,8 +33,9 @@ public class FieldDeclaration extends Declaration {
         this.trimWhitespace(0);
         if (this.getPostfix().startsWith("enum ")) {
             this.trimWhitespace(5);
+            this.setPostfix("public static final " + this.getPostfix());
             this.isEnum = true;
-            this.modifiers = new ModifierDeclaration(resolver, Modifier.PUBLIC | Modifier.STATIC | Modifier.FINAL);
+            this.modifiers = nextModifier();
             this.type = nextType();
             this.name = nextName();
         } else {

@@ -173,6 +173,7 @@ public class SourceDeclaration extends Declaration {
             if (cDec.isValid()) {
                 classes.add(cDec);
             } else {
+                MountiplexUtil.LOGGER.warning("Invalid class declaration parsed:\n" + cDec);
                 this.setInvalid();
                 this.classes = new ClassDeclaration[0];
                 return;

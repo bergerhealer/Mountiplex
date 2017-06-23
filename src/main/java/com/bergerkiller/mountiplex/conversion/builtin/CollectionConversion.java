@@ -13,7 +13,6 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
-import com.bergerkiller.mountiplex.conversion.type.NullConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingIterable;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
