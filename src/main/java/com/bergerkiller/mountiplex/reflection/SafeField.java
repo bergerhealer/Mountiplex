@@ -285,8 +285,22 @@ public class SafeField<T> implements FieldAccessor<T> {
     /**
      * Creates a safe field that is backed by nothing, indicating a field that could not be found
      * 
+     * @param missingInfo information to go with the missing field
      * @return null field
      */
+    public static <T> SafeField<T> createNull(String missingInfo) {
+        FastField<T> ff = new FastField<T>();
+        ff.initUnavailable(missingInfo);
+        return new SafeField<T>(ff);
+    }
+
+    /**
+     * Creates a safe field that is backed by nothing, indicating a field that could not be found.<br>
+     * <b>Deprecated: </b>recommended is using {@link #createNull(missingInfo)} instead
+     * 
+     * @return null field
+     */
+    @Deprecated
     public static <T> SafeField<T> createNull() {
         return new SafeField<T>((Field) null);
     }

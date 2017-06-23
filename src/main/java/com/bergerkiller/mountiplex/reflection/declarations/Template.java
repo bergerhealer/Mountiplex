@@ -30,6 +30,7 @@ public class Template {
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
         private ObjectInstantiator<Object> instantiator = null;
+        private String classPath = null;
 
         @SuppressWarnings("unchecked")
         public Class() {
@@ -49,9 +50,9 @@ public class Template {
                 handle.instance = instance;
                 return handle;
             } catch (InstantiationException e) {
-                throw new RuntimeException("Failed to instantiate", e);
+                throw new RuntimeException("Failed to instantiate class " + classPath, e);
             } catch (IllegalAccessException e) {
-                throw new RuntimeException("Could not construct new handle", e);
+                throw new RuntimeException("Could not construct new handle for " + classPath, e);
             }
         }
 
@@ -75,7 +76,7 @@ public class Template {
         @SuppressWarnings("unchecked")
         public final Object newInstanceNull() {
             if (this.classType == null) {
-                throw new IllegalStateException("Class is not available");
+                throw new IllegalStateException("Class " + classPath + " is not available");
             }
             if (this.instantiator == null) {
                 this.instantiator = (ObjectInstantiator<Object>) ObjenesisHelper.getInstantiatorOf(this.classType);
@@ -314,6 +315,7 @@ public class Template {
         protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath) {
             try {
                 Class<?> handleClass = ((Class<?>) handleType.getField("T").get(null));
+                handleClass.classPath = classPath;
 
                 // Load the class at the path and retrieve the Class Declaration belonging to it
                 java.lang.Class<?> classType = Resolver.loadClass(classPath, false);
@@ -1037,10 +1039,15 @@ public class Template {
 
     public static class EnumConstant<T extends Enum<?>> extends TemplateElement<FieldDeclaration> {
         protected T constant;
+        private String constantName = null;
 
         public final T get() {
             if (constant == null) {
-                throw new UnsupportedOperationException("Enumeration constant not initialized");
+                if (constantName == null) {
+                    throw new UnsupportedOperationException("Enumeration constant not initialized");
+                } else {
+                    throw new UnsupportedOperationException("Enumeration constant " + constantName + " is not available");
+                }
             }
             return constant;
         }
@@ -1048,6 +1055,7 @@ public class Template {
         @Override
         @SuppressWarnings("unchecked")
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
+            constantName = name;
             for (FieldDeclaration fDec : dec.fields) {
                 if (fDec.isEnum && fDec.name.real().equals(name)) {
                     // Check if the class is initialized

@@ -19,6 +19,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
     public Writer<T> writer = this;
     public Copier copier = this;
     private java.lang.reflect.Field field;
+    private String missingInfo = "!!UNKNOWN!!"; // stored info for when field is null
 
     /**
      * Initializes the fast field using a Java Reflection Field.
@@ -34,11 +35,21 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
     }
 
     /**
+     * Declares this field to be unavailable, providing a missing information String to later identify it
+     * 
+     * @param missingInfo to print when trying to access it
+     */
+    public final void initUnavailable(String missingInfo) {
+        this.init(null);
+        this.missingInfo = missingInfo;
+    }
+
+    /**
      * Checks whether this fast field is initialized, and throws an exception if it is not.
      */
     public final void checkInit() {
         if (field == null) {
-            throw new UnsupportedOperationException("Field is not available");
+            throw new UnsupportedOperationException("Field " + missingInfo + " is not available");
         }
     }
 
