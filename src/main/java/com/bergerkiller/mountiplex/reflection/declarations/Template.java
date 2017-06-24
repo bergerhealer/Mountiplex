@@ -93,39 +93,42 @@ public class Template {
 
         private final void init(java.lang.Class<?> classType) {
             this.classType = classType;
-            this.valid = true;
+            this.valid = (classType != null);
 
             // Create duplex converter between handle type and instance type
-            this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
-                @Override
-                public H convertInput(Object value) {
-                    try {
-                        H handle;
-                        handle = handleType.newInstance();
-                        handle.instance = value;
-                        return handle;
-                    } catch (Throwable t) {
-                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct handle " + handleType.getName(), t);
-                        return null;
+            ClassDeclaration dec = null;
+            if (this.valid) {
+                this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
+                    @Override
+                    public H convertInput(Object value) {
+                        try {
+                            H handle;
+                            handle = handleType.newInstance();
+                            handle.instance = value;
+                            return handle;
+                        } catch (Throwable t) {
+                            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct handle " + handleType.getName(), t);
+                            return null;
+                        }
                     }
-                }
 
-                @Override
-                public Object convertOutput(H value) {
-                    return value.instance;
-                }
-            };
-            Conversion.registerConverter(this.handleConverter);
+                    @Override
+                    public Object convertOutput(H value) {
+                        return value.instance;
+                    }
+                };
+                Conversion.registerConverter(this.handleConverter);
 
-            // Resolve class declaration
-            ClassDeclaration dec = Resolver.resolveClassDeclaration(this.classType);
-            if (dec == null) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
-                valid = false;
-                return;
+                // Resolve class declaration
+                dec = Resolver.resolveClassDeclaration(this.classType);
+                if (dec == null) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
+                    valid = false;
+                }
             }
 
             // Initialize all declared fields
+            boolean fieldsSuccessful = true;
             for (java.lang.reflect.Field templateFieldRef : getClass().getFields()) {
                 String templateFieldName = templateFieldRef.getName();
                 try {
@@ -135,17 +138,22 @@ public class Template {
                         if (templateFieldRef.getAnnotation(Optional.class) != null) {
                             element.setOptional();
                         }
-                        Object result = element.init(dec, templateFieldName);
-                        if (result == null && !element._optional) {
-                            valid = false;
+                        if (valid) {
+                            Object result = element.init(dec, templateFieldName);
+                            if (result == null && !element._optional) {
+                                fieldsSuccessful = false;
+                            }
+                        } else {
+                            element.initNoClass();
                         }
                     }
                 } catch (Throwable t) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize template field " +
                         "'" + templateFieldName + "' in " + classType.getName(), t);
-                    valid = false;
+                    fieldsSuccessful = false;
                 }
             }
+            this.valid &= fieldsSuccessful;
         }
 
         /**
@@ -324,7 +332,6 @@ public class Template {
                         MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classPath + " not found; Template '" +
                                 handleType.getSimpleName() + " not initialized.");
                     }
-                    return;
                 }
 
                 // Initialize the template class fields
@@ -369,6 +376,14 @@ public class Template {
     // all declared class element types must extend this type
     public static abstract class TemplateElement<T extends Declaration> {
         private boolean _optional = false;
+        protected boolean _hasClass = true;
+
+        /**
+         * Initializes the template element for when the containing Class is not available
+         */
+        protected void initNoClass() {
+            _hasClass = false;
+        }
 
         protected abstract T init(ClassDeclaration dec, String name);
 
@@ -1050,6 +1065,24 @@ public class Template {
         protected T constant;
         private String constantName = null;
 
+        /**
+         * Gets the current enumeration constant value, guaranteeing to never throw an exception.
+         * This should be used when reading static fields during static initialization blocks.
+         * 
+         * @return static field value, null on failure
+         */
+        public final T getSafe() {
+            if (!this._hasClass) {
+                return null;
+            }
+            try{return get();}catch(RuntimeException ex){return failGetSafe(ex, null);}
+        }
+
+        /**
+         * Gets the current enumeration constant value, throwing an exception if this for some reason fails.
+         * 
+         * @return enumeration constant value
+         */
         public final T get() {
             if (constant == null) {
                 if (constantName == null) {
@@ -1122,6 +1155,9 @@ public class Template {
              * @return converted enumeration constant, null on failure
              */
             public final T getSafe() {
+                if (!this._hasClass) {
+                    return null;
+                }
                 try {
                     return get();
                 } catch (RuntimeException ex) {
@@ -1134,6 +1170,12 @@ public class Template {
                 if (converter == null) {
                     throw new UnsupportedOperationException("Enum constant converter was not found");
                 }
+            }
+
+            @Override
+            protected void initNoClass() {
+                super.initNoClass();
+                this.raw.initNoClass();
             }
 
             @Override
@@ -1172,6 +1214,9 @@ public class Template {
          * @return static field value, null on failure
          */
         public final T getSafe() {
+            if (!_hasClass) {
+                return null;
+            }
             try{return get();}catch(RuntimeException ex){return failGetSafe(ex, null);}
         }
 
@@ -1212,6 +1257,9 @@ public class Template {
              * @return converted static field value, null on failure
              */
             public final T getSafe() {
+                if (!_hasClass) {
+                    return null;
+                }
                 try {return get();}catch(RuntimeException ex){return raw.failGetSafe(ex, null);}
             }
 
@@ -1255,6 +1303,7 @@ public class Template {
         public static final class Double extends StaticField<java.lang.Double> {
             /** @see StaticField#getSafe() */
             public final double getDoubleSafe() {
+                if (!_hasClass) return 0.0;
                 try{return getDouble();}catch(RuntimeException ex){return failGetSafe(ex, 0.0);}
             }
 
@@ -1272,6 +1321,7 @@ public class Template {
         public static final class Float extends StaticField<java.lang.Float> {
             /** @see StaticField#getSafe() */
             public final float getFloatSafe() {
+                if (!_hasClass) return 0.0f;
                 try{return getFloat();}catch(RuntimeException ex){return failGetSafe(ex, 0.0f);}
             }
 
@@ -1289,6 +1339,7 @@ public class Template {
         public static final class Byte extends StaticField<java.lang.Byte> {
             /** @see StaticField#getSafe() */
             public final byte getByteSafe() {
+                if (!_hasClass) return (byte) 0;
                 try{return getByte();}catch(RuntimeException ex){return failGetSafe(ex, (byte) 0);}
             }
 
@@ -1306,6 +1357,7 @@ public class Template {
         public static final class Short extends StaticField<java.lang.Short> {
             /** @see StaticField#getSafe() */
             public final short getShortSafe() {
+                if (!_hasClass) return (short) 0;
                 try{return getShort();}catch(RuntimeException ex){return failGetSafe(ex, (short) 0);}
             }
 
@@ -1323,6 +1375,7 @@ public class Template {
         public static final class Integer extends StaticField<java.lang.Integer> {
             /** @see StaticField#getSafe() */
             public final int getIntegerSafe() {
+                if (!_hasClass) return 0;
                 try{return getInteger();}catch(RuntimeException ex){return failGetSafe(ex, 0);}
             }
 
@@ -1340,6 +1393,7 @@ public class Template {
         public static final class Long extends StaticField<java.lang.Long> {
             /** @see StaticField#getSafe() */
             public final long getLongSafe() {
+                if (!_hasClass) return 0L;
                 try{return getLong();}catch(RuntimeException ex){return failGetSafe(ex, 0L);}
             }
 
@@ -1357,6 +1411,7 @@ public class Template {
         public static final class Character extends StaticField<java.lang.Character> {
             /** @see StaticField#getSafe() */
             public final char getCharacterSafe() {
+                if (!_hasClass) return '\0';
                 try{return getCharacter();}catch(RuntimeException ex){return failGetSafe(ex, '\0');}
             }
 
@@ -1374,6 +1429,7 @@ public class Template {
         public static final class Boolean extends StaticField<java.lang.Boolean> {
             /** @see StaticField#getSafe() */
             public final boolean getBooleanSafe() {
+                if (!_hasClass) return false;
                 try{return getBoolean();}catch(RuntimeException ex){return failGetSafe(ex, false);}
             }
 
