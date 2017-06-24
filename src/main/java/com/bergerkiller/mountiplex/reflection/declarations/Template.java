@@ -157,11 +157,21 @@ public class Template {
         }
 
         /**
+         * Gets whether the Class pointed to by this Class Template is available. If this is an optional
+         * class declaration, this can be used to detect whether it can be used.
+         * 
+         * @return True if the class is available, False if not
+         */
+        public final boolean isAvailable() {
+            return this.classType != null;
+        }
+
+        /**
          * Gets whether this entire Class Template has been initialized without any errors
          * 
          * @return True if loaded successfully, False if errors had occurred
          */
-        public boolean isValid() {
+        public final boolean isValid() {
             return valid;
         }
 
