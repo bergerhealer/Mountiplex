@@ -411,6 +411,24 @@ public class Template {
             return def;
         }
 
+        // verifies all parameters are correct, comparing values with the param Class types
+        protected final void failInvalidArgs(java.lang.Class<?>[] paramTypes, Object[] arguments) {
+            if (paramTypes.length != arguments.length) {
+                throw new IllegalArgumentException("Invalid number of argument specified! Expected " +
+                        paramTypes.length + " arguments, but got " + arguments.length);
+            }
+            for (int i = 0; i < paramTypes.length; i++) {
+                if (paramTypes[i].isPrimitive() && arguments[i] == null) {
+                    throw new IllegalArgumentException("Null can not be assigned to primitive " +
+                            paramTypes[i].getName() + " argument [" + i + "]");
+                }
+                if (arguments[i] != null && !paramTypes[i].isAssignableFrom(arguments[i].getClass())) {
+                    throw new IllegalArgumentException("Value of type " + arguments[i].getClass().getName() +
+                            " can not be assigned to " + paramTypes[i].getName() + " argument [" + i + "]");
+                }
+            }
+        }
+
         protected final void initFail(String message) {
             if (!isOptional()) {
                 MountiplexUtil.LOGGER.warning(message);
@@ -473,21 +491,7 @@ public class Template {
 
         // throws an exception when arguments differ
         protected final void failInvalidArgs(Object[] arguments) {
-            java.lang.Class<?>[] params = method.getMethod().getParameterTypes();
-            if (params.length != arguments.length) {
-                throw new IllegalArgumentException("Invalid number of argument specified! Expected " +
-                        params.length + " arguments, but got " + arguments.length);
-            }
-            for (int i = 0; i < params.length; i++) {
-                if (params[i].isPrimitive() && arguments[i] == null) {
-                    throw new IllegalArgumentException("Null can not be assigned to primitive " +
-                            params[i].getName() + " argument [" + i + "]");
-                }
-                if (arguments[i] != null && !params[i].isAssignableFrom(arguments[i].getClass())) {
-                    throw new IllegalArgumentException("Value of type " + arguments[i].getClass().getName() +
-                            " can not be assigned to " + params[i].getName() + " argument [" + i + "]");
-                }
-            }
+            failInvalidArgs(method.getMethod().getParameterTypes(), arguments);
         }
 
         @Override
@@ -709,6 +713,8 @@ public class Template {
             try {
                 return (T) constructor.newInstance(args);
             } catch (Throwable t) {
+                failNotFound();
+                failInvalidArgs(args);
                 throw MountiplexUtil.uncheckedRethrow(t);
             }
         }
@@ -723,6 +729,11 @@ public class Template {
             if (this.constructor == null) {
                 throw new RuntimeException("Constructor not found");
             }
+        }
+
+        // throws an exception when arguments differ
+        protected final void failInvalidArgs(Object[] arguments) {
+            failInvalidArgs(constructor.getParameterTypes(), arguments);
         }
 
         @Override
