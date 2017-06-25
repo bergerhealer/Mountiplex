@@ -466,7 +466,7 @@ public class TemplateGenerator {
         addLine(methodStr + getParamsBody(mDec.parameters));
 
         String bodyStr = "";
-        if (!void.class.equals(mDec.returnType.type)) {
+        if (!void.class.equals(getExposedType(mDec.returnType).type)) {
             bodyStr += "return ";
         }
 
