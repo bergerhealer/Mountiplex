@@ -20,6 +20,7 @@ import com.bergerkiller.mountiplex.conversion.builtin.EnumConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.MapConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.NumberConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.ToStringConversion;
+import com.bergerkiller.mountiplex.conversion.builtin.VoidTypeConverter;
 import com.bergerkiller.mountiplex.conversion.type.AnnotatedConverter;
 import com.bergerkiller.mountiplex.conversion.type.AnnotatedProvider;
 import com.bergerkiller.mountiplex.conversion.type.CastingConverter;
@@ -57,6 +58,7 @@ public class Conversion {
         CollectionConversion.register();
         MapConversion.register();
         ArrayConversion.register();
+        VoidTypeConverter.register();
     }
 
     /**
