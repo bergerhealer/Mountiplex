@@ -211,7 +211,7 @@ public class Template {
          * @return True if the instance type is this type, False if not or the instance is null
          */
         public boolean isType(Object instance) {
-            return instance != null && this.classType.equals(instance.getClass());
+            return instance != null && this.classType != null && this.classType.equals(instance.getClass());
         }
 
         /**
@@ -221,7 +221,7 @@ public class Template {
          * @return True if equals, False if not or null
          */
         public boolean isType(java.lang.Class<?> type) {
-            return this.classType.equals(type);
+            return this.classType != null && this.classType.equals(type);
         }
 
         /**
@@ -230,7 +230,7 @@ public class Template {
          * @return True if assignable, False if not or instance is <i>null</i>
          */
         public boolean isAssignableFrom(Object instance) {
-            return instance != null && this.classType.isAssignableFrom(instance.getClass());
+            return instance != null && this.classType != null && this.classType.isAssignableFrom(instance.getClass());
         }
 
         /**
@@ -240,7 +240,7 @@ public class Template {
          * @return True if assignable, False if not or type is <i>null</i>
          */
         public boolean isAssignableFrom(java.lang.Class<?> type) {
-            return type != null && this.classType.isAssignableFrom(type);
+            return type != null && this.classType != null && this.classType.isAssignableFrom(type);
         }
     }
 
