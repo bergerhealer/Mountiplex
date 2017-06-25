@@ -475,7 +475,30 @@ public class Template {
          * @return field accessor
          */
         public FieldAccessor<T> toFieldAccessor() {
-            return new SafeField<T>(field);
+            if (this.isAvailable()) {
+                return new SafeField<T>(field);
+            } else {
+                // Returns a dummy field accessor that throws exceptions when used
+                return new FieldAccessor<T>() {
+                    @Override
+                    public boolean isValid() {
+                        return false;
+                    }
+
+                    private UnsupportedOperationException fail() {
+                        return new UnsupportedOperationException("Field " + field.getDescription() + " is not available");
+                    }
+
+                    public T get(Object instance) { throw fail(); }
+                    public boolean set(Object instance, T value) { throw fail(); }
+                    public T transfer(Object from, Object to) { throw fail(); }
+
+                    @Override
+                    public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
+                        return new TranslatorFieldAccessor<K>(this, converterPair);
+                    }
+                };
+            }
         }
     }
 
@@ -572,7 +595,14 @@ public class Template {
          * @return field accessor
          */
         public TranslatorFieldAccessor<T> toFieldAccessor() {
-            return new TranslatorFieldAccessor<T>(this.raw.toFieldAccessor(), this.converter);
+            DuplexConverter<?, T> converter;
+            if (this.isAvailable()) {
+                converter = this.converter;
+            } else {
+                // This is here so it doesn't error out in the constructor
+                converter = DuplexConverter.createNull(TypeDeclaration.fromClass(Object.class));
+            }
+            return new TranslatorFieldAccessor<T>(this.raw.toFieldAccessor(), converter);
         }
     }
 

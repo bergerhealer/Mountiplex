@@ -93,6 +93,19 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
     }
 
     /**
+     * Gets a debug description of this Fast Field.
+     * 
+     * @return debug description
+     */
+    public final String getDescription() {
+        if (this.field == null) {
+            return this.missingInfo;
+        } else {
+            return this.field.toString();
+        }
+    }
+    
+    /**
      * Gets whether this field is a static field.
      * Returns <i>false</i> if this fast field is not initialized.
      * 
