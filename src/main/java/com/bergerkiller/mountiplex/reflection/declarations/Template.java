@@ -1655,7 +1655,7 @@ public class Template {
 
         public static final class Short extends Field<java.lang.Short> {
             /** @see Field#get(instance) */
-            public final short getShirt(Object instance) {
+            public final short getShort(Object instance) {
                 return field.reader.getShort(instance);
             }
 
