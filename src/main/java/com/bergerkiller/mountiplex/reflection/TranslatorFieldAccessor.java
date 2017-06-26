@@ -76,4 +76,13 @@ public class TranslatorFieldAccessor<T> implements FieldAccessor<T> {
     public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
         return new TranslatorFieldAccessor<K>(this, converterPair);
     }
+
+    @Override
+    public FieldAccessor<T> ignoreInvalid(T defaultValue) {
+        if (this.isValid()) {
+            return this;
+        } else {
+            return new IgnoredFieldAccessor<T>(defaultValue);
+        }
+    }
 }

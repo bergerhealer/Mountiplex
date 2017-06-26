@@ -170,6 +170,15 @@ public class SafeField<T> implements FieldAccessor<T> {
         return new TranslatorFieldAccessor<K>(this, converterPair);
     }
 
+    @Override
+    public FieldAccessor<T> ignoreInvalid(T defaultValue) {
+        if (this.isValid()) {
+            return this;
+        } else {
+            return new IgnoredFieldAccessor<T>(defaultValue);
+        }
+    }
+
     /**
      * Tries to set a Field for a certain Object
      *

@@ -12,6 +12,7 @@ import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
+import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.MethodAccessor;
 import com.bergerkiller.mountiplex.reflection.SafeField;
 import com.bergerkiller.mountiplex.reflection.SafeMethod;
@@ -496,6 +497,11 @@ public class Template {
                     @Override
                     public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
                         return new TranslatorFieldAccessor<K>(this, converterPair);
+                    }
+
+                    @Override
+                    public FieldAccessor<T> ignoreInvalid(T defaultValue) {
+                        return new IgnoredFieldAccessor<T>(defaultValue);
                     }
                 };
             }

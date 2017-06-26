@@ -2,21 +2,31 @@ package com.bergerkiller.mountiplex.reflection;
 
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 
-/**
- * A field implementation that allows direct getting and setting
- */
-public abstract class SafeDirectField<T> implements FieldAccessor<T> {
+public class IgnoredFieldAccessor<T> implements FieldAccessor<T> {
+    private final T defaultValue;
+
+    public IgnoredFieldAccessor(T defaultValue) {
+        this.defaultValue = defaultValue;
+    }
 
     @Override
     public boolean isValid() {
-        return true;
+        return false;
+    }
+
+    @Override
+    public T get(Object instance) {
+        return this.defaultValue;
+    }
+
+    @Override
+    public boolean set(Object instance, T value) {
+        return false;
     }
 
     @Override
     public T transfer(Object from, Object to) {
-        T old = get(to);
-        set(to, get(from));
-        return old;
+        return this.defaultValue;
     }
 
     @Override
@@ -26,10 +36,6 @@ public abstract class SafeDirectField<T> implements FieldAccessor<T> {
 
     @Override
     public FieldAccessor<T> ignoreInvalid(T defaultValue) {
-        if (this.isValid()) {
-            return this;
-        } else {
-            return new IgnoredFieldAccessor<T>(defaultValue);
-        }
+        return new IgnoredFieldAccessor<T>(defaultValue);
     }
 }

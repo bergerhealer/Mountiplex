@@ -48,4 +48,13 @@ public interface FieldAccessor<T> {
      * @return translated Field accessor
      */
     <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair);
+
+    /**
+     * Creates a new Field Accessor that will silently ignore get/set operations
+     * when this original Field is invalid.
+     * 
+     * @param defaultValue to return on get operations
+     * @return Field Accessor
+     */
+    FieldAccessor<T> ignoreInvalid(T defaultValue);
 }
