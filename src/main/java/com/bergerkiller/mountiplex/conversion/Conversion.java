@@ -15,6 +15,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion.annotations.ProviderMethod;
 import com.bergerkiller.mountiplex.conversion.builtin.ArrayConversion;
+import com.bergerkiller.mountiplex.conversion.builtin.BooleanConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.CollectionConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.EnumConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.MapConversion;
@@ -59,6 +60,7 @@ public class Conversion {
         MapConversion.register();
         ArrayConversion.register();
         VoidTypeConverter.register();
+        BooleanConversion.register();
     }
 
     /**

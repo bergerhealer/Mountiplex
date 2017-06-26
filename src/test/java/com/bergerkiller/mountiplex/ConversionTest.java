@@ -75,6 +75,23 @@ public class ConversionTest {
     }
 
     @Test
+    public void testBooleanNumber() {
+        testConversion(1, boolean.class, true);
+        testConversion(0, boolean.class, false);
+        testConversion((byte) 1, boolean.class, true);
+        testConversion((byte) 0, boolean.class, false);
+        testConversion(12, boolean.class, true);
+        testConversion((short) 24, boolean.class, true);
+        testConversion((short) 0, boolean.class, false);
+        testConversion(false, int.class, 0);
+        testConversion(true, int.class, 1);
+        testConversion(false, byte.class, (byte) 0);
+        testConversion(true, byte.class, (byte) 1);
+        testConversion(false, short.class, (short) 0);
+        testConversion(true, short.class, (short) 1);
+    }
+
+    @Test
     public void testNumberDefault() {
         Converter<String, Integer> conv = Conversion.find(String.class, int.class);
         assertNotNull(conv);
