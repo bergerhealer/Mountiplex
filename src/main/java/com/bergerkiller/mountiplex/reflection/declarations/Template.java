@@ -18,6 +18,7 @@ import com.bergerkiller.mountiplex.reflection.SafeField;
 import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
@@ -423,7 +424,7 @@ public class Template {
                     throw new IllegalArgumentException("Null can not be assigned to primitive " +
                             paramTypes[i].getName() + " argument [" + i + "]");
                 }
-                if (arguments[i] != null && !paramTypes[i].isAssignableFrom(arguments[i].getClass())) {
+                if (arguments[i] != null && !BoxedType.tryBoxType(paramTypes[i]).isAssignableFrom(arguments[i].getClass())) {
                     throw new IllegalArgumentException("Value of type " + arguments[i].getClass().getName() +
                             " can not be assigned to " + paramTypes[i].getName() + " argument [" + i + "]");
                 }
