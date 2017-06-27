@@ -968,9 +968,9 @@ public class Template {
                     this.failNoConverter();
                 }
                 if (this.argConverters != null) {
-                    if (this.argConverters.length != (argCount)) {
+                    if (this.argConverters.length != argCount) {
                         throw new IllegalArgumentException("Invalid number of arguments (" +
-                                (this.argConverters.length - 1) + " expected, but got " + argCount + ")");
+                                this.argConverters.length + " expected, but got " + argCount + ")");
                     }
                 }
             }
