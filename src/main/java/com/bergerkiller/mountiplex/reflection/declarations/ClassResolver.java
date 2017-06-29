@@ -2,9 +2,9 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -18,25 +18,26 @@ public class ClassResolver {
     private static final List<String> default_imports = Arrays.asList("java.lang.*", "java.util.*");
     public static final ClassResolver DEFAULT = new ClassResolver().immutable();
 
-    private final HashSet<String> imports;
-    private final List<String> manualImports;
+    private final ArrayList<String> imports;
+    private final ArrayList<String> manualImports;
     private final HashMap<String, String> variables = new HashMap<String, String>();
     private String packagePath;
 
     private ClassResolver(ClassResolver src) {
-        this.imports = new HashSet<String>(src.imports);
+        this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.packagePath = src.packagePath;
     }
 
     public ClassResolver() {
-        this.imports = new HashSet<String>(default_imports);
-        this.manualImports = new ArrayList<String>();
+        this.imports = new ArrayList<String>();
+        this.manualImports = new ArrayList<String>(default_imports);
         this.packagePath = "";
+        this.regenImports();
     }
 
     public ClassResolver(String packagePath) {
-        this.imports = new HashSet<String>(default_imports);
+        this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
         this.packagePath = "";
         this.setPackage(packagePath);
@@ -68,10 +69,9 @@ public class ClassResolver {
         }
         Package pkg = type.getPackage();
         if (pkg != null) {
-            this.imports.add(pkg.getName() + ".*");
+            this.packagePath = pkg.getName();
         }
-        this.imports.add(type.getName() + ".*");
-        addClassImports(type.getSuperclass());
+        this.addImport(type.getName() + ".*");
     }
 
     /**
@@ -82,9 +82,8 @@ public class ClassResolver {
     public void setPackage(String path) {
         this.packagePath = path;
         this.manualImports.clear();
-        this.imports.clear();
-        this.imports.addAll(default_imports);
-        this.imports.add(path + ".*");
+        this.manualImports.addAll(default_imports);
+        this.regenImports();
     }
 
     /**
@@ -102,8 +101,8 @@ public class ClassResolver {
      * 
      * @return List of imports
      */
-    public List<String> getImports() {
-        return Collections.unmodifiableList(this.manualImports);
+    public Collection<String> getImports() {
+        return Collections.unmodifiableCollection(this.manualImports);
     }
 
     /**
@@ -112,8 +111,8 @@ public class ClassResolver {
      * @param path to import
      */
     public void addImport(String path) {
-        this.imports.add(path);
-        this.manualImports.add(path);
+        this.manualImports.add(0, path);
+        this.regenImports();
     }
 
     /**
@@ -260,6 +259,7 @@ public class ClassResolver {
                 }
             }
         }
+
         return fieldType;
     }
 
@@ -308,6 +308,12 @@ public class ClassResolver {
             }
         }
         return name;
+    }
+
+    private void regenImports() {
+        this.imports.clear();
+        this.imports.addAll(this.manualImports);
+        this.imports.add(this.packagePath + ".*");
     }
 
     private static class ImmutableClassResolver extends ClassResolver {
