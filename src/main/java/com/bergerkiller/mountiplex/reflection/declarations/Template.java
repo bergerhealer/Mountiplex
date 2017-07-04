@@ -914,6 +914,19 @@ public class Template {
                 super(new StaticMethod<Object>());
             }
 
+            private final void verifyConverters(int argCount) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                }
+                if (this.argConverters != null) {
+                    if (this.argConverters.length != argCount) {
+                        throw new IllegalArgumentException("Invalid number of arguments (" +
+                                this.argConverters.length + " expected, but got " + argCount + ")");
+                    }
+                }
+            }
+
             /**
              * Invokes this static method, performing parameter
              * and return type conversion as required.
@@ -931,6 +944,121 @@ public class Template {
                 Object[] convertedArgs = convertArgs(arguments);
                 Object rawResult = this.raw.invokeVA(convertedArgs);
                 return convertResult(rawResult);
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @return return value, null for void methods
+             */
+            public final T invoke() {
+                return convertResult(this.raw.invoke());
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @return return value, null for void methods
+             */
+            public final T invoke(Object arg0) {
+                verifyConverters(1);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(arg0));
+                } else {
+                    return convertResult(this.raw.invoke(
+                            convertArgument(0, arg0)));
+                }
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @return return value, null for void methods
+             */
+            public final T invoke(Object arg0, Object arg1) {
+                verifyConverters(2);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(arg0, arg1));
+                } else {
+                    return convertResult(this.raw.invoke(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1)));
+                }
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @return return value, null for void methods
+             */
+            public final T invoke(Object arg0, Object arg1, Object arg2) {
+                verifyConverters(3);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(arg0, arg1, arg2));
+                } else {
+                    return convertResult(this.raw.invoke(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2)));
+                }
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @param arg3 fourth argument
+             * @return return value, null for void methods
+             */
+            public final T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
+                verifyConverters(4);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(arg0, arg1, arg2, arg3));
+                } else {
+                    return convertResult(this.raw.invoke(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2),
+                            convertArgument(3, arg3)));
+                }
+            }
+
+            /**
+             * Invokes this static method, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @param arg3 fourth argument
+             * @param arg4 fifth argument
+             * @return return value, null for void methods
+             */
+            public final T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+                verifyConverters(5);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.invoke(arg0, arg1, arg2, arg3, arg4));
+                } else {
+                    return convertResult(this.raw.invoke(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2),
+                            convertArgument(3, arg3),
+                            convertArgument(4, arg4)));
+                }
             }
         }
     }
