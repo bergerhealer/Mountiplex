@@ -839,6 +839,75 @@ public class Template {
             return this.method.invokeVA(null, arguments);
         }
 
+        /**
+         * Invokes this static method, with no method arguments.
+         * 
+         * @return return value, null for void methods
+         */
+        public T invoke() {
+            return this.method.invoke(null);
+        }
+
+        /**
+         * Invokes this static method, with 1 method argument.
+         * 
+         * @param arg0 first argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object arg0) {
+            return this.method.invoke(null, arg0);
+        }
+
+        /**
+         * Invokes this static method, with 2 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object arg0, Object arg1) {
+            return this.method.invoke(null, arg0, arg1);
+        }
+
+        /**
+         * Invokes this static method, with 3 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object arg0, Object arg1, Object arg2) {
+            return this.method.invoke(null, arg0, arg1, arg2);
+        }
+
+        /**
+         * Invokes this static method, with 4 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @param arg3 fourth argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
+            return this.method.invoke(null, arg0, arg1, arg2, arg3);
+        }
+
+        /**
+         * Invokes this static method, with 5 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @param arg3 fourth argument
+         * @param arg4 fifth argument
+         * @return return value, null for void methods
+         */
+        public T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+            return this.method.invoke(null, arg0, arg1, arg2, arg3, arg4);
+        }
+        
         public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
  
             public Converted() {

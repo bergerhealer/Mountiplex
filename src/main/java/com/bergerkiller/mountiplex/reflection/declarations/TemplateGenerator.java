@@ -470,8 +470,8 @@ public class TemplateGenerator {
             bodyStr += "return ";
         }
 
-        //TODO: Also make this work for converted methods (and maybe static methods?)
-        if (!mDec.modifiers.isStatic() && mDec.parameters.parameters.length <= 5) {
+        //TODO: Also make this work for converted methods
+        if (mDec.parameters.parameters.length <= 5) {
             // 0/1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
             bodyStr += "T." + mDec.name.real() + ".invoke(";
         } else {
