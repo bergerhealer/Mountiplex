@@ -34,7 +34,6 @@ import net.sf.cglib.proxy.NoOp;
  * consistently return the same {@link CallbackDelegate} across all instances.
  */
 public abstract class ClassInterceptor {
-    private static final Callback[] disabledCallbacks;
     private static final Map<Class<?>, Map<Method, Invokable>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>();
     private static final Map<ClassPair, EnhancedClass> enhancedTypes = new HashMap<ClassPair, EnhancedClass>();
     private boolean useGlobalCallbacks = true;
@@ -44,25 +43,6 @@ public abstract class ClassInterceptor {
         @Override
         protected StackInformation initialValue() { return new StackInformation(); }
     };
-
-    static {
-        disabledCallbacks = new Callback[6];
-        for (int i = 0; i < 4; i++) {
-            disabledCallbacks[i] = new EnhancedObjectProperty(null, null) {
-                @Override
-                public Object loadObject() throws Exception {
-                    throw new IllegalStateException("Enhanced class was incorrectly constructed");
-                }
-            };
-        }
-        disabledCallbacks[4] = new CallbackMethodInterceptor(null) {
-            @Override
-            public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
-                throw new IllegalStateException("Enhanced class was incorrectly constructed");
-            }
-        };
-        disabledCallbacks[5] = NoOp.INSTANCE;
-    }
 
     public ClassInterceptor() {
         synchronized (globalMethodDelegatesMap) {
@@ -428,7 +408,7 @@ public abstract class ClassInterceptor {
         T enhancedObject = enhanced.createEnhanced(object, paramTypes, params);
         interceptor.lastHookedObject.value = enhancedObject;
         ((EnhancedObject) enhancedObject).CI_getInterceptor();
-        enhanced.setCallbacks(disabledCallbacks);
+        enhanced.disableCallbacks();
         return enhancedObject;
     }
 
@@ -488,6 +468,7 @@ public abstract class ClassInterceptor {
         public final ObjectInstantiator<?> baseInstantiator;
         public final Class<?> enhancedType;
         private final FastMethod<Void> setCallbacksMethod;
+        private final Callback[] disabledCallbacks;
 
         public EnhancedClass(Class<?> baseType, Class<?> enhancedType) {
             this.baseTemplate = ClassTemplate.create(baseType);
@@ -506,10 +487,31 @@ public abstract class ClassInterceptor {
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);
             }
+
+            // These disabled callbacks are used whenever the enhanced type is created outside of here
+            // This can happen when, for example, calling a constructor on the enhanced type.
+            // Without these a random interceptor, or worse, null ends up being used
+            this.disabledCallbacks = new Callback[] {
+                    new EnhancedObjectProperty("CI_getInterceptor", null),
+                    new EnhancedObjectProperty("CI_getBaseType", baseType),
+                    new EnhancedObjectProperty("CI_getBaseTypeTemplate", baseTemplate),
+                    new EnhancedObjectProperty("CI_getEnhancedClass", EnhancedClass.this),
+                    new CallbackMethodInterceptor(null) {
+                        @Override
+                        public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
+                            return proxy.invokeSuper(obj, args);
+                        }
+                    },
+                    NoOp.INSTANCE
+            };
         }
 
         public final void setCallbacks(Callback[] callbacks) {
-            this.setCallbacksMethod.invoke(null, callbacks);
+            this.setCallbacksMethod.invoker.invoke(null, callbacks);
+        }
+
+        public final void disableCallbacks() {
+            this.setCallbacksMethod.invoker.invoke(null, this.disabledCallbacks);
         }
 
         @SuppressWarnings("unchecked")
