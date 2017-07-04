@@ -836,7 +836,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invokeVA(Object... arguments) {
-            return this.method.invokeVA(null, arguments);
+            return this.method.invoker.invokeVA(null, arguments);
         }
 
         /**
@@ -845,7 +845,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke() {
-            return this.method.invoke(null);
+            return this.method.invoker.invoke(null);
         }
 
         /**
@@ -855,7 +855,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0) {
-            return this.method.invoke(null, arg0);
+            return this.method.invoker.invoke(null, arg0);
         }
 
         /**
@@ -866,7 +866,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1) {
-            return this.method.invoke(null, arg0, arg1);
+            return this.method.invoker.invoke(null, arg0, arg1);
         }
 
         /**
@@ -878,7 +878,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2) {
-            return this.method.invoke(null, arg0, arg1, arg2);
+            return this.method.invoker.invoke(null, arg0, arg1, arg2);
         }
 
         /**
@@ -891,7 +891,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.method.invoke(null, arg0, arg1, arg2, arg3);
+            return this.method.invoker.invoke(null, arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -905,7 +905,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.method.invoke(null, arg0, arg1, arg2, arg3, arg4);
+            return this.method.invoker.invoke(null, arg0, arg1, arg2, arg3, arg4);
         }
         
         public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
@@ -1075,7 +1075,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invokeVA(Object instance, Object... arguments) {
-            return this.method.invokeVA(instance, arguments);
+            return this.method.invoker.invokeVA(instance, arguments);
         }
 
         /**
@@ -1085,7 +1085,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance) {
-            return this.method.invoke(instance);
+            return this.method.invoker.invoke(instance);
         }
 
         /**
@@ -1096,7 +1096,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0) {
-            return this.method.invoke(instance, arg0);
+            return this.method.invoker.invoke(instance, arg0);
         }
 
         /**
@@ -1108,7 +1108,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1) {
-            return this.method.invoke(instance, arg0, arg1);
+            return this.method.invoker.invoke(instance, arg0, arg1);
         }
 
         /**
@@ -1121,7 +1121,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
-            return this.method.invoke(instance, arg0, arg1, arg2);
+            return this.method.invoker.invoke(instance, arg0, arg1, arg2);
         }
 
         /**
@@ -1135,7 +1135,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.method.invoke(instance, arg0, arg1, arg2, arg3);
+            return this.method.invoker.invoke(instance, arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -1150,7 +1150,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.method.invoke(instance, arg0, arg1, arg2, arg3, arg4);
+            return this.method.invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<Method<Object>, T> {
