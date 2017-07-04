@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex.reflection.util;
 
 import static net.sf.cglib.asm.Opcodes.*;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.WeakHashMap;
 
 import net.sf.cglib.asm.ClassWriter;
@@ -102,6 +104,25 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             mv.visitTypeInsn(CHECKCAST, Type.getDescriptor(outType));
         } else {
             mv.visitTypeInsn(CHECKCAST, Type.getInternalName(outType));
+        }
+    }
+
+    /**
+     * Includes instructions to invoke a static or member method in a class or interface, automatically
+     * choosing the correct opcode.
+     * 
+     * @param mv method visitor
+     * @param instanceType the method should be invoked on
+     * @param method to be invoked
+     */
+    public static void visitInvoke(MethodVisitor mv, Class<?> instanceType, Method method) {
+        final String instanceName = Type.getInternalName(instanceType);
+        if (Modifier.isStatic(method.getModifiers())) {
+            mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), Type.getMethodDescriptor(method));
+        } else if (instanceType.isInterface()) {
+            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), Type.getMethodDescriptor(method));
+        } else {
+            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method));
         }
     }
 

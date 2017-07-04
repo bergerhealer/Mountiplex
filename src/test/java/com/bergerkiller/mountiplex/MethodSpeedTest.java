@@ -84,10 +84,12 @@ public class MethodSpeedTest {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {
-            if (args.length != 3) {
+            if (args.length != 2) {
                 throw failArgs(args.length);
             } else {
-                return invoke(instance, args[0], args[1], args[2]);
+                return ((SpeedTestObject) instance).test((String) args[0], (Integer) args[1]);
+                
+                //return invoke(instance, args[0], args[1], args[2]);
             }
         }
 
@@ -124,7 +126,7 @@ public class MethodSpeedTest {
         final CustomGenGet getter = new CustomGenGet(SpeedTestObjectHandle.T.getS.toJavaMethod());
 
         //TestUtil.printASM(CustomGenGet.class);
-        
+
         //if (true) return;
         
         object.s = "test1";

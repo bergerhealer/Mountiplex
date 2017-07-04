@@ -124,6 +124,27 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
             // Valid number of arguments; call the appropriate method with the array elements
             mv.visitLabel(l_validArgs);
             mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+            if (!isStatic) {
+                mv.visitVarInsn(ALOAD, 1);
+                mv.visitTypeInsn(CHECKCAST, instanceName);
+            }
+            for (int i = 0; i < paramTypes.length; i++) {
+                mv.visitVarInsn(ALOAD, 2);
+                mv.visitInsn(ICONST_0 + i);
+                mv.visitInsn(AALOAD);
+                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+            }
+            ExtendedClassWriter.visitInvoke(mv, instanceType, method);
+            ExtendedClassWriter.visitBoxVariable(mv, returnType);
+            mv.visitInsn(ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+
+            // Old code: delegates to the invoke function with the right amount of arguments
+            // Replaced with one that calls the method directly to save a stack frame
+            /*
+            mv.visitLabel(l_validArgs);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
             mv.visitVarInsn(ALOAD, 0);
             mv.visitVarInsn(ALOAD, 1);
             for (int i = 0; i < paramTypes.length; i++) {
@@ -135,6 +156,7 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();
+            */
         }
 
         // Invoke method that casts the parameters and calls the method
@@ -149,13 +171,7 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
                 mv.visitVarInsn(ALOAD, 2 + i);
                 ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
             }
-            if (isStatic) {
-                mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), Type.getMethodDescriptor(method));
-            } else if (instanceType.isInterface()) {
-                mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), Type.getMethodDescriptor(method));
-            } else {
-                mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method));
-            }
+            ExtendedClassWriter.visitInvoke(mv, instanceType, method);
             ExtendedClassWriter.visitBoxVariable(mv, returnType);
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);
