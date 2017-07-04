@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -34,6 +35,7 @@ import net.sf.cglib.proxy.NoOp;
  * consistently return the same {@link CallbackDelegate} across all instances.
  */
 public abstract class ClassInterceptor {
+    private static final Callback[] disabledCallbacks;
     private static final Map<Class<?>, Map<Method, Invokable>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>();
     private static final Map<ClassPair, EnhancedClass> enhancedTypes = new HashMap<ClassPair, EnhancedClass>();
     private boolean useGlobalCallbacks = true;
@@ -43,6 +45,25 @@ public abstract class ClassInterceptor {
         @Override
         protected StackInformation initialValue() { return new StackInformation(); }
     };
+
+    static {
+        disabledCallbacks = new Callback[6];
+        for (int i = 0; i < 4; i++) {
+            disabledCallbacks[i] = new EnhancedObjectProperty(null, null) {
+                @Override
+                public Object loadObject() throws Exception {
+                    throw new IllegalStateException("Enhanced class was incorrectly constructed");
+                }
+            };
+        }
+        disabledCallbacks[4] = new CallbackMethodInterceptor(null) {
+            @Override
+            public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
+                throw new IllegalStateException("Enhanced class was incorrectly constructed");
+            }
+        };
+        disabledCallbacks[5] = NoOp.INSTANCE;
+    }
 
     public ClassInterceptor() {
         synchronized (globalMethodDelegatesMap) {
@@ -407,11 +428,11 @@ public abstract class ClassInterceptor {
         T enhancedObject = enhanced.createEnhanced(object, paramTypes, params);
         interceptor.lastHookedObject.value = enhancedObject;
         ((EnhancedObject) enhancedObject).CI_getInterceptor();
-        enhanced.setCallbacks(null);
+        enhanced.setCallbacks(disabledCallbacks);
         return enhancedObject;
     }
 
-    private static final class EnhancedObjectProperty implements FixedValue {
+    private static class EnhancedObjectProperty implements FixedValue {
         private final String name;
         private final Object value;
 
@@ -425,7 +446,7 @@ public abstract class ClassInterceptor {
         }
 
         @Override
-        public final Object loadObject() throws Exception {
+        public Object loadObject() throws Exception {
             return this.value;
         }
     }
@@ -537,7 +558,7 @@ public abstract class ClassInterceptor {
      * <li>{@link ClassInterceptor#instance()}
      * </ul>
      */
-    private static final class CallbackMethodInterceptor implements MethodInterceptor {
+    private static class CallbackMethodInterceptor implements MethodInterceptor {
         private final ClassInterceptor interceptor;
 
         public CallbackMethodInterceptor(ClassInterceptor interceptor) {
