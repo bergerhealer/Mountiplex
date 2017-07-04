@@ -403,11 +403,11 @@ public abstract class ClassInterceptor {
         // Note that since we don't call any constructors, CGLib does not update the object callback list
         // We force an explicit internal update by calling the CI_getInterceptor() interface function
         // After this is done, we must delete the callbacks again to prevent a memory leak
-        Enhancer.registerCallbacks(enhanced.enhancedType, callbacks);
+        enhanced.setCallbacks(callbacks);
         T enhancedObject = enhanced.createEnhanced(object, paramTypes, params);
         interceptor.lastHookedObject.value = enhancedObject;
         ((EnhancedObject) enhancedObject).CI_getInterceptor();
-        Enhancer.registerCallbacks(enhanced.enhancedType, null);
+        enhanced.setCallbacks(null);
         return enhancedObject;
     }
 
@@ -461,10 +461,12 @@ public abstract class ClassInterceptor {
      * Also handles the construction of new objects during hooking/unhooking.
      */
     public static final class EnhancedClass {
+        private static final String SET_THREAD_CALLBACKS_NAME = "CGLIB$SET_THREAD_CALLBACKS";
         public final ClassTemplate<?> baseTemplate;
         public final ObjectInstantiator<?> enhancedInstantiator;
         public final ObjectInstantiator<?> baseInstantiator;
         public final Class<?> enhancedType;
+        private final FastMethod<Void> setCallbacksMethod;
 
         public EnhancedClass(Class<?> baseType, Class<?> enhancedType) {
             this.baseTemplate = ClassTemplate.create(baseType);
@@ -475,6 +477,18 @@ public abstract class ClassInterceptor {
                 throw new RuntimeException("Base Class " + baseType.getName() + " has no instantiator");
             if (this.enhancedInstantiator == null)
                 throw new RuntimeException("Enhanced Class " + enhancedType.getName() + " has no instantiator");
+        
+            // This method is cached to reduce performance overhead when constructing new enhanced classes
+            try {
+                Method m = enhancedType.getDeclaredMethod(SET_THREAD_CALLBACKS_NAME, new Class[]{ Callback[].class });
+                this.setCallbacksMethod = new FastMethod<Void>(m);
+            } catch (Throwable t) {
+                throw MountiplexUtil.uncheckedRethrow(t);
+            }
+        }
+
+        public final void setCallbacks(Callback[] callbacks) {
+            this.setCallbacksMethod.invoke(null, callbacks);
         }
 
         @SuppressWarnings("unchecked")
