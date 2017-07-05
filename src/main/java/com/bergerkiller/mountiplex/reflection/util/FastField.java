@@ -123,18 +123,26 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private ReflectionAccessor<T> access() {
+        if (writer instanceof ReflectionAccessor) {
+            return (ReflectionAccessor<T>) writer;
+        } else if (reader instanceof ReflectionAccessor) {
+            return (ReflectionAccessor<T>) reader;
+        } else if (copier instanceof ReflectionAccessor) {
+            return (ReflectionAccessor<T>) copier;
+        } else {
+            return ReflectionAccessor.create(field);
+        }
+    }
+
     private Reader<T> read() {
         if (reader == this) {
             checkInit();
             if (!Modifier.isPublic(field.getModifiers())) {
                 makeAccessible();
             }
-
-            if (writer instanceof ReflectionAccessor) {
-                reader = (ReflectionAccessor<T>) writer;
-            } else {
-                reader = ReflectionAccessor.create(field);
-            }
+            reader = access();
         }
         return reader;
     }
@@ -146,12 +154,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
             if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
                 makeAccessible();
             }
-
-            if (reader instanceof ReflectionAccessor) {
-                writer = (ReflectionAccessor<T>) reader;
-            } else {
-                writer = ReflectionAccessor.create(field);
-            }
+            writer = access();
         }
         return writer;
     }
@@ -164,6 +167,14 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
             if (Modifier.isStatic(mod)) {
                 throw new RuntimeException("Static fields can not be copied");
             }
+
+            if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                makeAccessible();
+            }
+
+            copier = access();
+
+            /*
             if (Modifier.isPublic(mod) && !Modifier.isFinal(mod)) {
                 // TODO: Generated copy function to prevent needless function calls
                 Class<?> t = field.getType();
@@ -189,6 +200,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
                          (t==boolean.class) ? new BooleanCopier(this):
                                               new ObjectCopier(this);
             }
+            */
         }
         return copier;
     }
@@ -236,70 +248,4 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
     // Copier calls that initialize the copier and forward the call
     public void copy(Object a, Object b){copy().copy(a, b);}
     public Field getCopyField(){return copy().getCopyField();}
-
-    private static abstract class CopierBase implements Copier {
-        protected final FastField<Object> owner;
-
-        @SuppressWarnings("unchecked")
-        public CopierBase(FastField<?> owner) {
-            this.owner = (FastField<Object>) owner;
-        }
-
-        @Override
-        public final java.lang.reflect.Field getCopyField() {
-            return owner.writer.getWriteField();
-        }
-
-        @Override
-        public final void checkCanCopy() {
-            owner.reader.checkCanRead();
-            owner.writer.checkCanWrite();
-        }
-    }
-
-    private static final class ObjectCopier extends CopierBase {
-        public ObjectCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.set(b,owner.reader.get(a));}
-    }
-
-    private static final class DoubleCopier extends CopierBase {
-        public DoubleCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setDouble(b,owner.reader.getDouble(a));}
-    }
-
-    private static final class FloatCopier extends CopierBase {
-        public FloatCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setFloat(b,owner.reader.getFloat(a));}
-    }
-
-    private static final class ByteCopier extends CopierBase {
-        public ByteCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setByte(b,owner.reader.getByte(a));}
-    }
-
-    private static final class ShortCopier extends CopierBase {
-        public ShortCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setShort(b,owner.reader.getShort(a));}
-    }
-
-    private static final class IntegerCopier extends CopierBase {
-        public IntegerCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setInteger(b,owner.reader.getInteger(a));}
-    }
-
-    private static final class LongCopier extends CopierBase {
-        public LongCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setLong(b,owner.reader.getLong(a));}
-    }
-
-    private static final class CharacterCopier extends CopierBase {
-        public CharacterCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setCharacter(b,owner.reader.getCharacter(a));}
-    }
-
-    private static final class BooleanCopier extends CopierBase {
-        public BooleanCopier(FastField<?> owner){super(owner);}
-        public void copy(Object a,Object b){owner.writer.setBoolean(b,owner.reader.getBoolean(a));}
-    }
-
 }

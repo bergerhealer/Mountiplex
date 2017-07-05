@@ -165,6 +165,15 @@ public class SafeField<T> implements FieldAccessor<T> {
         return field.getType();
     }
 
+    /**
+     * Obtains the underlying Fast Field instance that is used to safely access the field
+     * 
+     * @return fast field
+     */
+    public FastField<T> getFastField() {
+        return this.field;
+    }
+
     @Override
     public <K> TranslatorFieldAccessor<K> translate(DuplexConverter<?, K> converterPair) {
         return new TranslatorFieldAccessor<K>(this, converterPair);

@@ -11,6 +11,7 @@ import java.util.ListIterator;
 
 import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastField;
 
 public class ReflectionUtil {
     /// removes generics from a field/method declaration
@@ -72,6 +73,23 @@ public class ReflectionUtil {
         }
         fields.addAll(0, newFields);
         return fillFields(fields, clazz.getSuperclass());
+    }
+
+    public static List<FastField<?>> fillFastFields(List<FastField<?>> fields, Class<?> clazz) {
+        if (clazz == null) {
+            return fields;
+        }
+        Field[] declared = clazz.getDeclaredFields();
+        ArrayList<FastField<?>> newFields = new ArrayList<FastField<?>>(declared.length);
+        for (Field field : declared) {
+            if (!Modifier.isStatic(field.getModifiers())) {
+                FastField<Object> ff = new FastField<Object>();
+                ff.init(field);
+                newFields.add(ff);
+            }
+        }
+        fields.addAll(0, newFields);
+        return fillFastFields(fields, clazz.getSuperclass());
     }
 
     public static String stringifyType(Class<?> type) {

@@ -5,6 +5,8 @@ import net.sf.cglib.asm.Type;
 import static net.sf.cglib.asm.Opcodes.*;
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Field;
+
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
@@ -12,6 +14,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
 import com.bergerkiller.mountiplex.types.IntProperty;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.SpeedTestObjectHandle;
@@ -76,6 +79,19 @@ public class TemplateSpeedTest {
 
         public void doStuff() {
             System.out.println("doStuff() was successfully called");
+        }
+    }
+
+    public static class Accessor extends ReflectionAccessor<Integer> {
+
+        protected Accessor(Field field) {
+            super(field);
+        }
+
+        @Override
+        public void copy(Object from, Object to) {
+            //((SpeedTestObject) to).d = ((SpeedTestObject) from).d;
+            //this.setDouble(to, getDouble(from));
         }
     }
 
@@ -176,5 +192,19 @@ public class TemplateSpeedTest {
 
         SpeedTestObjectHandle.T.s.set(object, "test");
         assertEquals("test", SpeedTestObjectHandle.T.s.get(object));
+
+        // Test copying
+        SpeedTestObject objectA = new SpeedTestObject();
+        SpeedTestObject objectB = new SpeedTestObject();
+        objectA.d = 12.4;
+        objectA.i = 22;
+        objectA.s = "hello, world!";
+        SpeedTestObjectHandle.T.d.copy(objectA, objectB);
+        SpeedTestObjectHandle.T.i.copy(objectA, objectB);
+        SpeedTestObjectHandle.T.s.copy(objectA, objectB);
+        assertEquals(objectA.d, objectB.d, 0.001);
+        assertEquals(objectA.i, objectB.i);
+        assertEquals(objectA.s, objectB.s);
+        assertEquals(22, objectB.i);
     }
 }

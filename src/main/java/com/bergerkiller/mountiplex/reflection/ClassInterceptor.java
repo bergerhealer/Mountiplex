@@ -2,7 +2,9 @@ package com.bergerkiller.mountiplex.reflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -11,6 +13,7 @@ import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 import net.sf.cglib.asm.Type;
@@ -335,7 +338,6 @@ public abstract class ClassInterceptor {
         final Callback[] callbacks = new Callback[] {
                 new EnhancedObjectProperty("CI_getInterceptor", interceptor),
                 new EnhancedObjectProperty("CI_getBaseType", objectType),
-                new EnhancedObjectProperty("CI_getBaseTypeTemplate", ClassTemplate.create(objectType)),
                 new EnhancedObjectProperty("CI_getEnhancedClass", null),
                 new CallbackMethodInterceptor(interceptor),
                 NoOp.INSTANCE
@@ -463,15 +465,16 @@ public abstract class ClassInterceptor {
      */
     public static final class EnhancedClass {
         private static final String SET_THREAD_CALLBACKS_NAME = "CGLIB$SET_THREAD_CALLBACKS";
-        public final ClassTemplate<?> baseTemplate;
         public final ObjectInstantiator<?> enhancedInstantiator;
         public final ObjectInstantiator<?> baseInstantiator;
+        public final Class<?> baseType;
         public final Class<?> enhancedType;
+        private final FastField<?>[] baseTypeFields;
         private final FastMethod<Void> setCallbacksMethod;
         private final Callback[] disabledCallbacks;
 
         public EnhancedClass(Class<?> baseType, Class<?> enhancedType) {
-            this.baseTemplate = ClassTemplate.create(baseType);
+            this.baseType = baseType;
             this.enhancedType = enhancedType;
             this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
             this.enhancedInstantiator = ObjenesisHelper.getInstantiatorOf(enhancedType);
@@ -488,13 +491,16 @@ public abstract class ClassInterceptor {
                 throw MountiplexUtil.uncheckedRethrow(t);
             }
 
+            // These are used for transferring all fields from one Object to another
+            List<FastField<?>> fieldsList = ReflectionUtil.fillFastFields(new ArrayList<FastField<?>>(), baseType);
+            this.baseTypeFields = fieldsList.toArray(new FastField<?>[fieldsList.size()]);
+
             // These disabled callbacks are used whenever the enhanced type is created outside of here
             // This can happen when, for example, calling a constructor on the enhanced type.
             // Without these a random interceptor, or worse, null ends up being used
             this.disabledCallbacks = new Callback[] {
                     new EnhancedObjectProperty("CI_getInterceptor", null),
                     new EnhancedObjectProperty("CI_getBaseType", baseType),
-                    new EnhancedObjectProperty("CI_getBaseTypeTemplate", baseTemplate),
                     new EnhancedObjectProperty("CI_getEnhancedClass", EnhancedClass.this),
                     new CallbackMethodInterceptor(null) {
                         @Override
@@ -518,9 +524,11 @@ public abstract class ClassInterceptor {
         public <T> T createBase(T enhanced) {
             Object base = this.baseInstantiator.newInstance();
             if (base == null)
-                throw new RuntimeException("Class " + baseTemplate.getType().getName() + " could not be instantiated (newInstance failed)");
+                throw new RuntimeException("Class " + baseType.getName() + " could not be instantiated (newInstance failed)");
 
-            baseTemplate.transfer(enhanced, base);
+            for (FastField<?> ff : this.baseTypeFields) {
+                ff.copier.copy(enhanced, base);
+            }
             return (T) base;
         }
 
@@ -545,7 +553,9 @@ public abstract class ClassInterceptor {
                 throw new RuntimeException("Class " + enhancedType.getName() + " could not be instantiated (newInstance failed)");
 
             if (base != null) {
-                baseTemplate.transfer(base, enhanced);
+                for (FastField<?> ff : this.baseTypeFields) {
+                    ff.copier.copy(base, enhanced);
+                }
             }
             return (T) enhanced;
         }
@@ -696,7 +706,6 @@ public abstract class ClassInterceptor {
     protected static interface EnhancedObject {
         public ClassInterceptor CI_getInterceptor();
         public Class<?> CI_getBaseType();
-        public ClassTemplate<?> CI_getBaseTypeTemplate();
         public EnhancedClass CI_getEnhancedClass();
     }
 }
