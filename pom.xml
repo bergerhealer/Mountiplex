@@ -43,6 +43,13 @@
             <version>2.5</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/javassist/javassist -->
+        <dependency>
+            <groupId>javassist</groupId>
+            <artifactId>javassist</artifactId>
+            <version>3.12.1.GA</version>
+        </dependency>
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -102,11 +109,16 @@
                                     <pattern>org.objenesis</pattern>
                                     <shadedPattern>com.bergerkiller.mountiplex.dep.org.objenesis</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>javassist</pattern>
+                                    <shadedPattern>com.bergerkiller.mountiplex.dep.javassist</shadedPattern>
+                                </relocation>
                             </relocations>
                             <artifactSet>
                                 <includes>
                                     <include>cglib</include>
                                     <include>org.objenesis</include>
+                                    <include>javassist</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
