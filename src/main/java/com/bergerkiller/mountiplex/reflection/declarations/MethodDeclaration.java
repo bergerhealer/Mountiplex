@@ -10,6 +10,7 @@ public class MethodDeclaration extends Declaration {
     public final TypeDeclaration returnType;
     public final NameDeclaration name;
     public final ParameterListDeclaration parameters;
+    public final String body;
 
     public MethodDeclaration(ClassResolver resolver, Method method) {
         super(resolver);
@@ -18,6 +19,7 @@ public class MethodDeclaration extends Declaration {
         this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
         this.name = new NameDeclaration(resolver, method.getName(), null);
         this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
+        this.body = null;
     }
 
     public MethodDeclaration(ClassResolver resolver, String declaration) {
@@ -44,6 +46,50 @@ public class MethodDeclaration extends Declaration {
         this.returnType = nextType();
         this.name = nextName();
         this.parameters = nextParameterList();
+
+        // Check if there is a body attached to this method. This is the case when
+        // the very next character encountered (excluding whitespace) is {
+        this.trimWhitespace(0);
+        postfix = this.getPostfix();
+        if (postfix != null && postfix.startsWith("{")) {
+            // Collect the entire body until the amount of { and } evens out
+            this.setPostfix("");
+            StringBuilder bodyBuilder = new StringBuilder();
+            int curlyBrackets = 0;
+            boolean inString = false;
+            for (int cIdx = 0; cIdx < postfix.length(); cIdx++) {
+                char c = postfix.charAt(cIdx);
+                bodyBuilder.append(c);
+                if (c == '\"') {
+                    inString = !inString;
+                } else if (inString) {
+                    continue;
+                } else if (c == '{') {
+                    curlyBrackets++;
+                } else if (c == '}') {
+                    curlyBrackets--;
+                    if (curlyBrackets == 0) {
+                        this.setPostfix(postfix.substring(cIdx + 1));
+                        break;
+                    }
+                }
+            }
+
+            // Use the indentation of the trailing } for the first {
+            int lastIndent = bodyBuilder.lastIndexOf("\n");
+            if (lastIndent != -1) {
+                int lastIndentEnd = lastIndent + 1;
+                while (lastIndentEnd < bodyBuilder.length() && bodyBuilder.charAt(lastIndentEnd) == ' ') {
+                    bodyBuilder.insert(0, ' ');
+                    lastIndentEnd += 2;
+                }
+            }
+
+            // Correct indentation of body and done
+            this.body = SourceDeclaration.trimIndentation(bodyBuilder.toString());
+        } else {
+            this.body = null;
+        }
     }
 
     @Override

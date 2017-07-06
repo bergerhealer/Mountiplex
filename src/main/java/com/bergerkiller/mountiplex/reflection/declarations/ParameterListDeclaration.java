@@ -79,6 +79,11 @@ public class ParameterListDeclaration extends Declaration {
             postfix = getPostfix();
         } while (postfix != null && postfix.length() > 0 && postfix.charAt(0) == ',');
 
+        // Trim trailing )
+        if (postfix != null && postfix.charAt(0) == ')') {
+            this.setPostfix(postfix.substring(1));
+        }
+
         this.parameters = params.toArray(new ParameterDeclaration[params.size()]);
     }
 

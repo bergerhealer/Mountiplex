@@ -282,6 +282,39 @@ public class SourceDeclaration extends Declaration {
         return result.toString();
     }
 
+    /**
+     * Corrects space indentation in text, making sure the minimal indentation is 0.
+     * 
+     * @param text to correct
+     * @return corrected text
+     */
+    public static String trimIndentation(String text) {
+        String[] lines = text.split("\\r?\\n", -1);
+
+        // Find the indent of the text section
+        int minIndent = 20;
+        for (String line : lines) {
+            for (int i = 0; i < line.length(); i++) {
+                if (line.charAt(i) != ' ') {
+                    if (i < minIndent) {
+                        minIndent = i;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Trim indentation off the section and add the lines
+        StringBuilder result = new StringBuilder(text.length());
+        for (String line : lines) {
+            if (line.length() >= minIndent) {
+                line = line.substring(minIndent);
+            }
+            result.append(line).append('\n');
+        }
+        return result.toString();
+    }
+
     @Override
     public boolean isResolved() {
         return false;

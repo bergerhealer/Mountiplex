@@ -152,29 +152,7 @@ public class ClassDeclaration extends Declaration {
             if (postfix.startsWith("<code>")) {
                 int endIdx = postfix.indexOf("</code>", 6);
                 if (endIdx != -1) {
-                    String[] lines = postfix.substring(6, endIdx).split("\\r?\\n", -1);
-
-                    // Find the indent of the text section
-                    int minIndent = 20;
-                    for (String line : lines) {
-                        for (int i = 0; i < line.length(); i++) {
-                            if (line.charAt(i) != ' ') {
-                                if (i < minIndent) {
-                                    minIndent = i;
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    // Trim indentation off the section and add the lines
-                    for (String line : lines) {
-                        if (line.length() >= minIndent) {
-                            line = line.substring(minIndent);
-                        }
-                        codeStr.append(line).append('\n');
-                    }
-
+                    codeStr.append(SourceDeclaration.trimIndentation(postfix.substring(6, endIdx)));
                     setPostfix(postfix.substring(endIdx + 7));
                     trimLine();
                     continue;
