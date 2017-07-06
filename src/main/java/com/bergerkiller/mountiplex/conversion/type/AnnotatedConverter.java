@@ -29,7 +29,8 @@ public class AnnotatedConverter extends RawConverter {
         this.method = method;
         this.isUpcast = isUpcast;
 
-        ConverterMethod annot = method.getMethod().getAnnotation(ConverterMethod.class);
+        Method javaMethod = method.getMethod();
+        ConverterMethod annot = (javaMethod == null) ? null : javaMethod.getAnnotation(ConverterMethod.class);
         this.nullInput = (annot != null && annot.acceptsNull());
     }
 

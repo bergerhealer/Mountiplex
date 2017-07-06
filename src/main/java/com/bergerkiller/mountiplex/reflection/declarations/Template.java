@@ -527,8 +527,8 @@ public class Template {
         @Override
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
             for (MethodDeclaration methodDec : dec.methods) {
-                if (methodDec.method != null && methodDec.name.real().equals(name)) {
-                    this.method.init(methodDec.method);
+                if ((methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
+                    this.method.init(methodDec);
                     return methodDec;
                 }
             }

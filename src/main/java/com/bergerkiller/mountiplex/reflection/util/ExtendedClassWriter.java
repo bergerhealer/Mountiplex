@@ -17,6 +17,7 @@ import net.sf.cglib.asm.Type;
  */
 public class ExtendedClassWriter<T> extends ClassWriter {
     private static final WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
+    private static int generatedClassCtr = 1;
     private final String name;
     private final String internalName;
     private final GeneratorClassLoader loader;
@@ -31,7 +32,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         }
         this.loader = theLoader;
 
-        String postfix = loader.nextPostfix();
+        String postfix = getNextPostfix();
         String baseName = Type.getInternalName(baseClass);
         this.name = baseClass.getName() + postfix;
         this.internalName = Type.getInternalName(baseClass) + postfix;
@@ -64,6 +65,15 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         } catch (Throwable t) {
             throw new RuntimeException("Failed to generate class", t);
         }
+    }
+
+    /**
+     * Gets a unique class name postfix to be used for a generated class
+     * 
+     * @return unique class name postfix
+     */
+    public static String getNextPostfix() {
+        return "$mplgen" + Integer.toHexString(hash(++generatedClassCtr));
     }
 
     /**
@@ -127,8 +137,6 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     private static final class GeneratorClassLoader extends ClassLoader {
-        private int index = 1;
-
         public GeneratorClassLoader(ClassLoader base) {
             super(base);
         }
@@ -136,19 +144,15 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         public Class<?> defineClass(String name, byte[] b) {
             return defineClass(name, b, 0, b.length);
         }
+    }
 
-        public String nextPostfix() {
-            return "$mplgen" + Integer.toHexString(hash(++index));
-        }
-
-        // turns a sequential integer into an unique hash number
-        private static int hash(int x) {
-            final int prime = 2147483647;
-            int hash = x ^ 0x5bf03635;
-            if (hash >= prime)
-                return hash;
-            int residue = (int) (((long) hash * hash) % prime);
-            return ((hash <= prime / 2) ? residue : prime - residue);
-        }
+    // turns a sequential integer into an unique hash number
+    private static int hash(int x) {
+        final int prime = 2147483647;
+        int hash = x ^ 0x5bf03635;
+        if (hash >= prime)
+            return hash;
+        int residue = (int) (((long) hash * hash) % prime);
+        return ((hash <= prime / 2) ? residue : prime - residue);
     }
 }

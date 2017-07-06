@@ -6,6 +6,8 @@ import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.types.SpeedTestObject;
 
 public class MethodDeclarationTest {
 
@@ -55,5 +57,20 @@ public class MethodDeclarationTest {
                 dec.body);
 
         assertEquals(dec.getPostfix(), "\nThis should not be omitted");
+    }
+
+    @Test
+    public void testMethodBodyExecution() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public int getCounter(int ad) { return instance.i + ad; }");
+
+        FastMethod<Integer> method = new FastMethod<Integer>();
+        method.init(dec);
+
+        SpeedTestObject obj = new SpeedTestObject();
+        obj.i = 5;
+        assertEquals(Integer.valueOf(27), method.invoke(obj, 22));
     }
 }

@@ -193,7 +193,7 @@ public class Resolver {
 
         // Not found. Simply return a new Method Declaration from the method.
         ClassResolver resolver = new ClassResolver();
-        resolver.addClassImports(method.getDeclaringClass());
+        resolver.setDeclaredClass(method.getDeclaringClass());
         return new MethodDeclaration(resolver, method);
     }
 
@@ -214,7 +214,7 @@ public class Resolver {
      */
     public static MethodDeclaration findMethod(Class<?> type, String declaration) {
         ClassResolver resolver = new ClassResolver();
-        resolver.addClassImports(type);
+        resolver.setDeclaredClass(type);
         MethodDeclaration mDec = new MethodDeclaration(resolver, declaration);
         return findMethod(type, mDec);
     }

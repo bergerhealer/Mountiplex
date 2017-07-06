@@ -4,12 +4,10 @@ import org.junit.Test;
 
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 
-import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
 import javassist.CtNewMethod;
-import javassist.NotFoundException;
 
 /**
  * WIP test code
@@ -21,13 +19,6 @@ public class JavassistTest {
         public abstract void doTest(Object instance);
     }
 
-    private CtMethod overrideMethod(CtClass ctClass, CtMethod getConnectionMethodOfSuperclass)
-            throws NotFoundException, CannotCompileException {
-        final CtMethod m = CtNewMethod.delegator(getConnectionMethodOfSuperclass, ctClass);
-        ctClass.addMethod(m);
-        return m;
-    }
-    
     @Test
     public void testJavassist() {
         try {

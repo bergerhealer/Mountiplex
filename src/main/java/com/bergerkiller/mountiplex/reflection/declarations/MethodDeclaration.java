@@ -89,6 +89,15 @@ public class MethodDeclaration extends Declaration {
             this.body = SourceDeclaration.trimIndentation(bodyBuilder.toString());
         } else {
             this.body = null;
+            if (postfix != null && postfix.startsWith(";")) {
+                setPostfix(postfix.substring(1));
+            }
+        }
+
+        // Make sure to put a newline after the post data
+        this.trimWhitespace(0);
+        if (this.getPostfix() != null) {
+            this.setPostfix("\n" + this.getPostfix());
         }
     }
 

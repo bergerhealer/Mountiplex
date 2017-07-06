@@ -1,11 +1,14 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionInvoker;
 
 public class FastMethod<T> implements Invoker<T> {
     public Invoker<T> invoker;
-    private java.lang.reflect.Method method;
+    private MethodDeclaration method;
 
     public FastMethod() {
         this.method = null;
@@ -13,13 +16,23 @@ public class FastMethod<T> implements Invoker<T> {
     }
 
     public FastMethod(java.lang.reflect.Method method) {
-        this.method = method;
+        this.method = new MethodDeclaration(ClassResolver.DEFAULT, method);
         this.invoker = this;
     }
 
     public final void init(java.lang.reflect.Method method) {
-        this.method = method;
+        this.method = new MethodDeclaration(ClassResolver.DEFAULT, method);
         this.invoker = this;
+    }
+
+    public final void init(MethodDeclaration methodDeclaration) {
+        if (methodDeclaration != null && methodDeclaration.body == null && methodDeclaration.method == null) {
+            this.method = null;
+            this.invoker = this;
+        } else {
+            this.method = methodDeclaration;
+            this.invoker = this;
+        }
     }
 
     /**
@@ -32,13 +45,33 @@ public class FastMethod<T> implements Invoker<T> {
     }
 
     /**
+     * Checks whether this method is available
+     * 
+     * @return True if the method is available
+     */
+    public final boolean isAvailable() {
+        return this.method != null;
+    }
+
+    /**
      * Gets the backing Java Reflection Method for this Fast Method. If this fast method
-     * is not initialized, this function returns <i>null</i>.
+     * is not initialized, or executes generated code, this function returns <i>null</i>.
+     * To check whether this fast method is initialized, use {@link #isAvailable()}.
      * 
      * @return method
      */
     public final java.lang.reflect.Method getMethod() {
-        return this.method;
+        return this.method == null ? null : this.method.method;
+    }
+
+    /**
+     * Gets whether this Fast Method represents a class method exactly
+     * 
+     * @param method to check
+     * @return True if it manages the same Method, False if not
+     */
+    public final boolean isMethod(java.lang.reflect.Method method) {
+        return this.method != null && this.method.method != null && this.method.method.equals(method);
     }
 
     /**
@@ -51,15 +84,25 @@ public class FastMethod<T> implements Invoker<T> {
         if (this.method == null) {
             return "null";
         } else {
-            return this.method.getName();
+            return this.method.name.value();
         }
     }
 
     private final Invoker<T> init() {
         if (this.invoker == this) {
             checkInit();
-            this.method.setAccessible(true);
-            this.invoker = ReflectionInvoker.create(method);
+
+            if (this.method.body == null) {
+                // Calls an existing member method
+                this.method.method.setAccessible(true);
+                this.invoker = ReflectionInvoker.create(this.method.method);
+            } else if (this.method.getResolver().getDeclaredClass() != null) {
+                // Calls a method that is generated at runtime
+                this.invoker = GeneratedCodeInvoker.create(this.method);
+            } else {
+                throw new UnsupportedOperationException("The declared class for method " + 
+                        this.getName().toString() + " was not found");
+            }
         }
         return this.invoker;
     }

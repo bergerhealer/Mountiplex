@@ -22,17 +22,20 @@ public class ClassResolver {
     private final ArrayList<String> manualImports;
     private final HashMap<String, String> variables = new HashMap<String, String>();
     private String packagePath;
+    private Class<?> declaredClass;
 
     private ClassResolver(ClassResolver src) {
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.packagePath = src.packagePath;
+        this.declaredClass = src.declaredClass;
     }
 
     public ClassResolver() {
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>(default_imports);
         this.packagePath = "";
+        this.declaredClass = null;
         this.regenImports();
     }
 
@@ -59,11 +62,11 @@ public class ClassResolver {
     }
 
     /**
-     * Adds the package path imports for a Class
+     * Sets a declared class, from which other subclasses and classes in the same package can be found
      * 
-     * @param type to import types of
+     * @param type to set as the declared class
      */
-    public void addClassImports(Class<?> type) {
+    public void setDeclaredClass(Class<?> type) {
         if (type == null) {
             return;
         }
@@ -71,7 +74,17 @@ public class ClassResolver {
         if (pkg != null) {
             this.packagePath = pkg.getName();
         }
-        this.addImport(type.getName() + ".*");
+        this.declaredClass = type;
+        this.regenImports();
+    }
+
+    /**
+     * Gets the declared class
+     * 
+     * @return declared class
+     */
+    public Class<?> getDeclaredClass() {
+        return this.declaredClass;
     }
 
     /**
@@ -81,6 +94,7 @@ public class ClassResolver {
      */
     public void setPackage(String path) {
         this.packagePath = path;
+        this.declaredClass = null;
         this.manualImports.clear();
         this.manualImports.addAll(default_imports);
         this.regenImports();
@@ -313,7 +327,12 @@ public class ClassResolver {
     private void regenImports() {
         this.imports.clear();
         this.imports.addAll(this.manualImports);
-        this.imports.add(this.packagePath + ".*");
+        if (this.declaredClass != null) {
+            this.imports.add(this.declaredClass.getName() + ".*");
+        }
+        if (this.packagePath != null && this.packagePath.length() > 0) {
+            this.imports.add(this.packagePath + ".*");
+        }
     }
 
     private static class ImmutableClassResolver extends ClassResolver {
@@ -323,7 +342,7 @@ public class ClassResolver {
         }
 
         @Override
-        public void addClassImports(Class<?> type) {
+        public void setDeclaredClass(Class<?> type) {
             throw new UnsupportedOperationException("Class Resolver is immutable");
         }
 

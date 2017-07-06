@@ -57,7 +57,7 @@ public class ClassTemplate<T> {
         this.instantiator = null;
         this.typeFields = null;
         this.resolver = new ClassResolver();
-        this.resolver.addClassImports(type);
+        this.resolver.setDeclaredClass(type);
         return this;
     }
 

@@ -110,7 +110,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                 Iterator<HookMethodEntry> iter = entries.iterator();
                 do {
                     if (!iter.hasNext()) return null;
-                } while (!(foundEntry = iter.next()).getMethod().equals(method));
+                } while (!(foundEntry = iter.next()).isMethod(method));
 
                 final HookMethodEntry entry = foundEntry;
                 return new Invokable() {
