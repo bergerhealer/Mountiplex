@@ -6,10 +6,12 @@ import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
+import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
 import javassist.CtNewMethod;
+import javassist.NotFoundException;
 
 /**
  * Generates an invoker that executes a method body
@@ -62,13 +64,23 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
         return newInvalidArgs(numArgs, argCount);
     }
 
+    private static final CtClass getClass(Class<?> type) throws NotFoundException {
+        ClassPool pool = ClassPool.getDefault();
+        pool.insertClassPath(new ClassClassPath(type));
+        return pool.getCtClass(type.getName());
+    }
+
+    private static final CtClass getExtendedClass(Class<?> type) throws NotFoundException {
+        CtClass origClazz = getClass(type);
+        return ClassPool.getDefault().makeClass(origClazz.getName() + ExtendedClassWriter.getNextPostfix(), origClazz);
+    }
+
     @SuppressWarnings("unchecked")
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
         try {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getResolver().getDeclaredClass();
-            CtClass origClazz = ClassPool.getDefault().getCtClass(GeneratedCodeInvoker.class.getName());
-            CtClass invoker = ClassPool.getDefault().makeClass(origClazz.getName() + ExtendedClassWriter.getNextPostfix(), origClazz);
+            CtClass invoker = getExtendedClass(GeneratedCodeInvoker.class);
 
             // Generate the variable arguments invoke method that delegates to the real method
             String invokeVAArgs = "";
@@ -172,7 +184,7 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
                 invoker.addMethod(CtNewMethod.make(proxyInvokeBody.toString(), invoker));
             }
 
-            GeneratedCodeInvoker<T> result = (GeneratedCodeInvoker<T>) invoker.toClass().newInstance();
+            GeneratedCodeInvoker<T> result = (GeneratedCodeInvoker<T>) invoker.toClass(GeneratedCodeInvoker.class.getClassLoader(), null).newInstance();
             result.argCount = argCount;
             return result;
         } catch (Throwable t) {

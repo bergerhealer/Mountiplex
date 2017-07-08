@@ -33,6 +33,8 @@ public class ClassDeclaration extends Declaration {
         this.modifiers = new ModifierDeclaration(getResolver(), type.getModifiers());
         this.code = "";
 
+        this.getResolver().setDeclaredClass(type);
+
         LinkedList<ConstructorDeclaration> constructors = new LinkedList<ConstructorDeclaration>();
         LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
         LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
@@ -104,6 +106,9 @@ public class ClassDeclaration extends Declaration {
             this.fields = new FieldDeclaration[0];
             return;
         }
+
+        // This makes sure all parsed sub-declaration are subtyped to this class
+        this.getResolver().setDeclaredClass(type.type);
 
         // If starts with 'extends', parse base type
         postfix = getPostfix();
@@ -260,7 +265,7 @@ public class ClassDeclaration extends Declaration {
                     break;
                 }
             }
-            if (!found && !method.modifiers.isOptional()) {
+            if (!found && !method.modifiers.isOptional() && method.body == null) {
                 logAlternatives("method", realMethods, method);
             }
         }
