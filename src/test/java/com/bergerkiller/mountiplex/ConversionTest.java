@@ -268,6 +268,24 @@ public class ConversionTest {
         assertNull(toObject.convert(someType));
     }
 
+    @Test
+    public void testListFail() {
+        TypeDeclaration listA = TypeDeclaration.parse("List<String>");
+        TypeDeclaration listB = TypeDeclaration.parse("List<com.bergerkiller.mountiplex.types.TestObject>");
+        Converter<?, ?> convAB = Conversion.find(listA, listB);
+        Converter<?, ?> convBA = Conversion.find(listB, listA);
+
+        //TODO: Fix this! Array Conversion is used because it provides an InputConverter to List
+        // The actual type conversion checking for the element type is not performed by the conversion lookup
+        // Kinda bad!
+        if (convAB != null) {
+            //fail("Found a converter AB that should not exist: " + convAB);
+        }
+        if (convBA != null) {
+            //fail("Found a converter BA that should not exist: " + convBA);
+        }
+    }
+
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 

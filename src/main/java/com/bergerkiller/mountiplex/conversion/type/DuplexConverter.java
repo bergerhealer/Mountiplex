@@ -222,6 +222,11 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         public boolean acceptsNullOutput() {
             return this.reverse.acceptsNullInput();
         }
+
+        @Override
+        public String toString() {
+            return "DuplexAdapter{" + this.reverse.output.toString() + " <> " + this.converter.output.toString() + "}";
+        }
     }
 
     private static final class DuplexAnnotatedConverter<A, B> extends DuplexConverter<A, B> {

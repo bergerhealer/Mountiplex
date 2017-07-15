@@ -428,7 +428,7 @@ public class TypeDeclaration extends Declaration {
         //TODO: Also support unresolved types
         if (this.type != null && this.type.isArray()) {
             TypeDeclaration componentType = new TypeDeclaration(this.getResolver(), this.type.getComponentType());
-            componentType.setGenericTypes(this.genericTypes);
+            componentType = componentType.setGenericTypes(this.genericTypes);
             return componentType;
         }
         return null;

@@ -580,6 +580,7 @@ public class Template {
                 if (this.converter == null) {
                     initFail("Converter for field " + fDec.name.toString() + 
                              " not found: " + fDec.type.toString());
+                    return null;
                 }
             }
             return fDec;
@@ -587,7 +588,7 @@ public class Template {
 
         @Override
         public boolean isAvailable() {
-            return raw.isAvailable();
+            return raw.isAvailable() && converter != null;
         }
 
         @Override

@@ -562,6 +562,9 @@ public class TemplateGenerator {
 
     // gets the type string while automatically adding/resolving imports
     private String getTypeStr(TypeDeclaration type) {
+        if (type.isArray()) {
+            return getTypeStr(type.getComponentType()) + "[]";
+        }
         String fullType;
         if (type.isBuiltin()) {
             fullType = type.typeName;
