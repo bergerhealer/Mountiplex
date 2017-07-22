@@ -856,6 +856,18 @@ public class TypeDeclaration extends Declaration {
     }
 
     /**
+     * Creates a type declaration for an array type of the component type specified
+     * 
+     * @param componentType of the array
+     * @return array type declaration
+     */
+    public static TypeDeclaration createArray(TypeDeclaration componentType) {
+        TypeDeclaration result = createArray(componentType.type);
+        result = result.setGenericTypes(componentType.genericTypes);
+        return result;
+    }
+
+    /**
      * Creates a Type Declaration by inspecting a type, resolving using a set Class Resolver
      * 
      * @param classResolver to use

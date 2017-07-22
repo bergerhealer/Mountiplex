@@ -44,7 +44,7 @@ public class InputTypeMap<T> {
 
     public boolean amend(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
-        if (bin.isEmpty()) {
+        if (bin.values.isEmpty()) {
             bin.values = Arrays.asList(value);
             bin.clearCache();
             return true;
@@ -55,7 +55,7 @@ public class InputTypeMap<T> {
 
     public boolean amendAll(TypeDeclaration type, Collection<T> values) {
         Bin bin = getBin(type);
-        if (bin.isEmpty()) {
+        if (bin.values.isEmpty()) {
             bin.values = values;
             bin.clearCache();
             return true;

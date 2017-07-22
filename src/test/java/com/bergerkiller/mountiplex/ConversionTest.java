@@ -19,6 +19,8 @@ import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.AnnotatedConverters;
+import com.bergerkiller.mountiplex.types.CustomListType;
+import com.bergerkiller.mountiplex.types.CustomSetType;
 import com.bergerkiller.mountiplex.types.CustomType;
 import com.bergerkiller.mountiplex.types.TestObject;
 import com.bergerkiller.mountiplex.types.UniqueType;
@@ -27,10 +29,12 @@ import com.bergerkiller.mountiplex.types.UniqueTypeWrap;
 
 public class ConversionTest {
 
+    static {
+        Conversion.registerConverters(ConversionTest.class);
+    }
+
     @Test
     public void testCustomType() {
-        Conversion.registerConverters(ConversionTest.class);
-
         CustomType type = Conversion.find(String.class, CustomType.class).convert("test");
         assertNotNull(type);
         assertEquals(type.member, "test");
@@ -286,6 +290,21 @@ public class ConversionTest {
         }
     }
 
+    @Test
+    public void testCustomList() {
+        // We have an overload for CustomSetType<T> -> List<T>
+        // It should use our own converter instead of the builtin list converter
+        // This tests the correct type preference logic of Converter Providers
+        TypeDeclaration setInput = TypeDeclaration.createGeneric(CustomSetType.class, String.class);
+        TypeDeclaration listOutput = TypeDeclaration.createGeneric(List.class, String.class);
+        Converter<Object, Object> conv = Conversion.find(setInput, listOutput);
+        assertNotNull(conv);
+        Object result = conv.convert(new CustomSetType<String>());
+        assertNotNull(result);
+        // Conversion.debugTree(setInput, listOutput);
+        assertEquals(CustomListType.class, result.getClass());
+    }
+
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 
@@ -307,6 +326,11 @@ public class ConversionTest {
 
         // Log successes too
         //Conversion.debugTree(input.getClass(), toType);
+    }
+
+    @ConverterMethod
+    public static <T> List<T> customTypeToSet(CustomSetType<T> input) {
+        return new CustomListType<T>(input);
     }
 
     @ConverterMethod

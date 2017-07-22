@@ -22,10 +22,10 @@ public class EnumConversion {
                 // Used down below
                 final Enum[] constants = (Enum[]) outputType.type.getEnumConstants();
 
-                // Parsing an Enumeration from an Integer (by ordinal)
-                converters.add(new Converter<Integer, Enum>(TypeDeclaration.fromClass(Integer.class), outputType) {
+                // Parsing an Enumeration from a Number (by ordinal)
+                converters.add(new Converter<Number, Enum>(TypeDeclaration.fromClass(Number.class), outputType) {
                     @Override
-                    public Enum convertInput(Integer value) {
+                    public Enum convertInput(Number value) {
                         int idx = value.intValue();
                         if (idx >= 0 && idx < constants.length) {
                             return constants[idx];

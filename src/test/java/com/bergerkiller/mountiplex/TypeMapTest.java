@@ -2,12 +2,15 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.util.Set;
+
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
+import com.bergerkiller.mountiplex.types.CustomSetType;
 import com.bergerkiller.mountiplex.types.IntegerMapOfString;
 import com.bergerkiller.mountiplex.types.TestInterface;
 import com.bergerkiller.mountiplex.types.TestInterfaceExt;
@@ -191,6 +194,18 @@ public class TypeMapTest {
         ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, "class Test extends ArrayList<String> {}");
         assertEquals(cDec.type.typePath, "Test");
         assertEquals(cDec.base.toString(), "ArrayList<String>");
+    }
+
+    @Test
+    public void testAmend() {
+        InputTypeMap<String> map = new InputTypeMap<String>();
+        assertAmend(map, TypeDeclaration.createGeneric(Set.class, String.class), "hello");
+        assertAmend(map, TypeDeclaration.createGeneric(CustomSetType.class, String.class), "world");
+    }
+
+    private static <T> void assertAmend(InputTypeMap<T> map, TypeDeclaration type, T value) {
+        assertTrue(map.amend(type, value));
+        assertEquals(value, map.get(type));
     }
 
     private static void assertTypesEqual(Class<?> typeClass, String selfName, String... superTypeNames) {
