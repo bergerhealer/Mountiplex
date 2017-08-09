@@ -254,7 +254,12 @@ public class MountiplexUtil {
         String[] names = new String[values.length];
         int i;
         for (i = 0; i < names.length; i++) {
-            names[i] = values[i].toString().toUpperCase(Locale.ENGLISH).replace("_", "");
+            if (values[i] instanceof Enum) {
+                names[i] = ((Enum<?>) values[i]).name();
+            } else {
+                names[i] = values[i].toString();
+            }
+            names[i] = names[i].toUpperCase(Locale.ENGLISH).replace("_", "");
             if (names[i].equals(text)) {
                 return values[i];
             }

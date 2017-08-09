@@ -56,7 +56,10 @@ public class ConversionTest {
         testConversion("123", float.class, 123.0f);
         testConversion("123.0", float.class, 123.0f);
         testConversion("123", byte.class, (byte) 123);
-        testConversion(false, String.class, "false");
+        for (int i = 0; i < 10; i++) {
+            testConversion(true, String.class, "true");
+            testConversion(false, String.class, "false");
+        }
 
         // Converting to a 'Number' should return the best fit type
         testConversion("123.0", Number.class, 123.0f);
@@ -321,6 +324,10 @@ public class ConversionTest {
         if (((result == null) != (expectedResult == null)) ||
                 (result != null && !result.equals(expectedResult))) {
             Conversion.debugTree(input.getClass(), toType);
+            System.out.println(converter);
+            if (converter instanceof InputConverter) {
+                System.out.println("Input converter: " + ((InputConverter<?>) converter).getConverter(input.getClass()));
+            }
             fail("Expected " + expectedResult + ", but was " + result);
         }
 

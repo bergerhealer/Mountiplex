@@ -21,6 +21,9 @@ public class EnumConversion {
 
                 // Used down below
                 final Enum[] constants = (Enum[]) outputType.type.getEnumConstants();
+                if (constants == null) {
+                    return;
+                }
 
                 // Parsing an Enumeration from a Number (by ordinal)
                 converters.add(new Converter<Number, Enum>(TypeDeclaration.fromClass(Number.class), outputType) {
