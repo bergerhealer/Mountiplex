@@ -22,6 +22,7 @@ import com.bergerkiller.mountiplex.types.AnnotatedConverters;
 import com.bergerkiller.mountiplex.types.CustomListType;
 import com.bergerkiller.mountiplex.types.CustomSetType;
 import com.bergerkiller.mountiplex.types.CustomType;
+import com.bergerkiller.mountiplex.types.EnumWithBooleanNames;
 import com.bergerkiller.mountiplex.types.TestObject;
 import com.bergerkiller.mountiplex.types.UniqueType;
 import com.bergerkiller.mountiplex.types.UniqueTypeExtension1;
@@ -96,6 +97,18 @@ public class ConversionTest {
         testConversion(true, byte.class, (byte) 1);
         testConversion(false, short.class, (short) 0);
         testConversion(true, short.class, (short) 1);
+        
+        testConversion(false, byte.class, Byte.valueOf((byte) 0));
+        
+        testConversion(false, Byte.class, Byte.valueOf((byte) 0));
+    }
+
+    @Test
+    public void testBooleanToEnum() {
+        for (int i = 0; i < 10; i++) {
+            testConversion(false, EnumWithBooleanNames.class, EnumWithBooleanNames.FALSE);
+            testConversion(true, EnumWithBooleanNames.class, EnumWithBooleanNames.TRUE);
+        }
     }
 
     @Test

@@ -420,6 +420,16 @@ public class TypeDeclaration extends Declaration {
     }
 
     /**
+     * Checks whether this type is a primitive type (int, byte, boolean, etc.)
+     * 
+     * @return True if this type is a primitive type
+     */
+    public boolean isPrimitive() {
+        //TODO: Also support unresolved types
+        return this.type != null && this.type.isPrimitive();
+    }
+    
+    /**
      * Gets the component type if this type is an array. Returns null if this is not an array type.
      * 
      * @return array component type

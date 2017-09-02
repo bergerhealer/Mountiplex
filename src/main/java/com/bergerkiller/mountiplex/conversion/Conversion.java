@@ -364,16 +364,6 @@ public class Conversion {
             // generate more layers deeper into the tree until we find our type
             isReset = false;
             while (node == null && !nextNodes.isEmpty()) {
-                for (Node nextNode : nextNodes) {
-                    if (nextNode.converter.input.isAssignableFrom(input)) {
-                        node = nextNode;
-                        break;
-                    }
-                }
-                if (node != null) {
-                    break;
-                }
-
                 lastNodes.clear();
                 lastNodes.addAll(nextNodes);
                 nextNodes.clear();

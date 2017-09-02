@@ -45,6 +45,19 @@ public class EnumConversion {
                         return MountiplexUtil.parseArray(constants, value, null);
                     }
                 });
+
+                // Parsing an Enumeration from a Boolean (String)
+                converters.add(new Converter<Boolean, Enum>(TypeDeclaration.fromClass(Boolean.class), outputType) {
+                    @Override
+                    public Enum convertInput(Boolean value) {
+                        return MountiplexUtil.parseArray(constants, value.toString(), null);
+                    }
+                    
+                    @Override
+                    public boolean isLazy() {
+                        return true;
+                    }
+                });
             }
         });
     }
