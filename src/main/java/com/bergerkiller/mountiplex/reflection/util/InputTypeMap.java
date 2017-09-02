@@ -72,6 +72,14 @@ public class InputTypeMap<T> {
         map.clear();
     }
 
+    public Collection<T> values() {
+        ArrayList<T> result = new ArrayList<T>();
+        for (Bin bin : map.values()) {
+            result.addAll(bin.values);
+        }
+        return result;
+    }
+
     private final Bin getBin(TypeDeclaration type) {
         Bin bin = map.get(type);
         if (bin == null) {

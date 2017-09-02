@@ -22,4 +22,9 @@ public final class NullConverter extends RawConverter {
     public final Object convertInput(Object value) {
         return value;
     }
+
+    @Override
+    public int getCost() {
+        return 0;
+    }
 }

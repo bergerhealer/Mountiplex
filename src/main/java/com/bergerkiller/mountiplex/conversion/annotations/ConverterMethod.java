@@ -36,4 +36,8 @@ public @interface ConverterMethod {
      * @return True if optional, False if the converter must be resolved
      */
     boolean optional() default false;
+    /**
+     * Sets the conversion cost, which controls the priority and order converters are used
+     */
+    int cost() default 1;
 }

@@ -52,11 +52,6 @@ public class EnumConversion {
                     public Enum convertInput(Boolean value) {
                         return MountiplexUtil.parseArray(constants, value.toString(), null);
                     }
-                    
-                    @Override
-                    public boolean isLazy() {
-                        return true;
-                    }
                 });
             }
         });

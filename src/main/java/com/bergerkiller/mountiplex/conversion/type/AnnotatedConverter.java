@@ -19,6 +19,7 @@ public class AnnotatedConverter extends RawConverter {
     public final FastMethod<?> method;
     public final boolean isUpcast;
     private final boolean nullInput;
+    private final int cost;
 
     public AnnotatedConverter(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output) {
         this(method, input, output, false);
@@ -32,6 +33,7 @@ public class AnnotatedConverter extends RawConverter {
         Method javaMethod = method.getMethod();
         ConverterMethod annot = (javaMethod == null) ? null : javaMethod.getAnnotation(ConverterMethod.class);
         this.nullInput = (annot != null && annot.acceptsNull());
+        this.cost = (annot == null) ? 1 : annot.cost();
     }
 
     @Override
@@ -42,6 +44,11 @@ public class AnnotatedConverter extends RawConverter {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public int getCost() {
+        return this.cost;
     }
 
     @Override

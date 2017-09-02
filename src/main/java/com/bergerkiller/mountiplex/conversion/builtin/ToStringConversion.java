@@ -66,6 +66,17 @@ public class ToStringConversion {
                 return Long.toString(value.longValue());
             }
         });
+        Conversion.registerConverter(new Converter<Boolean, String>(Boolean.class, String.class) {
+            @Override
+            public String convertInput(Boolean value) {
+                return value.toString();
+            }
+            
+            @Override
+            public int getCost() {
+                return 4;
+            }
+        });
 
         // char[] -> String
         Conversion.registerConverter(new Converter<char[], String>(char[].class, String.class) {

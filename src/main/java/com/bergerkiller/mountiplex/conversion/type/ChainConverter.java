@@ -46,4 +46,13 @@ public final class ChainConverter<I, O> extends Converter<I, O> {
         result.append("}");
         return result.toString();
     }
+
+    @Override
+    public int getCost() {
+        int cost = 0;
+        for (Converter<Object, Object> converter : this.converters) {
+            cost += converter.getCost();
+        }
+        return cost;
+    }
 }

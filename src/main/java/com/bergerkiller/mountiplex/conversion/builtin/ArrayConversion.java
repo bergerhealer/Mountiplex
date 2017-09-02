@@ -71,6 +71,11 @@ public class ArrayConversion {
                                 }
                             };
                         }
+
+                        @Override
+                        public boolean isLazy() {
+                            return true;
+                        }
                     });
                 }
                 if (output.type.isArray()) {

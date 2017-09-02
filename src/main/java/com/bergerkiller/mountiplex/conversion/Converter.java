@@ -85,6 +85,10 @@ public abstract class Converter<I, O> {
         return false;
     }
 
+    public int getCost() {
+        return isLazy() ? 100 : 1;
+    }
+
     /**
      * Gets whether <i>null</i> is allowed as input to this converter.
      * By default <i>false</i>, indicating it should return <i>null</i> without
@@ -98,7 +102,7 @@ public abstract class Converter<I, O> {
 
     @Override
     public String toString() {
-        return this.getClass().getName() + "[" + input.toString() + " -> " + output.toString() + "]";
+        return this.getClass().getName() + "[cost=" + getCost() + ", " + input.toString() + " -> " + output.toString() + "]";
     }
 
 }
