@@ -8,11 +8,9 @@ import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.reflection.resolver.ClassMetadata;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 /**
@@ -26,7 +24,6 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
  * </ul>
  */
 public class TypeDeclaration extends Declaration {
-    private static final Map<Class<?>, TypeDeclaration> byClass = new ConcurrentHashMap<Class<?>, TypeDeclaration>();
     public static final TypeDeclaration INVALID = new TypeDeclaration(ClassResolver.DEFAULT, (Type) null);
     public static final TypeDeclaration OBJECT = fromClass(Object.class);
     public static final TypeDeclaration ENUM = fromClass(Enum.class);
@@ -40,12 +37,14 @@ public class TypeDeclaration extends Declaration {
     private TypeDeclaration[] superTypes = null;
 
     /**
-     * Turns a {@link Type} into a TypeDeclaration
+     * Turns a {@link Type} into a TypeDeclaration.<br>
+     * <br>
+     * <b>Please do not use this. Use {@link #fromClass(Class)} instead.</b>
      * 
      * @param resolver that is used with this type
      * @param type to read the declaration from
      */
-    private TypeDeclaration(ClassResolver resolver, Type type) {
+    public TypeDeclaration(ClassResolver resolver, Type type) {
         super(resolver);
 
         // Casting never used when parsing from Type
@@ -363,7 +362,7 @@ public class TypeDeclaration extends Declaration {
      * @return Superclass type information
      */
     public TypeDeclaration getSuperType() {
-        return resolveSuperType(ClassMetadata.get(this.type).superType);
+        return resolveSuperType(Resolver.getMeta(this.type).superType);
     }
 
     /**
@@ -399,7 +398,7 @@ public class TypeDeclaration extends Declaration {
 
     private void addInterfaces(ArrayList<TypeDeclaration> types) {
         if (this.type != null) {
-            for (TypeDeclaration iif : ClassMetadata.get(this.type).interfaces) {
+            for (TypeDeclaration iif : Resolver.getMeta(this.type).interfaces) {
                 iif = resolveSuperType(iif);
                 if (!types.contains(iif)) {
                     types.add(iif);
@@ -820,13 +819,9 @@ public class TypeDeclaration extends Declaration {
     public static TypeDeclaration fromClass(Class<?> classType) {
         if (classType == null) {
             return INVALID;
+        } else {
+            return Resolver.getMeta(classType).typeDec;
         }
-        TypeDeclaration type = byClass.get(classType);
-        if (type == null) {
-            type = new TypeDeclaration(ClassResolver.DEFAULT, classType);
-            byClass.put(classType, type);
-        }
-        return type;
     }
 
     /**

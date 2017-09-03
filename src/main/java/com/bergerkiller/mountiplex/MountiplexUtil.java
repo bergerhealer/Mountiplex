@@ -15,6 +15,32 @@ import java.util.logging.Logger;
  */
 public class MountiplexUtil {
     public static Logger LOGGER = Logger.getLogger("REFLECTION");
+    private static ArrayList<Runnable> unloaders = new ArrayList<Runnable>();
+
+    /**
+     * Performs cleanup of all statically referenced data used by Mountiplex.
+     * This will clear all caches to allow for proper garbage collection and re-loading.
+     */
+    public static void unloadMountiplex() {
+        synchronized (unloaders) {
+            for (Runnable unloader : unloaders) {
+                unloader.run();
+            }
+            unloaders.clear();
+            unloaders.trimToSize();
+        }
+    }
+
+    /**
+     * Adds a runnable executed when {@link #unloadMountiplex()} is called.
+     * 
+     * @param runnable to register
+     */
+    public static void registerUnloader(Runnable runnable) {
+        synchronized (unloaders) {
+            unloaders.add(runnable);
+        }
+    }
 
     /**
      * Checks if a list of characters contains the character specified

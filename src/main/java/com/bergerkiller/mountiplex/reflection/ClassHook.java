@@ -20,9 +20,18 @@ import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 import net.sf.cglib.proxy.MethodProxy;
 
 public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
-    private static final Map<Class<?>, HookMethodList> hookMethodMap = new HashMap<Class<?>, HookMethodList>();
+    private static Map<Class<?>, HookMethodList> hookMethodMap = new HashMap<Class<?>, HookMethodList>();
     public T base;
     private final HookMethodList methods;
+
+    static {
+        MountiplexUtil.registerUnloader(new Runnable() {
+            @Override
+            public void run() {
+                hookMethodMap = new HashMap<Class<?>, HookMethodList>(0);
+            }
+        });
+    }
 
     @SuppressWarnings("unchecked")
     public ClassHook() {

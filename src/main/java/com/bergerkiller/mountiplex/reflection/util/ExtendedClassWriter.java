@@ -6,6 +6,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.WeakHashMap;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
+
 import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.MethodVisitor;
 import net.sf.cglib.asm.Type;
@@ -16,11 +18,20 @@ import net.sf.cglib.asm.Type;
  * @param <T> type of base class
  */
 public class ExtendedClassWriter<T> extends ClassWriter {
-    private static final WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
+    private static WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
     private static int generatedClassCtr = 1;
     private final String name;
     private final String internalName;
     private final GeneratorClassLoader loader;
+
+    static {
+        MountiplexUtil.registerUnloader(new Runnable() {
+            @Override
+            public void run() {
+                loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>(0);
+            }
+        });
+    }
 
     public ExtendedClassWriter(int flags, Class<T> baseClass) {
         super(flags);

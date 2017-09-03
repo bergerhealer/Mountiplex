@@ -37,8 +37,8 @@ import net.sf.cglib.proxy.NoOp;
  * consistently return the same {@link CallbackDelegate} across all instances.
  */
 public abstract class ClassInterceptor {
-    private static final Map<Class<?>, Map<Method, Invokable>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>();
-    private static final Map<ClassPair, EnhancedClass> enhancedTypes = new HashMap<ClassPair, EnhancedClass>();
+    private static Map<Class<?>, Map<Method, Invokable>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>();
+    private static Map<ClassPair, EnhancedClass> enhancedTypes = new HashMap<ClassPair, EnhancedClass>();
     private boolean useGlobalCallbacks = true;
     private final Map<Method, Invokable> globalMethodDelegates;
     private final InstanceHolder lastHookedObject = new InstanceHolder();
@@ -46,6 +46,16 @@ public abstract class ClassInterceptor {
         @Override
         protected StackInformation initialValue() { return new StackInformation(); }
     };
+
+    static {
+        MountiplexUtil.registerUnloader(new Runnable() {
+            @Override
+            public void run() {
+                globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>(0);
+                enhancedTypes = new HashMap<ClassPair, EnhancedClass>(0);
+            }
+        });
+    }
 
     public ClassInterceptor() {
         synchronized (globalMethodDelegatesMap) {

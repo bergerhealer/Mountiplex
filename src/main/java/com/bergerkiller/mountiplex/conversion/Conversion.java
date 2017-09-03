@@ -1,6 +1,5 @@
 package com.bergerkiller.mountiplex.conversion;
 
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Field;
@@ -64,6 +63,16 @@ public class Conversion {
         ArrayConversion.register();
         VoidTypeConverter.register();
         BooleanConversion.register();
+
+        // We can not remove registered converters and providers for safety reasons
+        // We will clear all generated data, though
+        MountiplexUtil.registerUnloader(new Runnable() {
+            @Override
+            public void run() {
+                OutputConverterTree.trees = new HashMap<TypeDeclaration, OutputConverterTree>(0);
+                OutputConverterList.mapping = new HashMap<TypeDeclaration, OutputConverterList>(0);
+            }
+        });
     }
 
     /**
@@ -329,7 +338,7 @@ public class Conversion {
     // maintains the converter tree from all input types that can be converted to the output type
     // this tree is created as large as is needed to find the input type requested
     private static final class OutputConverterTree {
-        private static final HashMap<TypeDeclaration, OutputConverterTree> trees = new HashMap<TypeDeclaration, OutputConverterTree>();
+        private static HashMap<TypeDeclaration, OutputConverterTree> trees = new HashMap<TypeDeclaration, OutputConverterTree>();
         private final Node root;
         private final InputTypeMap<Node> mapping = new InputTypeMap<Node>();
         private final ArrayList<Node> lastNodes = new ArrayList<Node>();
@@ -561,7 +570,7 @@ public class Conversion {
 
     // maintains information about direct converters from one type to another
     private static final class OutputConverterList {
-        private static final Map<TypeDeclaration, OutputConverterList> mapping = new HashMap<TypeDeclaration, OutputConverterList>();
+        private static Map<TypeDeclaration, OutputConverterList> mapping = new HashMap<TypeDeclaration, OutputConverterList>();
         private final TypeDeclaration output;
         private final HashMap<TypeDeclaration, Converter<?, ?>> single = new HashMap<TypeDeclaration, Converter<?, ?>>();
         private final LinkedHashMap<TypeDeclaration, Converter<?, ?>> converters = new LinkedHashMap<TypeDeclaration, Converter<?, ?>>();

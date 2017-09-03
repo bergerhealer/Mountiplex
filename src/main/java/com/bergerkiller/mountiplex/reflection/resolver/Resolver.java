@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.resolver;
 
+import java.lang.reflect.MalformedParameterizedTypeException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -17,11 +18,40 @@ import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
  * Resolvers can be added to allow for class/field/method name translation.
  */
 public class Resolver {
-    private static final ArrayList<ClassPathResolver> classPathResolvers = new ArrayList<ClassPathResolver>();
-    private static final ArrayList<FieldNameResolver> fieldNameResolvers = new ArrayList<FieldNameResolver>();
-    private static final ArrayList<MethodNameResolver> methodNameResolvers = new ArrayList<MethodNameResolver>();
-    private static final ArrayList<ClassDeclarationResolver> classDeclarationResolvers = new ArrayList<ClassDeclarationResolver>();
-    private static final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
+    private static Resolver resolver = new Resolver();
+    private final ArrayList<ClassPathResolver> classPathResolvers = new ArrayList<ClassPathResolver>();
+    private final ArrayList<FieldNameResolver> fieldNameResolvers = new ArrayList<FieldNameResolver>();
+    private final ArrayList<MethodNameResolver> methodNameResolvers = new ArrayList<MethodNameResolver>();
+    private final ArrayList<ClassDeclarationResolver> classDeclarationResolvers = new ArrayList<ClassDeclarationResolver>();
+    private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
+    private final HashMap<Class<?>, ClassMeta> classTypeCache = new HashMap<Class<?>, ClassMeta>();
+
+    static {
+        MountiplexUtil.registerUnloader(new Runnable() {
+            @Override
+            public void run() {
+                resolver = new Resolver();
+            }
+        });
+    }
+
+    /**
+     * Retrieves the metadata for a particular class type
+     * 
+     * @param type to get the metadata for
+     * @return class metadata
+     */
+    public static ClassMeta getMeta(Class<?> type) {
+        HashMap<Class<?>, ClassMeta> classTypeCache = resolver.classTypeCache;
+        synchronized (classTypeCache) {
+            ClassMeta meta = classTypeCache.get(type);
+            if (meta == null) {
+                meta = new ClassMeta(type, false);
+                classTypeCache.put(type, meta);
+            }
+            return meta;
+        }
+    }
 
     /**
      * Attempts to load a class by path. If the class can not be loaded, null is returned instead.
@@ -31,12 +61,17 @@ public class Resolver {
      * @return The loaded class, or null if the class could not be loaded
      */
     public static Class<?> loadClass(String path, boolean initialize) {
+        HashMap<String, ClassMeta> classCache = resolver.classCache;
         synchronized (classCache) {
             ClassMeta meta = classCache.get(path);
             if (meta == null) {
-                // Not yet initialized. Find the class!
                 Class<?> type = loadClassImpl(path, initialize);
-                meta = new ClassMeta(path, type, initialize);
+                if (type == null) {
+                    meta = new ClassMeta(null, initialize);
+                } else {
+                    meta = getMeta(type);
+                    meta.loaded = initialize;
+                }
                 classCache.put(path, meta);
             }
 
@@ -119,47 +154,47 @@ public class Resolver {
     }
 
     public static void registerClassDeclarationResolver(ClassDeclarationResolver resolver) {
-        classDeclarationResolvers.add(resolver);
+        Resolver.resolver.classDeclarationResolvers.add(resolver);
     }
 
     public static void registerClassResolver(ClassPathResolver resolver) {
-        classPathResolvers.add(resolver);
-        classCache.clear();
+        Resolver.resolver.classPathResolvers.add(resolver);
+        Resolver.resolver.classCache.clear();
     }
 
     public static void registerMethodResolver(MethodNameResolver resolver) {
-        methodNameResolvers.add(resolver);
-        classCache.clear();
+        Resolver.resolver.methodNameResolvers.add(resolver);
+        Resolver.resolver.classCache.clear();
     }
 
     public static void registerFieldResolver(FieldNameResolver resolver) {
-        fieldNameResolvers.add(resolver);
-        classCache.clear();
+        Resolver.resolver.fieldNameResolvers.add(resolver);
+        Resolver.resolver.classCache.clear();
     }
 
     public static String resolveClassPath(String classPath) {
-        for (ClassPathResolver resolver : classPathResolvers) {
+        for (ClassPathResolver resolver : Resolver.resolver.classPathResolvers) {
             classPath = resolver.resolveClassPath(classPath);
         }
         return classPath;
     }
 
     public static String resolveFieldName(Class<?> declaredClass, String fieldName) {
-        for (FieldNameResolver resolver : fieldNameResolvers) {
+        for (FieldNameResolver resolver : Resolver.resolver.fieldNameResolvers) {
             fieldName = resolver.resolveFieldName(declaredClass, fieldName);
         }
         return fieldName;
     }
 
     public static String resolveMethodName(Class<?> declaredClass, String methodName, Class<?>[] parameterTypes) {
-        for (MethodNameResolver resolver : methodNameResolvers) {
+        for (MethodNameResolver resolver : Resolver.resolver.methodNameResolvers) {
             methodName = resolver.resolveMethodName(declaredClass, methodName, parameterTypes);
         }
         return methodName;
     }
 
     public static ClassDeclaration resolveClassDeclaration(Class<?> classType) {
-        for (ClassDeclarationResolver resolver : classDeclarationResolvers) {
+        for (ClassDeclarationResolver resolver : Resolver.resolver.classDeclarationResolvers) {
             ClassDeclaration dec = resolver.resolveClassDeclaration(classType);
             if (dec != null) {
                 return dec;
@@ -274,16 +309,60 @@ public class Resolver {
         return cDec.findMethod(declaration);
     }
 
-    private static class ClassMeta {
-        //public final String path;
+    public static final class ClassMeta {
         public Class<?> type;
-        public boolean loaded;
+        protected boolean loaded;
+        public final TypeDeclaration typeDec;
+        public final TypeDeclaration[] interfaces;
+        public final TypeDeclaration superType;
 
-        public ClassMeta(String path, Class<?> type, boolean loaded) {
-            //this.path = path;
+        public ClassMeta(Class<?> type, boolean loaded) {
             this.type = type;
             this.loaded = loaded;
+            if (type != null) {
+                this.typeDec = new TypeDeclaration(ClassResolver.DEFAULT, type);
+                this.superType = findSuperType(this.typeDec);
+                this.interfaces = findInterfaces(this.typeDec);
+            } else {
+                this.typeDec = TypeDeclaration.INVALID;
+                this.superType = TypeDeclaration.OBJECT;
+                this.interfaces = new TypeDeclaration[0];
+            }
         }
 
+        /// some bad class was found and we have to figure out what type variable is used <>
+        /// we can do this by inspecting the base interface/class methods and expecting generic type from that
+        private static TypeDeclaration fixResolveGenericTypes(TypeDeclaration type, TypeDeclaration base) {
+            //TODO: Somehow implement this? It's a little tricky. Probably requires ASM Class Reader.
+            return base;
+        }
+
+        private static TypeDeclaration findSuperType(TypeDeclaration type) {
+            try {
+                java.lang.reflect.Type s = type.type.getGenericSuperclass();
+                return (s == null) ? null : TypeDeclaration.fromType(s);
+            } catch (MalformedParameterizedTypeException ex) {
+                Class<?> s = type.type.getSuperclass();
+                return (s == null) ? null : fixResolveGenericTypes(type, TypeDeclaration.fromClass(s));
+            }
+        }
+
+        private static TypeDeclaration[] findInterfaces(TypeDeclaration type) {
+            try {
+                java.lang.reflect.Type[] interfaces = type.type.getGenericInterfaces();
+                TypeDeclaration[] result = new TypeDeclaration[interfaces.length];
+                for (int i = 0; i < result.length; i++) {
+                    result[i] = TypeDeclaration.fromType(interfaces[i]);
+                }
+                return result;
+            } catch (MalformedParameterizedTypeException ex) {
+                Class<?>[] interfaces = type.type.getInterfaces();
+                TypeDeclaration[] result = new TypeDeclaration[interfaces.length];
+                for (int i = 0; i < result.length; i++) {
+                    result[i] = fixResolveGenericTypes(type, TypeDeclaration.fromClass(interfaces[i]));
+                }
+                return result;
+            }
+        }
     }
 }
