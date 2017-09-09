@@ -137,6 +137,7 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             if (decClass != null) {
                 pool.importPackage(decClass.getPackage().getName());
             }
+            pool.appendClassPath(new ClassClassPath(GeneratedCodeInvoker.class));
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class);
 
             // Generate the variable arguments invoke method that delegates to the real method
