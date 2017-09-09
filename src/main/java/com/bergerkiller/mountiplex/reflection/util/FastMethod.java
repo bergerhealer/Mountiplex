@@ -6,9 +6,10 @@ import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionInvoker;
 
-public class FastMethod<T> implements Invoker<T> {
+public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
     public Invoker<T> invoker;
     private MethodDeclaration method;
+    private String missingInfo = "!!UNKNOWN!!"; // stored info for when method is null
 
     public FastMethod() {
         this.method = null;
@@ -36,11 +37,22 @@ public class FastMethod<T> implements Invoker<T> {
     }
 
     /**
+     * Declares this method to be unavailable, providing a missing information String to later identify it
+     * 
+     * @param missingInfo to print when trying to access it
+     */
+    public final void initUnavailable(String missingInfo) {
+        this.method = null;
+        this.invoker = this;
+        this.missingInfo = missingInfo;
+    }
+
+    /**
      * Checks whether this fast method is initialized, and throws an exception if it is not.
      */
     public final void checkInit() {
         if (method == null) {
-            throw new UnsupportedOperationException("Method is not available");
+            throw new UnsupportedOperationException("Method " + this.missingInfo + " is not available");
         }
     }
 
@@ -88,6 +100,20 @@ public class FastMethod<T> implements Invoker<T> {
         }
     }
 
+    @Override
+    public void forceInitialization() {
+        init();
+    }
+
+    /**
+     * Initializes this method invoker. If this is a generated method body,
+     * the method is compiled. In other cases the method will be found through
+     * reflection and optimized accessors compiled. All of this is only performed once.
+     * 
+     * All calls to invoke() in this class explicitly call init().
+     * 
+     * @return the new invoker that should be used from now on
+     */
     private final Invoker<T> init() {
         if (this.invoker == this) {
             checkInit();

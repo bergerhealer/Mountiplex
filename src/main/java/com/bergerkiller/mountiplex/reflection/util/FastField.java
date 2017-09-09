@@ -14,7 +14,7 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Writer;
  * 
  * @param <T> type of fast field
  */
-public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
+public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyInitializedObject {
     public Reader<T> reader = this;
     public Writer<T> writer = this;
     public Copier copier = this;
@@ -136,6 +136,11 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
         }
     }
 
+    @Override
+    public void forceInitialization() {
+        read();
+    }
+
     private Reader<T> read() {
         if (reader == this) {
             checkInit();
@@ -248,4 +253,5 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier {
     // Copier calls that initialize the copier and forward the call
     public void copy(Object a, Object b){copy().copy(a, b);}
     public Field getCopyField(){return copy().getCopyField();}
+
 }

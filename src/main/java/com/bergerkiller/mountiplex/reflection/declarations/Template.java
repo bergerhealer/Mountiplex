@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
 import java.util.logging.Level;
 
 import org.objenesis.ObjenesisHelper;
@@ -21,18 +22,20 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
 
 public class Template {
 
-    public static class Class<H extends Handle> {
+    public static class Class<H extends Handle> implements LazyInitializedObject {
         private boolean valid = false;
         private java.lang.Class<?> classType = null;
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
         private ObjectInstantiator<Object> instantiator = null;
         private String classPath = null;
+        private TemplateElement<?>[] elements = new TemplateElement<?>[0];
 
         @SuppressWarnings("unchecked")
         public Class() {
@@ -93,6 +96,17 @@ public class Template {
             }
         }
 
+        @Override
+        public final void forceInitialization() {
+            if (this.isAvailable()) {
+                for (TemplateElement<?> element : this.elements) {
+                    if (!element.isOptional() || element.isAvailable()) {
+                        element.forceInitialization();
+                    }
+                }
+            }
+        }
+
         private final void init(java.lang.Class<?> classType) {
             this.classType = classType;
             this.valid = (classType != null);
@@ -131,12 +145,15 @@ public class Template {
 
             // Initialize all declared fields
             boolean fieldsSuccessful = true;
+            ArrayList<TemplateElement<?>> elementsList = new ArrayList<TemplateElement<?>>();
             for (java.lang.reflect.Field templateFieldRef : getClass().getFields()) {
                 String templateFieldName = templateFieldRef.getName();
                 try {
                     Object templateField = templateFieldRef.get(this);
                     if (templateField instanceof TemplateElement) {
                         TemplateElement<?> element = (TemplateElement<?>) templateField;
+                        element.initElementName(this.classPath + "." + templateFieldName);
+                        elementsList.add(element);
                         if (templateFieldRef.getAnnotation(Optional.class) != null) {
                             element.setOptional();
                         }
@@ -156,6 +173,7 @@ public class Template {
                 }
             }
             this.valid &= fieldsSuccessful;
+            this.elements = MountiplexUtil.toArray(elementsList, TemplateElement.class);
         }
 
         /**
@@ -386,9 +404,10 @@ public class Template {
 
     // provides a default 'init' method to use when initializing the Template
     // all declared class element types must extend this type
-    public static abstract class TemplateElement<T extends Declaration> {
+    public static abstract class TemplateElement<T extends Declaration> implements LazyInitializedObject {
         private boolean _optional = false;
         protected boolean _hasClass = true;
+        private String _elementName = "!!UNKNOWN!!";
 
         /**
          * Initializes the template element for when the containing Class is not available
@@ -398,6 +417,25 @@ public class Template {
         }
 
         protected abstract T init(ClassDeclaration dec, String name);
+
+        /**
+         * Sets the name of this element during initialization
+         * 
+         * @param elementName to set to
+         */
+        protected void initElementName(String elementName) {
+            this._elementName = elementName;
+        }
+
+        /**
+         * Gets the name of this Template Element as declared in the original Template Class.
+         * This name helps as a description of the element for debug messages.
+         * 
+         * @return template element name
+         */
+        public final String getElementName() {
+            return this._elementName;
+        }
 
         /**
          * Gets whether this Class element is initialized. If it is not initialized,
@@ -467,6 +505,17 @@ public class Template {
         }
 
         @Override
+        public void forceInitialization() {
+            field.forceInitialization();
+        }
+
+        @Override
+        protected void initElementName(String elementName) {
+            super.initElementName(elementName);
+            this.field.initUnavailable(elementName); // makes sure its logged correctly
+        }
+
+        @Override
         public boolean isAvailable() {
             return field.getField() != null;
         }
@@ -514,8 +563,8 @@ public class Template {
 
         // throws an exception when the method is not found
         protected final void failNotFound() {
-            if (this.method.getMethod() == null) {
-                throw new RuntimeException("Method not found");
+            if (!this.method.isAvailable()) {
+                throw new RuntimeException("Method " + this.getElementName() + " not found");
             }
         }
 
@@ -534,6 +583,18 @@ public class Template {
             }
             initFail("Method '" + name + "' not found in template for " + dec.type.typePath);
             return null;
+        }
+
+        @Override
+        public void forceInitialization() {
+            method.forceInitialization();
+            failNotFound();
+        }
+
+        @Override
+        protected void initElementName(String elementName) {
+            super.initElementName(elementName);
+            method.initUnavailable(elementName); // makes sure its logged correctly
         }
 
         @Override
@@ -567,8 +628,20 @@ public class Template {
         // throws an exception when the converter was not initialized
         protected final void failNoConverter() {
             if (converter == null) {
-                throw new UnsupportedOperationException("Field converter was not found");
+                throw new UnsupportedOperationException("Field converter for " + this.getElementName() + " was not found");
             }
+        }
+
+        @Override
+        public void forceInitialization() {
+            raw.forceInitialization();
+            failNoConverter();
+        }
+
+        @Override
+        protected void initElementName(String elementName) {
+            super.initElementName(elementName);
+            raw.initElementName(elementName);
         }
 
         @Override
@@ -626,8 +699,20 @@ public class Template {
 
         protected final void failNoConverter() {
             if (!isConvertersInitialized) {
-                throw new UnsupportedOperationException("Method converters could not be initialized");
+                throw new UnsupportedOperationException("Method converters for " + this.getElementName() + " could not be initialized");
             }
+        }
+
+        @Override
+        public void forceInitialization() {
+            raw.forceInitialization();
+            failNoConverter();
+        }
+
+        @Override
+        protected void initElementName(String elementName) {
+            super.initElementName(elementName);
+            raw.initElementName(elementName);
         }
 
         @SuppressWarnings("unchecked")
@@ -755,6 +840,11 @@ public class Template {
                 failInvalidArgs(args);
                 throw MountiplexUtil.uncheckedRethrow(t);
             }
+        }
+
+        @Override
+        public void forceInitialization() {
+            failNotFound();
         }
 
         @Override
@@ -1381,6 +1471,11 @@ public class Template {
         }
 
         @Override
+        public void forceInitialization() {
+            get();
+        }
+
+        @Override
         public boolean isAvailable() {
             return constant != null;
         }
@@ -1426,6 +1521,18 @@ public class Template {
                 if (converter == null) {
                     throw new UnsupportedOperationException("Enum constant converter was not found");
                 }
+            }
+
+            @Override
+            public void forceInitialization() {
+                this.raw.forceInitialization();
+                this.failNoConverter();
+            }
+
+            @Override
+            protected void initElementName(String elementName) {
+                super.initElementName(elementName);
+                raw.initElementName(elementName);
             }
 
             @Override

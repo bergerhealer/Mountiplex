@@ -6,6 +6,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
+import javassist.CannotCompileException;
 import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -75,6 +76,20 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
         return ClassPool.getDefault().makeClass(origClazz.getName() + ExtendedClassWriter.getNextPostfix(), origClazz);
     }
 
+    private static CtMethod makeMethodAndLog(String methodBody, CtClass invoker) {
+        try {
+            return CtNewMethod.make(methodBody, invoker);
+        } catch (CannotCompileException ex) {
+            MountiplexUtil.LOGGER.severe("Failed to compile method body (" + ex.getReason() + "):");
+            MountiplexUtil.LOGGER.severe(methodBody);
+            throw MountiplexUtil.uncheckedRethrow(ex.getCause());
+        } catch (Throwable t) {
+            MountiplexUtil.LOGGER.severe("Failed to generate method body:");
+            MountiplexUtil.LOGGER.severe(methodBody);
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
         try {
@@ -87,7 +102,7 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             for (int i = 0; i < argCount; i++) {
                 invokeVAArgs += ", args[" + i + "]";
             }
-            CtMethod m = CtNewMethod.make(
+            CtMethod m = makeMethodAndLog(
                          "public Object invokeVA(Object instance, Object[] args) {" +
                          "    if (args.length != " + argCount + ") {" +
                          "        throw failArgs(args.length);" +
@@ -176,7 +191,7 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             invokeBody.append("}");
 
             // Add the method to the class
-            m = CtNewMethod.make(invokeBody.toString(), invoker);
+            m = makeMethodAndLog(invokeBody.toString(), invoker);
             invoker.addMethod(m);
 
             // Add a proxy invoke body, if set

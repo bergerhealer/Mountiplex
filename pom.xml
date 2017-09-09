@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.mountiplex</groupId>
     <artifactId>Mountiplex</artifactId>
-    <version>1.8</version>
+    <version>1.9</version>
     <packaging>maven-plugin</packaging>
     <name>mountiplex</name>
 
@@ -45,9 +45,9 @@
 
         <!-- https://mvnrepository.com/artifact/javassist/javassist -->
         <dependency>
-            <groupId>javassist</groupId>
+            <groupId>org.javassist</groupId>
             <artifactId>javassist</artifactId>
-            <version>3.12.1.GA</version>
+            <version>3.20.0-GA</version>
         </dependency>
 
         <dependency>
@@ -114,12 +114,17 @@
                                     <pattern>javassist</pattern>
                                     <shadedPattern>com.bergerkiller.mountiplex.dep.javassist</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>org.javassist</pattern>
+                                    <shadedPattern>com.bergerkiller.mountiplex.dep.javassist</shadedPattern>
+                                </relocation>
                             </relocations>
                             <artifactSet>
                                 <includes>
                                     <include>cglib</include>
                                     <include>org.objenesis</include>
                                     <include>javassist</include>
+                                    <include>org.javassist</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
