@@ -1,8 +1,11 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import java.net.URL;
+
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
@@ -71,9 +74,9 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
         return pool.getCtClass(type.getName());
     }
 
-    private static final CtClass getExtendedClass(Class<?> type) throws NotFoundException {
+    private static final CtClass getExtendedClass(ClassPool pool, Class<?> type) throws NotFoundException {
         CtClass origClazz = getClass(type);
-        return ClassPool.getDefault().makeClass(origClazz.getName() + ExtendedClassWriter.getNextPostfix(), origClazz);
+        return pool.makeClass(origClazz.getName() + ExtendedClassWriter.getNextPostfix(), origClazz);
     }
 
     private static CtMethod makeMethodAndLog(String methodBody, CtClass invoker) {
@@ -90,12 +93,51 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
         }
     }
 
+    private static final class ResolvedClassPool extends ClassPool {
+
+        public ResolvedClassPool() {
+            super(true);
+        }
+
+        @Override
+        public URL find(String classname) {
+            return super.find(Resolver.resolveClassPath(classname));
+        }
+
+        @Override
+        public CtClass get(String classname) throws NotFoundException {
+            return super.get(Resolver.resolveClassPath(classname));
+        }
+
+        @Override
+        public CtClass[] get(String[] classnames) throws NotFoundException {
+            if (classnames == null) {
+                return super.get((String[]) null);
+            }
+            String[] names = classnames.clone();
+            for (int i = 0; i < names.length; i++) {
+                names[i] = Resolver.resolveClassPath(names[i]);
+            }
+            return super.get(names);
+        }
+
+        @Override
+        public CtClass getCtClass(String classname) throws NotFoundException {
+            return super.getCtClass(Resolver.resolveClassPath(classname));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
         try {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getResolver().getDeclaredClass();
-            CtClass invoker = getExtendedClass(GeneratedCodeInvoker.class);
+            Class<?> decClass = declaration.getResolver().getDeclaredClass();
+            ClassPool pool = new ResolvedClassPool();
+            if (decClass != null) {
+                pool.importPackage(decClass.getPackage().getName());
+            }
+            CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class);
 
             // Generate the variable arguments invoke method that delegates to the real method
             String invokeVAArgs = "";
