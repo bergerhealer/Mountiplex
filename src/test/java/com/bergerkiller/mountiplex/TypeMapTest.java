@@ -10,6 +10,8 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
+import com.bergerkiller.mountiplex.reflection.util.OutputTypeMap;
+import com.bergerkiller.mountiplex.reflection.util.TypeMap;
 import com.bergerkiller.mountiplex.types.CustomSetType;
 import com.bergerkiller.mountiplex.types.IntegerMapOfString;
 import com.bergerkiller.mountiplex.types.TestInterface;
@@ -172,6 +174,67 @@ public class TypeMapTest {
     }
 
     @Test
+    public void testOutputTypeMap() {
+        TypeDeclaration tObject = TypeDeclaration.fromClass(Object.class);
+        TypeDeclaration tNumber = TypeDeclaration.fromClass(Number.class);
+        TypeDeclaration tInt = TypeDeclaration.fromClass(int.class);
+        TypeDeclaration tInteger = TypeDeclaration.fromClass(Integer.class);
+        TypeDeclaration tDouble = TypeDeclaration.fromClass(Double.class);
+
+        OutputTypeMap<Integer> map = new OutputTypeMap<Integer>();
+        testMap(map, tObject, null);
+        testMap(map, tNumber, null);
+        testMap(map, tInt, null);
+        testMap(map, tInteger, null);
+        testMap(map, tDouble, null);
+
+        map.put(tNumber, 12);
+        testMap(map, tObject, 12);
+        testMap(map, tNumber, 12);
+        testMap(map, tInt, null);
+        testMap(map, tInteger, null);
+        testMap(map, tDouble, null);
+
+        map.put(tObject, 15);
+        testMap(map, tObject, 15);
+        testMap(map, tNumber, 12);
+        testMap(map, tInt, null);
+        testMap(map, tInteger, null);
+        testMap(map, tDouble, null);
+
+        map.put(tInt, 64);
+        testMap(map, tObject, 15);
+        testMap(map, tNumber, 12);
+        testMap(map, tInt, 64);
+        testMap(map, tInteger, null);
+        testMap(map, tDouble, null);
+
+        map.put(tInteger, 32);
+        testMap(map, tObject, 15);
+        testMap(map, tNumber, 12);
+        testMap(map, tInt, 64);
+        testMap(map, tInteger, 32);
+        testMap(map, tDouble, null);
+
+        map.clear();
+        map.put(tInteger, 64);
+        testMap(map, tObject, 64);
+        testMap(map, tNumber, 64);
+        testMap(map, tInt, null);
+        testMap(map, tInteger, 64);
+        testMap(map, tDouble, null);
+
+        map.put(tDouble, 70);
+        testMap(map, tObject, 70);
+        testMap(map, tNumber, 70);
+        testMap(map, tInt, null);
+        testMap(map, tInteger, 64);
+        testMap(map, tDouble, 70);
+
+        System.out.println(map.getAll(tObject));
+    }
+    
+    @Test
     public void castToInterfaceTest() {
         TypeDeclaration t1 = TypeDeclaration.fromClass(TestInterfaceImpl.class);
         TypeDeclaration t2 = TypeDeclaration.fromClass(TestInterface.class);
@@ -256,7 +319,7 @@ public class TypeMapTest {
         assertEquals(declaration, type.toString());
     }
 
-    private static void testMap(InputTypeMap<Integer> map, TypeDeclaration type, Object value) {
+    private static void testMap(TypeMap<Integer> map, TypeDeclaration type, Object value) {
         assertEquals((value != null), map.containsKey(type));
         assertEquals(value, map.get(type));
     }

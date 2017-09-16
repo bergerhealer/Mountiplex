@@ -5,8 +5,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -511,5 +514,24 @@ public class MountiplexUtil {
     			addInterfaces(iif, result);
     		}
     	}
+    }
+
+    /**
+     * Stores all the values in a Collection in a new, unmodifiable List
+     * 
+     * @param values to store
+     * @return unmodifiable List
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> List<T> createUmodifiableList(Collection<T> values) {
+        if (values.isEmpty()) {
+            return Collections.emptyList();
+        }
+        T[] valuesArr = (T[]) new Object[values.size()];
+        int index = 0;
+        for (T value : values) {
+            valuesArr[index++] = value;
+        }
+        return Arrays.asList(valuesArr);
     }
 }
