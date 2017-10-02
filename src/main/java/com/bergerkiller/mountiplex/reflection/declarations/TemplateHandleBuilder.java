@@ -3,16 +3,12 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import static net.sf.cglib.asm.Opcodes.*;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.TemplateSpeedTest.GenSetter;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
-import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 import net.sf.cglib.asm.FieldVisitor;
 import net.sf.cglib.asm.MethodVisitor;
-import net.sf.cglib.asm.Opcodes;
 import net.sf.cglib.asm.Type;
 
 /**
