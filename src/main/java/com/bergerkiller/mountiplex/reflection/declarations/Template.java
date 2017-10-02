@@ -33,8 +33,10 @@ public class Template {
         private java.lang.Class<?> classType = null;
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
+        private TemplateHandleBuilder<H> handleBuilder = null;
         private ObjectInstantiator<Object> instantiator = null;
         private String classPath = null;
+        private ClassDeclaration classDec = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
 
         @SuppressWarnings("unchecked")
@@ -43,22 +45,34 @@ public class Template {
         }
 
         /**
-         * Creates a new Handle instance suitable for this Template Class type
+         * Creates a new Handle instance suitable for this Template Class type.
+         * If the instance is null, null is returned.
          * 
          * @param instance to create a handle for
          * @return handle
          */
         public final H createHandle(Object instance) {
-            try {
-                H handle;
-                handle = this.handleType.newInstance();
-                handle.instance = instance;
-                return handle;
-            } catch (InstantiationException e) {
-                throw new RuntimeException("Failed to instantiate class " + classPath, e);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException("Could not construct new handle for " + classPath, e);
+            return createHandle(instance, false);
+        }
+
+        /**
+         * Creates a new Handle instance suitable for this Template Class type.
+         * If the instance is null and allowNullInstance is false, null is returned.
+         * 
+         * @param instance to create a handle for
+         * @param allowNullInstance whether an internal null instance is allowed
+         * @return handle
+         */
+        public final H createHandle(Object instance, boolean allowNullInstance) {
+            if (instance == null && !allowNullInstance) {
+                return null;
             }
+            if (this.handleBuilder == null) {
+                TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType, this.classDec);
+                builder.build();
+                this.handleBuilder = builder;
+            }
+            return this.handleBuilder.create(instance);
         }
 
         /**
@@ -112,32 +126,23 @@ public class Template {
             this.valid = (classType != null);
 
             // Create duplex converter between handle type and instance type
-            ClassDeclaration dec = null;
             if (this.valid) {
                 this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
                     @Override
                     public H convertInput(Object value) {
-                        try {
-                            H handle;
-                            handle = handleType.newInstance();
-                            handle.instance = value;
-                            return handle;
-                        } catch (Throwable t) {
-                            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct handle " + handleType.getName(), t);
-                            return null;
-                        }
+                        return createHandle(value);
                     }
 
                     @Override
                     public Object convertOutput(H value) {
-                        return value.instance;
+                        return value.getRaw();
                     }
                 };
                 Conversion.registerConverter(this.handleConverter);
 
                 // Resolve class declaration
-                dec = Resolver.resolveClassDeclaration(this.classType);
-                if (dec == null) {
+                this.classDec = Resolver.resolveClassDeclaration(this.classType);
+                if (this.classDec == null) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
                     valid = false;
                 }
@@ -158,7 +163,7 @@ public class Template {
                             element.setOptional();
                         }
                         if (valid) {
-                            Object result = element.init(dec, templateFieldName);
+                            Object result = element.init(this.classDec, templateFieldName);
                             if (result == null && !element._optional) {
                                 fieldsSuccessful = false;
                             }
@@ -267,9 +272,7 @@ public class Template {
     /**
      * Base class for objects that refer to a hidden type
      */
-    public static class Handle implements StaticInitHelper.InitClass {
-        protected Object instance;
-
+    public static abstract class Handle implements StaticInitHelper.InitClass {
         /**
          * Checks whether the backing raw type is an instance of a certain type of class
          * 
@@ -287,7 +290,7 @@ public class Template {
          * @return True if it is an instance, False if not
          */
         public final boolean isInstanceOf(java.lang.Class<?> type) {
-            return type != null && type.isAssignableFrom(instance.getClass());
+            return type != null && type.isAssignableFrom(getRaw().getClass());
         }
 
         /**
@@ -295,8 +298,8 @@ public class Template {
          * 
          * @return raw instance
          */
-        public final Object getRaw() {
-            return this.instance;
+        public Object getRaw() {
+            return null;
         }
 
         /**
@@ -307,7 +310,7 @@ public class Template {
          * @return raw instance
          */
         public static final Object getRaw(Handle handle) {
-            return (handle == null) ? null : handle.instance;
+            return (handle == null) ? null : handle.getRaw();
         }
 
         /**
@@ -319,10 +322,10 @@ public class Template {
          */
         public <T extends Handle> T cast(Class<T> type) {
             if (this.isInstanceOf(type)) {
-                return type.createHandle(this.instance);
+                return type.createHandle(this.getRaw());
             } else {
                 throw new ClassCastException("Failed to cast handle of type " +
-                        this.instance.getClass().getName() + " to " +
+                        this.getRaw().getClass().getName() + " to " +
                         type.getType().getName());
             }
         }
@@ -336,17 +339,22 @@ public class Template {
          */
         public <T extends Handle> T tryCast(Class<T> type) {
             if (this.isInstanceOf(type)) {
-                return type.createHandle(this.instance);
+                return type.createHandle(this.getRaw());
             } else {
                 return null;
             }
         }
 
-        public static Handle createHandle(Object instance) {
-            if (instance == null) return null;
-            Handle h = new Handle();
-            h.instance = instance;
-            return h;
+        public static Handle createHandle(final Object instance) {
+            if (instance == null) {
+                return null;
+            }
+            return new Handle() {
+                @Override
+                public Object getRaw() {
+                    return instance;
+                }
+            };
         }
 
         @InitMethod
@@ -373,16 +381,16 @@ public class Template {
 
         @Override
         public final int hashCode() {
-            return instance.hashCode();
+            return getRaw().hashCode();
         }
 
         @Override
         public final boolean equals(Object o) {
-            if (this.instance == null) {
+            if (this.getRaw() == null) {
                 if (o == null) {
                     return true;
                 } else if (o instanceof Handle) {
-                    return ((Handle) o).instance == null;
+                    return ((Handle) o).getRaw() == null;
                 } else {
                     return false;
                 }
@@ -390,7 +398,7 @@ public class Template {
             if (this == o) {
                 return true;
             } else if (o instanceof Handle) {
-                return ((Handle) o).instance.equals(this.instance);
+                return ((Handle) o).getRaw().equals(this.getRaw());
             } else {
                 return false;
             }
@@ -398,7 +406,7 @@ public class Template {
 
         @Override
         public final String toString() {
-            return instance.toString();
+            return getRaw().toString();
         }
     }
 

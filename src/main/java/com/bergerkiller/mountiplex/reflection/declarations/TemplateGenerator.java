@@ -165,10 +165,7 @@ public class TemplateGenerator {
 
                 // Create from existing handle; important for use by converters
                 addLine("public static " + handleName(classDec) + " createHandle(Object handleInstance) {");
-                addLine("if (handleInstance == null) return null");
-                addLine(handleName(classDec) + " handle = new " + handleName(classDec) + "()");
-                addLine("handle.instance = handleInstance");
-                addLine("return handle");
+                addLine("return T.createHandle(handleInstance)");
                 addLine("}");
 
                 // Constructors turned into static create functions, with converted parameters
@@ -249,13 +246,13 @@ public class TemplateGenerator {
                     // Getter
                     populateModifiers(fDec.modifiers);
                     addLine("public " + typeStr + " " + getGetterName(fDec) + "() {");
-                    addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(instance)");
+                    addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(getRaw())");
                     addLine("}");
 
                     // Setter
                     populateModifiers(fDec.modifiers);
                     addLine("public void " + getSetterName(fDec) + "(" + typeStr + " value) {");
-                    addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(instance, value)");
+                    addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(getRaw(), value)");
                     addLine("}");
                 }
             }
@@ -480,7 +477,7 @@ public class TemplateGenerator {
         }
 
         if (!mDec.modifiers.isStatic()) {
-            bodyStr += "instance";
+            bodyStr += "getRaw()";
             if (mDec.parameters.parameters.length > 0) {
                 bodyStr += ", ";
             }

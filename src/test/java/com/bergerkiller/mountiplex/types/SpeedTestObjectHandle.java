@@ -8,34 +8,31 @@ public class SpeedTestObjectHandle extends Template.Handle {
     protected static final StaticInitHelper _init_helper = new StaticInitHelper(SpeedTestObjectHandle.class, "com.bergerkiller.mountiplex.types.SpeedTestObject");
 
     public static SpeedTestObjectHandle createHandle(Object handleInstance) {
-        if (handleInstance == null) return null;
-        SpeedTestObjectHandle handle = new SpeedTestObjectHandle();
-        handle.instance = handleInstance;
-        return handle;
+        return T.createHandle(handleInstance);
     }
 
     public int getI() {
-        return T.i.getInteger(instance);
+        return T.i.getInteger(getRaw());
     }
 
     public void setI(int value) {
-        T.i.setInteger(instance, value);
+        T.i.setInteger(getRaw(), value);
     }
 
     public double getD() {
-        return T.d.getDouble(instance);
+        return T.d.getDouble(getRaw());
     }
 
     public void setD(int value) {
-        T.d.setDouble(instance, value);
+        T.d.setDouble(getRaw(), value);
     }
 
     public String getS() {
-        return T.s.get(instance);
+        return T.s.get(getRaw());
     }
 
     public void setS(String value) {
-        T.s.set(instance, value);
+        T.s.set(getRaw(), value);
     }
 
     public static class SpeedTestObjectClass extends Template.Class<SpeedTestObjectHandle> {

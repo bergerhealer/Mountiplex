@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
@@ -95,13 +96,26 @@ public class TemplateSpeedTest {
         }
     }
 
+    public static class HandleImpl extends SpeedTestObjectHandle {
+        private final String instance;
+        
+        public HandleImpl(String instance) {
+            this.instance = instance;
+        }
+
+        @Override
+        public Object getRaw() {
+            return this.instance;
+        }
+    }
+    
     @Test
     public void testPrimitive() {
+        //TestUtil.printASM(HandleImpl.class);
+        
         final SpeedTestObject object = new SpeedTestObject();
         final SpeedTestObjectHandle handle = SpeedTestObjectHandle.createHandle(object);
         final IntSetter setter = new IntSetter();
-
-        //TestUtil.printASM(BlaBla.class);
 
         final String fieldType = Type.getDescriptor(int.class);
         final String className = Type.getInternalName(SpeedTestObject.class);
