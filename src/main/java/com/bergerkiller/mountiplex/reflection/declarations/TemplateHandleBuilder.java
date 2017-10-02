@@ -48,7 +48,7 @@ public class TemplateHandleBuilder<H> {
 
     public void build() {
         // Set up the class writer for the implementation of the handle type
-        ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>(ClassWriter.COMPUTE_MAXS, this.handleType);
+        ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>(ClassWriter.COMPUTE_MAXS, this.handleType, "$impl");
         Class<?> topInstanceType = getTemplateClass(this.handleType).getType();
         String instanceTypeDesc = Type.getDescriptor(topInstanceType);
         String instanceTypeName = Type.getInternalName(topInstanceType);

@@ -34,6 +34,10 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     public ExtendedClassWriter(int flags, Class<T> baseClass) {
+        this(flags, baseClass, getNextPostfix());
+    }
+
+    public ExtendedClassWriter(int flags, Class<T> baseClass, String postfix) {
         super(flags);
         ClassLoader baseClassLoader = baseClass.getClassLoader();
         GeneratorClassLoader theLoader = loaders.get(baseClassLoader);
@@ -43,7 +47,6 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         }
         this.loader = theLoader;
 
-        String postfix = getNextPostfix();
         String baseName = Type.getInternalName(baseClass);
         this.name = baseClass.getName() + postfix;
         this.internalName = Type.getInternalName(baseClass) + postfix;
