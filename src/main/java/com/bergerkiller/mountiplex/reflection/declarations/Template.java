@@ -20,6 +20,7 @@ import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
@@ -831,45 +832,107 @@ public class Template {
     }
 
     public static final class Constructor<T> extends TemplateElement<ConstructorDeclaration> {
-        protected java.lang.reflect.Constructor<?> constructor = null;
+        protected final FastConstructor<T> constructor = new FastConstructor<T>();
 
         /**
-         * Constructs a new Instance of the class using this constructor.
+         * Creates a new instance
          * 
-         * @param args for the constructor
-         * @return the constructed class instance
+         * @param arguments to pass along with the method
+         * @return created instance
          */
-        @SuppressWarnings("unchecked")
-        public T newInstance(Object... args) {
-            try {
-                return (T) constructor.newInstance(args);
-            } catch (Throwable t) {
-                failNotFound();
-                failInvalidArgs(args);
-                throw MountiplexUtil.uncheckedRethrow(t);
-            }
+        public T newInstanceVA(Object... arguments) {
+            return this.constructor.constructor.newInstanceVA(arguments);
+        }
+
+        /**
+         * Creates a new instance, with no method arguments.
+         * 
+         * @return created instance
+         */
+        public T newInstance() {
+            return this.constructor.constructor.newInstance();
+        }
+
+        /**
+         * Creates a new instance, with 1 method argument.
+         * 
+         * @param arg0 first argument
+         * @return created instance
+         */
+        public T newInstance(Object arg0) {
+            return this.constructor.constructor.newInstance(arg0);
+        }
+
+        /**
+         * Creates a new instance, with 2 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @return created instance
+         */
+        public T newInstance(Object arg0, Object arg1) {
+            return this.constructor.constructor.newInstance(arg0, arg1);
+        }
+
+        /**
+         * Creates a new instance, with 3 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @return created instance
+         */
+        public T newInstance(Object arg0, Object arg1, Object arg2) {
+            return this.constructor.constructor.newInstance(arg0, arg1, arg2);
+        }
+
+        /**
+         * Creates a new instance, with 4 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @param arg3 fourth argument
+         * @return created instance
+         */
+        public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3) {
+            return this.constructor.constructor.newInstance(arg0, arg1, arg2, arg3);
+        }
+
+        /**
+         * Creates a new instance, with 5 method arguments.
+         * 
+         * @param arg0 first argument
+         * @param arg1 second argument
+         * @param arg2 third argument
+         * @param arg3 fourth argument
+         * @param arg4 fifth argument
+         * @return created instance
+         */
+        public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+            return this.constructor.constructor.newInstance(arg0, arg1, arg2, arg3, arg4);
         }
 
         @Override
         public void forceInitialization() {
-            failNotFound();
+            this.constructor.forceInitialization();
         }
 
         @Override
         public boolean isAvailable() {
-            return constructor != null;
+            return constructor.isAvailable();
         }
 
         // throws an exception when the method is not found
         protected final void failNotFound() {
-            if (this.constructor == null) {
+            if (!this.constructor.isAvailable()) {
                 throw new RuntimeException("Constructor not found");
             }
         }
 
         // throws an exception when arguments differ
         protected final void failInvalidArgs(Object[] arguments) {
-            failInvalidArgs(constructor.getParameterTypes(), arguments);
+            failInvalidArgs(constructor.getConstructor().getParameterTypes(), arguments);
         }
 
         @Override
@@ -877,8 +940,7 @@ public class Template {
             for (ConstructorDeclaration cDec : dec.constructors) {
                 if (cDec.constructor != null && cDec.getName().equals(name)) {
                     try {
-                        cDec.constructor.setAccessible(true);
-                        this.constructor = cDec.constructor;
+                        this.constructor.init(cDec);
                         return cDec;
                     } catch (Throwable t) {
                         MountiplexUtil.LOGGER.warning("Method '" + name + "' in template for " + dec.type.typePath + " not accessible");
@@ -896,25 +958,6 @@ public class Template {
                 super(new Constructor<Object>());
             }
 
-            /**
-             * Constructs a new Instance of the class using this constructor.
-             * The input arguments and returned object are converted.
-             * 
-             * @param arguments for the constructor
-             * @return the constructed class instance
-             */
-            public T newInstance(Object... arguments) {
-                if (!this.isConvertersInitialized) {
-                    this.raw.failNotFound();
-                    this.failNoConverter();
-                    return null; // never reached
-                }
-
-                Object[] convArgs = convertArgs(arguments);
-                Object rawInstance = raw.newInstance(convArgs);
-                return convertResult(rawInstance);
-            }
-
             @Override
             protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
                 ConstructorDeclaration cDec = this.raw.init(dec, name);
@@ -922,6 +965,153 @@ public class Template {
                     initConverters("constructor " + cDec.parameters.toString(), cDec.type, cDec.parameters);
                 }
                 return cDec;
+            }
+
+            private final void verifyConverters(int argCount) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                }
+                if (this.argConverters != null) {
+                    if (this.argConverters.length != argCount) {
+                        throw new IllegalArgumentException("Invalid number of arguments (" +
+                                this.argConverters.length + " expected, but got " + argCount + ")");
+                    }
+                }
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arguments to pass along with the method
+             * @return converted created instance
+             */
+            public final T newInstanceVA(Object... arguments) {
+                if (!this.isConvertersInitialized) {
+                    this.raw.failNotFound();
+                    this.failNoConverter();
+                    return null; // never reached
+                }
+
+                Object[] convertedArgs = convertArgs(arguments);
+                Object rawResult = this.raw.newInstanceVA(convertedArgs);
+                return convertResult(rawResult);
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @return converted created instance
+             */
+            public final T newInstance() {
+                return convertResult(this.raw.newInstance());
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @return converted created instance
+             */
+            public final T newInstance(Object arg0) {
+                verifyConverters(1);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.newInstance(arg0));
+                } else {
+                    return convertResult(this.raw.newInstance(
+                            convertArgument(0, arg0)));
+                }
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @return converted created instance
+             */
+            public final T newInstance(Object arg0, Object arg1) {
+                verifyConverters(2);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.newInstance(arg0, arg1));
+                } else {
+                    return convertResult(this.raw.newInstance(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1)));
+                }
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @return converted created instance
+             */
+            public final T newInstance(Object arg0, Object arg1, Object arg2) {
+                verifyConverters(3);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.newInstance(arg0, arg1, arg2));
+                } else {
+                    return convertResult(this.raw.newInstance(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2)));
+                }
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @param arg3 fourth argument
+             * @return converted created instance
+             */
+            public final T newInstance(Object arg0, Object arg1, Object arg2, Object arg3) {
+                verifyConverters(4);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.newInstance(arg0, arg1, arg2, arg3));
+                } else {
+                    return convertResult(this.raw.newInstance(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2),
+                            convertArgument(3, arg3)));
+                }
+            }
+
+            /**
+             * Creates a new instance, performing parameter
+             * and return type conversion as required.
+             * 
+             * @param arg0 first argument
+             * @param arg1 second argument
+             * @param arg2 third argument
+             * @param arg3 fourth argument
+             * @param arg4 fifth argument
+             * @return converted created instance
+             */
+            public final T newInstance(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+                verifyConverters(5);
+                if (this.argConverters == null) {
+                    return convertResult(this.raw.newInstance(arg0, arg1, arg2, arg3, arg4));
+                } else {
+                    return convertResult(this.raw.newInstance(
+                            convertArgument(0, arg0),
+                            convertArgument(1, arg1),
+                            convertArgument(2, arg2),
+                            convertArgument(3, arg3),
+                            convertArgument(4, arg4)));
+                }
             }
         }
     }

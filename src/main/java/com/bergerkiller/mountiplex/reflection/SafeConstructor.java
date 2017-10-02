@@ -1,10 +1,10 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import java.lang.reflect.Constructor;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 
 /**
  * A safe version of the Constructor
@@ -12,22 +12,26 @@ import com.bergerkiller.mountiplex.conversion.Converter;
  * @param <T> type of Class to construct
  */
 public class SafeConstructor<T> {
+    private final FastConstructor<T> constructor;
 
-    private Constructor<T> constructor;
+    public SafeConstructor(FastConstructor<T> constructor) {
+        this.constructor = constructor;
+    }
+
+    public SafeConstructor(java.lang.reflect.Constructor<?> constructor) {
+        this.constructor = new FastConstructor<T>();
+        this.constructor.init(constructor);
+    }
 
     public SafeConstructor(Class<T> type, Class<?>... parameterTypes) {
+        this.constructor = new FastConstructor<T>();
         try {
-            constructor = type.getDeclaredConstructor(parameterTypes);
-            constructor.setAccessible(true);
+            this.constructor.init(type.getDeclaredConstructor(parameterTypes));
         } catch (SecurityException e) {
             MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to access constructor", e);
         } catch (NoSuchMethodException e) {
             MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to find constructor", e);
         }
-    }
-
-    public SafeConstructor(Constructor<T> constructor) {
-        this.constructor = constructor;
     }
 
     /**
@@ -37,7 +41,7 @@ public class SafeConstructor<T> {
      * @return True if this constructor is valid, False if not
      */
     public boolean isValid() {
-        return constructor != null;
+        return constructor.isAvailable();
     }
 
     /**
@@ -48,11 +52,7 @@ public class SafeConstructor<T> {
      * @throws RuntimeException if something went wrong while constructing
      */
     public T newInstance(Object... parameters) {
-        try {
-            return constructor.newInstance(parameters);
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
-        }
+        return constructor.newInstanceVA(parameters);
     }
 
     /**
@@ -64,7 +64,7 @@ public class SafeConstructor<T> {
      */
     @SuppressWarnings("unchecked")
     public <K> SafeConstructor<K> translateOutput(final Converter<?, K> converter) {
-        return new SafeConstructor<K>((Constructor<K>) this.constructor) {
+        return new SafeConstructor<K>((FastConstructor<K>) this.constructor) {
             @Override
             public K newInstance(Object... parameters) {
                 return converter.convert(super.newInstance(parameters));

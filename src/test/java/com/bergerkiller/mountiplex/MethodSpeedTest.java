@@ -128,7 +128,7 @@ public class MethodSpeedTest {
                 object.setSMethod(object.getSMethod());
             }
         });
-        measure("Reflection method call", new Runnable() {
+        measure("Template method call", new Runnable() {
             @Override
             public void run() {
                 SpeedTestObjectHandle.T.setSMethod.invoke(object, SpeedTestObjectHandle.T.getSMethod.invoke(object));

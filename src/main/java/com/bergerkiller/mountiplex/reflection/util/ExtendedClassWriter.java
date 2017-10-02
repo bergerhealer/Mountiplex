@@ -147,6 +147,18 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         }
     }
 
+    /**
+     * Includes instructions to invoke a constructor
+     * 
+     * @param mv method visitor
+     * @param instanceType type to construct
+     * @param constructor to be invoked
+     */
+    public static void visitInit(MethodVisitor mv, Class<?> instanceType, java.lang.reflect.Constructor<?> constructor) {
+        final String instanceName = Type.getInternalName(instanceType);
+        mv.visitMethodInsn(INVOKESPECIAL, instanceName, "<init>", Type.getConstructorDescriptor(constructor));
+    }
+
     private static final class GeneratorClassLoader extends ClassLoader {
         public GeneratorClassLoader(ClassLoader base) {
             super(base);

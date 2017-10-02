@@ -5,6 +5,7 @@ import net.sf.cglib.asm.Type;
 import static net.sf.cglib.asm.Opcodes.*;
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 
 import org.junit.Test;
@@ -14,11 +15,11 @@ import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedConstructor;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
 import com.bergerkiller.mountiplex.types.IntProperty;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.SpeedTestObjectHandle;
-import com.bergerkiller.mountiplex.types.SpeedTestObjectHandleImpl;
 
 public class TemplateSpeedTest {
 
@@ -100,9 +101,34 @@ public class TemplateSpeedTest {
         }
     }
 
+    public static class GenConstructorImpl extends GeneratedConstructor {
+
+        public GenConstructorImpl(Constructor<?> constructor) {
+            super(constructor);
+        }
+
+        @Override
+        public Object newInstanceVA(Object... args) {
+            if (args.length != 2) {
+                throw failArgs(args.length);
+            }
+            return new SpeedTestObject(args[0], args[1]);
+        }
+
+        @Override
+        public Object newInstance(Object arg0) {
+            return new SpeedTestObject(arg0);
+        }
+        
+        @Override
+        public Object newInstance(Object arg0, Object arg1) {
+            return new SpeedTestObject(arg0, arg1);
+        }
+    }
+    
     @Test
     public void testPrimitive() {
-        TestUtil.printASM(SpeedTestObjectHandleImpl.class);
+        TestUtil.printASM(GenConstructorImpl.class);
         
         final SpeedTestObject object = new SpeedTestObject();
         final SpeedTestObjectHandle handle = SpeedTestObjectHandle.createHandle(object);

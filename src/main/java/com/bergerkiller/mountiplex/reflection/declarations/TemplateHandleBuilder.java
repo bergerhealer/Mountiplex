@@ -2,7 +2,6 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import static net.sf.cglib.asm.Opcodes.*;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -10,6 +9,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.Template.Handle;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 
 import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.FieldVisitor;
@@ -23,10 +23,11 @@ import net.sf.cglib.asm.Type;
 public class TemplateHandleBuilder<H> {
     private final Class<H> handleType;
     private Class<? extends H> handleImplType;
-    private Constructor<H> constructor;
+    private final FastConstructor<H> handleConstructor = new FastConstructor<H>();
 
     public TemplateHandleBuilder(Class<H> handleType) {
         this.handleType = handleType;
+        this.handleConstructor.initUnavailable("new " + handleType.getName() + "()");
     }
 
     public Class<? extends H> getImplType() {
@@ -34,11 +35,7 @@ public class TemplateHandleBuilder<H> {
     }
 
     public H create(Object instance) {
-        try {
-            return constructor.newInstance(instance);
-        } catch (Throwable t) {
-            throw MountiplexUtil.uncheckedRethrow(t);
-        }
+        return handleConstructor.newInstance(instance);
     }
 
     private Template.Class<?> getTemplateClass(Class<?> handleClass) {
@@ -49,27 +46,10 @@ public class TemplateHandleBuilder<H> {
         }
     }
 
-    private Class<?> getTemplateClassType(Class<?> handleClass) {
-        try {
-            return handleClass.getField("T").getType();
-        } catch (Throwable t) {
-            throw MountiplexUtil.uncheckedRethrow(t);
-        }
-    }
-
-    private Class<?> getInstanceType(Class<?> handleClass) {
-        try {
-            Template.Class<?> templateClass = (Template.Class<?>) handleClass.getField("T").get(null);
-            return templateClass.getType();
-        } catch (Throwable t) {
-            throw MountiplexUtil.uncheckedRethrow(t);
-        }
-    }
-
     public void build() {
         // Set up the class writer for the implementation of the handle type
         ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>(ClassWriter.COMPUTE_MAXS, this.handleType);
-        Class<?> topInstanceType = getInstanceType(this.handleType);
+        Class<?> topInstanceType = getTemplateClass(this.handleType).getType();
         String instanceTypeDesc = Type.getDescriptor(topInstanceType);
         String instanceTypeName = Type.getInternalName(topInstanceType);
         MethodVisitor mv;
@@ -115,7 +95,7 @@ public class TemplateHandleBuilder<H> {
             Class<?> templateClassType = templateClass.getClass();
             String templateClassDesc = Type.getDescriptor(templateClassType);
             String templateClassName = Type.getInternalName(templateClassType);
-            Class<?> instanceType = getInstanceType(currentHandleType);
+            Class<?> instanceType = templateClass.getType();
             ClassDeclaration classDec = Resolver.resolveClassDeclaration(instanceType);
 
             // Implement the getter and setter methods for all non-static fields
@@ -217,11 +197,13 @@ public class TemplateHandleBuilder<H> {
                 String methodName = methodDec.name.real();
 
                 // Build the method descriptor
+                boolean hasTypeConversion = (methodDec.returnType.cast != null);
                 Class<?> returnTypeClass = TemplateGenerator.getExposedType(methodDec.returnType).type;
                 Type returnType = Type.getType(returnTypeClass);
                 Class<?>[] paramTypeClasses = new Class<?>[methodDec.parameters.parameters.length];
                 Type[] paramTypes = new Type[paramTypeClasses.length];
                 for (int i = 0; i < paramTypes.length; i++) {
+                    hasTypeConversion |= (methodDec.parameters.parameters[i].type.cast != null);
                     paramTypeClasses[i] = TemplateGenerator.getExposedType(methodDec.parameters.parameters[i].type).type;
                     paramTypes[i] = Type.getType(paramTypeClasses[i]);
                 }
@@ -239,60 +221,80 @@ public class TemplateHandleBuilder<H> {
                     throw MountiplexUtil.uncheckedRethrow(t);
                 }
 
+                // Check if we can inline the function call directly, instead of invoking the template method
+                // This is only possible when not performing conversion, and the method is public.
+                boolean canInline = (methodDec.method != null) &&
+                        Modifier.isPublic(methodDec.method.getModifiers()) &&
+                        !hasTypeConversion;
+
                 mv = cw.visitMethod(ACC_PUBLIC, methodName, methodDesc, null, null);
                 mv.visitCode();
-                mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
-                mv.visitFieldInsn(GETFIELD, templateClassName, methodName, templateElementDesc);
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                
-                if (paramTypes.length <= 5) {
-                    // invoke() overloads for 5 or less parameters
-                    // Convert arguments into a descriptor
-                    // Build a generic Object invoke descriptor at the same time
-                    StringBuilder invokeDescBldr = new StringBuilder();
-                    invokeDescBldr.append("(Ljava/lang/Object;");
+                if (canInline) {
+                    // Call the method directly
+                    mv.visitVarInsn(ALOAD, 0);
+                    mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                     int register = 1;
                     for (int i = 0; i < paramTypes.length; i++) {
                         mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
                         register += paramTypes[i].getSize();
-
-                        ExtendedClassWriter.visitBoxVariable(mv, paramTypeClasses[i]);
-                        invokeDescBldr.append("Ljava/lang/Object;");
                     }
-                    invokeDescBldr.append(")Ljava/lang/Object;");
-
-                    mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invoke", invokeDescBldr.toString());
-                } else {
-                    // invokeVA(...) for larger amounts of parameters
-                    // Fill an array with the parameter values
-                    mv.visitIntInsn(BIPUSH, 7);
-                    mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
-                    int register = 1;
-                    for (int i = 0; i < paramTypes.length; i++) {
-                        mv.visitInsn(DUP);
-                        mv.visitIntInsn(BIPUSH, i);
-
-                        mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
-                        register += paramTypes[i].getSize();
-
-                        ExtendedClassWriter.visitBoxVariable(mv, paramTypeClasses[i]);
-                        mv.visitInsn(AASTORE);
-                    }
-
-                    mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
-                }
-
-                // Close the method with a valid return statement
-                // Cast the value returned from invoke() to a primitive if required
-                if (returnTypeClass.equals(void.class)) {
-                    mv.visitInsn(POP);
-                    mv.visitInsn(RETURN);
-                } else if (returnTypeClass.equals(Object.class)) {
-                    mv.visitInsn(ARETURN);
-                } else {
-                    ExtendedClassWriter.visitUnboxVariable(mv, returnTypeClass);
+                    ExtendedClassWriter.visitInvoke(mv, instanceType, methodDec.method);
                     mv.visitInsn(returnType.getOpcode(IRETURN));
+                } else {
+                    // Call invoke or invokeVA on the static template method instance
+                    mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
+                    mv.visitFieldInsn(GETFIELD, templateClassName, methodName, templateElementDesc);
+                    mv.visitVarInsn(ALOAD, 0);
+                    mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
+
+                    if (paramTypes.length <= 5) {
+                        // invoke() overloads for 5 or less parameters
+                        // Convert arguments into a descriptor
+                        // Build a generic Object invoke descriptor at the same time
+                        StringBuilder invokeDescBldr = new StringBuilder();
+                        invokeDescBldr.append("(Ljava/lang/Object;");
+                        int register = 1;
+                        for (int i = 0; i < paramTypes.length; i++) {
+                            mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
+                            register += paramTypes[i].getSize();
+
+                            ExtendedClassWriter.visitBoxVariable(mv, paramTypeClasses[i]);
+                            invokeDescBldr.append("Ljava/lang/Object;");
+                        }
+                        invokeDescBldr.append(")Ljava/lang/Object;");
+
+                        mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invoke", invokeDescBldr.toString());
+                    } else {
+                        // invokeVA(...) for larger amounts of parameters
+                        // Fill an array with the parameter values
+                        mv.visitIntInsn(BIPUSH, 7);
+                        mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
+                        int register = 1;
+                        for (int i = 0; i < paramTypes.length; i++) {
+                            mv.visitInsn(DUP);
+                            mv.visitIntInsn(BIPUSH, i);
+
+                            mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
+                            register += paramTypes[i].getSize();
+
+                            ExtendedClassWriter.visitBoxVariable(mv, paramTypeClasses[i]);
+                            mv.visitInsn(AASTORE);
+                        }
+
+                        mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
+                    }
+
+                    // Close the method with a valid return statement
+                    // Cast the value returned from invoke() to a primitive if required
+                    if (returnTypeClass.equals(void.class)) {
+                        mv.visitInsn(POP);
+                        mv.visitInsn(RETURN);
+                    } else if (returnTypeClass.equals(Object.class)) {
+                        mv.visitInsn(ARETURN);
+                    } else {
+                        ExtendedClassWriter.visitUnboxVariable(mv, returnTypeClass);
+                        mv.visitInsn(returnType.getOpcode(IRETURN));
+                    }
                 }
                 mv.visitMaxs(3, 2);
                 mv.visitEnd();
@@ -303,7 +305,7 @@ public class TemplateHandleBuilder<H> {
         this.handleImplType = cw.generate();
 
         try {
-            this.constructor = (Constructor<H>) this.handleImplType.getConstructor(topInstanceType);
+            this.handleConstructor.init(this.handleImplType.getConstructor(topInstanceType));
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }

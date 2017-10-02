@@ -177,7 +177,11 @@ public class TemplateGenerator {
                     populateModifiers(cDec.modifiers);
                     String cHeader = "public static final " + getExposedTypeStr(cDec.type) + " createNew";
                     addLine(cHeader + getParamsBody(cDec.parameters) + " {");
-                    addLine("return T." + cDec.getName() + ".newInstance(" + getArgsBody(cDec.parameters) + ")");
+                    if (cDec.parameters.parameters.length <= 5) {
+                        addLine("return T." + cDec.getName() + ".newInstance(" + getArgsBody(cDec.parameters) + ")");
+                    } else {
+                        addLine("return T." + cDec.getName() + ".newInstanceVA(" + getArgsBody(cDec.parameters) + ")");
+                    }
                     addLine("}");
                 }
 
@@ -241,7 +245,6 @@ public class TemplateGenerator {
                     if (fDec.modifiers.isUnknown() || fDec.modifiers.isStatic() || fDec.isEnum || fDec.modifiers.isOptional()) {
                         continue;
                     }
-                    String primTypeStr = getPrimFieldType(fDec);
                     String typeStr = getFieldTypeStr(fDec);
 
                     // Getter
@@ -253,6 +256,8 @@ public class TemplateGenerator {
                     addLine("public abstract void " + getSetterName(fDec) + "(" + typeStr + " value)");
 
                     /*
+                    String primTypeStr = getPrimFieldType(fDec);
+
                     // Getter
                     populateModifiers(fDec.modifiers);
                     addLine("public " + typeStr + " " + getGetterName(fDec) + "() {");

@@ -5,6 +5,15 @@ public class SpeedTestObject {
     public double d;
     public String s;
 
+    public SpeedTestObject() {
+    }
+
+    public SpeedTestObject(Object arg) {
+    }
+
+    public SpeedTestObject(Object arg0, Object arg1) {
+    }
+
     public final void setIMethod(int value) {
         i = value;
     }
