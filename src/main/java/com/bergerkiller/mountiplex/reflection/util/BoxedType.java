@@ -51,6 +51,15 @@ public class BoxedType {
     }
 
     /**
+     * Gets a set containing all the known Java boxed Class types
+     * 
+     * @return boxed types
+     */
+    public static Set<Class<?>> getBoxedTypes() {
+        return boxedToUnboxed.keySet();
+    }
+
+    /**
      * Gets an unboxed primitive type by name
      * 
      * @param name of the primitive type

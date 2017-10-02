@@ -123,7 +123,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             }
         } else if (outType.isArray()) {
             mv.visitTypeInsn(CHECKCAST, Type.getDescriptor(outType));
-        } else {
+        } else if (!Object.class.equals(outType)) {
             mv.visitTypeInsn(CHECKCAST, Type.getInternalName(outType));
         }
     }

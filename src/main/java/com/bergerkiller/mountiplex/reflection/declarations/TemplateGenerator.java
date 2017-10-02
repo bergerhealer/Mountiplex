@@ -125,7 +125,7 @@ public class TemplateGenerator {
                    "To access members without creating a handle type, use the static {@link #T} member.\n" +
                    "New handles can be created from raw instances using {@link #createHandle(Object)}.");
         populateModifiers(classDec.modifiers);
-        addLine("public " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
+        addLine("public abstract " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
         {
             addComment("@See {@link " + className(classDec) + "}");
             addLine("public static final " + className(classDec) + " T = new " + className(classDec) + "()");
@@ -176,7 +176,7 @@ public class TemplateGenerator {
 
                     populateModifiers(cDec.modifiers);
                     String cHeader = "public static final " + getExposedTypeStr(cDec.type) + " createNew";
-                    addLine(cHeader + getParamsBody(cDec.parameters));
+                    addLine(cHeader + getParamsBody(cDec.parameters) + " {");
                     addLine("return T." + cDec.getName() + ".newInstance(" + getArgsBody(cDec.parameters) + ")");
                     addLine("}");
                 }
@@ -211,7 +211,7 @@ public class TemplateGenerator {
                     if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
-                    addMethodBody(mDec);
+                    addMethodBody(mDec, false);
                 }
 
                 // Local methods
@@ -219,7 +219,8 @@ public class TemplateGenerator {
                     if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
-                    addMethodBody(mDec);
+
+                    addMethodBody(mDec, true);
                 }
 
                 // Custom code section
@@ -245,6 +246,15 @@ public class TemplateGenerator {
 
                     // Getter
                     populateModifiers(fDec.modifiers);
+                    addLine("public abstract " + typeStr + " " + getGetterName(fDec) + "()");
+
+                    // Setter
+                    populateModifiers(fDec.modifiers);
+                    addLine("public abstract void " + getSetterName(fDec) + "(" + typeStr + " value)");
+
+                    /*
+                    // Getter
+                    populateModifiers(fDec.modifiers);
                     addLine("public " + typeStr + " " + getGetterName(fDec) + "() {");
                     addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "(getRaw())");
                     addLine("}");
@@ -254,6 +264,7 @@ public class TemplateGenerator {
                     addLine("public void " + getSetterName(fDec) + "(" + typeStr + " value) {");
                     addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(getRaw(), value)");
                     addLine("}");
+                    */
                 }
             }
 
@@ -401,7 +412,7 @@ public class TemplateGenerator {
 
     }
 
-    private String getGetterName(FieldDeclaration fDec) {
+    public static String getGetterName(FieldDeclaration fDec) {
         String fName = getPropertyName(fDec);
 
         // IsProperty is retained without adding 'get' in front of it
@@ -417,6 +428,10 @@ public class TemplateGenerator {
         }
     }
 
+    public static String getSetterName(FieldDeclaration fDec) {
+        return "set" + getPropertyName(fDec);
+    }
+
     private void populateModifiers(ModifierDeclaration dec) {
         if (dec.isRawtype()) {
             addLine("@SuppressWarnings(\"rawtypes\")");
@@ -424,10 +439,6 @@ public class TemplateGenerator {
         if (dec.isOptional()) {
             addLine("@Template.Optional");
         }
-    }
-
-    private String getSetterName(FieldDeclaration fDec) {
-        return "set" + getPropertyName(fDec);
     }
 
     private String getParamsBody(ParameterListDeclaration parameters) {
@@ -439,7 +450,7 @@ public class TemplateGenerator {
             paramsStr += getExposedTypeStr(parameters.parameters[i].type);
             paramsStr += " " + parameters.parameters[i].name.real();
         }
-        return paramsStr + ") {";
+        return paramsStr + ")";
     }
 
     private String getArgsBody(ParameterListDeclaration parameters) {
@@ -453,14 +464,24 @@ public class TemplateGenerator {
         return argsStr;
     }
 
-    private void addMethodBody(MethodDeclaration mDec) {
+    private void addMethodBody(MethodDeclaration mDec, boolean abstractDecl) {
         String methodStr = "public ";
         if (mDec.modifiers.isStatic()) {
             methodStr += "static ";
         }
+        if (abstractDecl) {
+            methodStr += "abstract ";
+        }
         methodStr += getExposedTypeStr(mDec.returnType);
         methodStr += " " + mDec.name.real();
-        addLine(methodStr + getParamsBody(mDec.parameters));
+        methodStr += getParamsBody(mDec.parameters);
+        if (abstractDecl) {
+            addLine(methodStr);
+            return;
+        }
+
+        // Include body
+        addLine(methodStr + " {");
 
         String bodyStr = "";
         if (!void.class.equals(getExposedType(mDec.returnType).type)) {
@@ -518,7 +539,7 @@ public class TemplateGenerator {
         return app;
     }
 
-    private TypeDeclaration getExposedType(TypeDeclaration type) {
+    public static TypeDeclaration getExposedType(TypeDeclaration type) {
         if (type.cast != null) {
             return type.cast;
         } else {
@@ -591,7 +612,7 @@ public class TemplateGenerator {
         return fullType;
     }
 
-    private String getPropertyName(FieldDeclaration fDec) {
+    private static String getPropertyName(FieldDeclaration fDec) {
         String name = fDec.name.real();
         if (name.isEmpty()) {
             return "UNKNOWN";

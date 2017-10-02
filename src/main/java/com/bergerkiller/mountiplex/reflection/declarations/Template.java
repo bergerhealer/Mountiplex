@@ -36,7 +36,6 @@ public class Template {
         private TemplateHandleBuilder<H> handleBuilder = null;
         private ObjectInstantiator<Object> instantiator = null;
         private String classPath = null;
-        private ClassDeclaration classDec = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
 
         @SuppressWarnings("unchecked")
@@ -68,7 +67,7 @@ public class Template {
                 return null;
             }
             if (this.handleBuilder == null) {
-                TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType, this.classDec);
+                TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType);
                 builder.build();
                 this.handleBuilder = builder;
             }
@@ -126,6 +125,7 @@ public class Template {
             this.valid = (classType != null);
 
             // Create duplex converter between handle type and instance type
+            ClassDeclaration classDec = null;
             if (this.valid) {
                 this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
                     @Override
@@ -141,8 +141,8 @@ public class Template {
                 Conversion.registerConverter(this.handleConverter);
 
                 // Resolve class declaration
-                this.classDec = Resolver.resolveClassDeclaration(this.classType);
-                if (this.classDec == null) {
+                classDec = Resolver.resolveClassDeclaration(this.classType);
+                if (classDec == null) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
                     valid = false;
                 }
@@ -163,7 +163,7 @@ public class Template {
                             element.setOptional();
                         }
                         if (valid) {
-                            Object result = element.init(this.classDec, templateFieldName);
+                            Object result = element.init(classDec, templateFieldName);
                             if (result == null && !element._optional) {
                                 fieldsSuccessful = false;
                             }

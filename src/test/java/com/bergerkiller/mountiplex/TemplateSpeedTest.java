@@ -11,7 +11,6 @@ import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
-import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
@@ -19,6 +18,7 @@ import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
 import com.bergerkiller.mountiplex.types.IntProperty;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.SpeedTestObjectHandle;
+import com.bergerkiller.mountiplex.types.SpeedTestObjectHandleImpl;
 
 public class TemplateSpeedTest {
 
@@ -33,8 +33,12 @@ public class TemplateSpeedTest {
                                       "    private int i;\n" +
                                       "    private double d;\n" +
                                       "    private String s;\n" +
-                                      "    public final void setS(String value);\n" +
-                                      "    public final String getS();\n" +
+                                      "    public final void setIMethod(int value);\n" +
+                                      "    public final int getIMethod();\n" +
+                                      "    public final void setSMethod(String value);\n" +
+                                      "    public final String getSMethod();\n" +
+                                      "    public void setLocation(double x, double y, double z, float yaw, float pitch);\n" +
+                                      "    public int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
                                       "}\n";
 
                     return SourceDeclaration.parse(template).classes[0];
@@ -96,22 +100,9 @@ public class TemplateSpeedTest {
         }
     }
 
-    public static class HandleImpl extends SpeedTestObjectHandle {
-        private final String instance;
-        
-        public HandleImpl(String instance) {
-            this.instance = instance;
-        }
-
-        @Override
-        public Object getRaw() {
-            return this.instance;
-        }
-    }
-    
     @Test
     public void testPrimitive() {
-        //TestUtil.printASM(HandleImpl.class);
+        TestUtil.printASM(SpeedTestObjectHandleImpl.class);
         
         final SpeedTestObject object = new SpeedTestObject();
         final SpeedTestObjectHandle handle = SpeedTestObjectHandle.createHandle(object);
@@ -173,7 +164,7 @@ public class TemplateSpeedTest {
         TestUtil.measure("property field access", new Runnable() {
             @Override
             public void run() {
-                object.setI(object.getI() + 1);
+                object.setIMethod(object.getIMethod() + 1);
             }
         });
         TestUtil.measure("handle field access", new Runnable() {

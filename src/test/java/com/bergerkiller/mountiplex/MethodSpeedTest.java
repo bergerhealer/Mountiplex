@@ -27,8 +27,12 @@ public class MethodSpeedTest {
                                       "    private int i;\n" +
                                       "    private double d;\n" +
                                       "    private String s;\n" +
-                                      "    public final void setS(String value);\n" +
-                                      "    public final String getS();\n" +
+                                      "    public final int getIMethod();\n" +
+                                      "    public final void setIMethod(int value);\n" +
+                                      "    public final void setSMethod(String value);\n" +
+                                      "    public final String getSMethod();\n" +
+                                      "    public void setLocation(double x, double y, double z, float yaw, float pitch);\n" +
+                                      "    public int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
                                       "}\n";
 
                     return SourceDeclaration.parse(template).classes[0];
@@ -71,7 +75,7 @@ public class MethodSpeedTest {
 
         @Override
         public Object invoke(Object instance, Object arg0) {
-            ((SpeedTestObject) instance).setS((String) arg0);
+            ((SpeedTestObject) instance).setSMethod((String) arg0);
             return null;
         }
     }
@@ -84,73 +88,62 @@ public class MethodSpeedTest {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {
-            if (args.length != 2) {
+            if (args.length != 0) {
                 throw failArgs(args.length);
             } else {
-                return ((SpeedTestObject) instance).test((String) args[0], (Integer) args[1]);
-                
-                //return invoke(instance, args[0], args[1], args[2]);
+                return invoke(instance);
             }
         }
 
         @Override
         public Object invoke(Object instance) {
-            return ((SpeedTestObject) instance).getS();
+            return ((SpeedTestObject) instance).getSMethod();
         }
-
-        @Override
-        public Object invoke(Object instance, Object arg0, Object arg1) {
-            return ((SpeedTestObject) instance).test((String) arg0, (Integer) arg1);
-        }
-        
-        @Override
-        public Object invoke(Object instance, Object arg0, Object arg1, Object arg2) {
-            return Double.valueOf(((SomeClass2) instance).calculateDistance(((Double) arg0).doubleValue(), ((Double) arg1).doubleValue(), ((Double) arg2).doubleValue()));
-        }
-    }
-
-    public static class SomeClass2 {
-        public double calculateDistance(double x, double y, double z) {
-            return 0.0;
-        }
-    }
-    
-    public static interface SomeInterface {
-        public void save();
     }
 
     @Test
     public void testMethodSpeed() {
         final SpeedTestObject object = new SpeedTestObject();
-        final CustomGenSet setter = new CustomGenSet(SpeedTestObjectHandle.T.setS.toJavaMethod());
-        final CustomGenGet getter = new CustomGenGet(SpeedTestObjectHandle.T.getS.toJavaMethod());
+        final SpeedTestObjectHandle objectHandle = SpeedTestObjectHandle.createHandle(object);
+        final CustomGenSet setter = new CustomGenSet(SpeedTestObjectHandle.T.setSMethod.toJavaMethod());
+        final CustomGenGet getter = new CustomGenGet(SpeedTestObjectHandle.T.getSMethod.toJavaMethod());
+
+        // Quickly test all generated things
+        assertEquals(28, objectHandle.lotsOfArgs(1, 2, 3, 4, 5, 6, 7));
+        objectHandle.setLocation(2.0, 5.0, 7.0, 2.0f, 1.0f);
 
         //TestUtil.printASM(CustomGenGet.class);
 
         //if (true) return;
-        
-        object.s = "test1";
-        assertEquals("test1", SpeedTestObjectHandle.T.getS.invokeVA(object));
 
-        SpeedTestObjectHandle.T.setS.invokeVA(object, "test2");
+        object.s = "test1";
+        assertEquals("test1", SpeedTestObjectHandle.T.getSMethod.invokeVA(object));
+
+        SpeedTestObjectHandle.T.setSMethod.invokeVA(object, "test2");
         assertEquals("test2", object.s);
         
         measure("Direct method call", new Runnable() {
             @Override
             public void run() {
-                object.setS(object.getS());
+                object.setSMethod(object.getSMethod());
             }
         });
         measure("Reflection method call", new Runnable() {
             @Override
             public void run() {
-                SpeedTestObjectHandle.T.setS.invoke(object, SpeedTestObjectHandle.T.getS.invoke(object));
+                SpeedTestObjectHandle.T.setSMethod.invoke(object, SpeedTestObjectHandle.T.getSMethod.invoke(object));
             }
         });
         measure("Precompiled generated method call", new Runnable() {
             @Override
             public void run() {
                 setter.invoke(object, getter.invoke(object));
+            }
+        });
+        measure("Generated handle method call", new Runnable() {
+            @Override
+            public void run() {
+                objectHandle.setSMethod(objectHandle.getSMethod());
             }
         });
     }

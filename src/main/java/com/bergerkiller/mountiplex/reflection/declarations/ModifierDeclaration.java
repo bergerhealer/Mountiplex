@@ -163,6 +163,15 @@ public class ModifierDeclaration extends Declaration {
         return Modifier.isStatic(this._modifiers);
     }
 
+    /**
+     * Gets whether the public modifier is set
+     * 
+     * @return True if public, False if not
+     */
+    public final boolean isPublic() {
+        return Modifier.isPublic(this._modifiers);
+    }
+
     @Override
     public double similarity(Declaration other) {
     	if (!(other instanceof ModifierDeclaration)) {
