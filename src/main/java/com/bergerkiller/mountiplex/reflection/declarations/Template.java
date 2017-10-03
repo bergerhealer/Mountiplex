@@ -15,6 +15,7 @@ import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.MethodAccessor;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.SafeField;
 import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
@@ -38,6 +39,7 @@ public class Template {
         private ObjectInstantiator<Object> instantiator = null;
         private String classPath = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
+        private FastField<?>[] fields = null;
 
         @SuppressWarnings("unchecked")
         public Class() {
@@ -251,6 +253,16 @@ public class Template {
         }
 
         /**
+         * Checks whether a type stored in a Handle equals this type
+         * 
+         * @param handle to check
+         * @return True if handle is not null and stores an instance of this type, False if not
+         */
+        public boolean isHandleType(Handle handle) {
+            return handle != null && this.isType(handle.getRaw());
+        }
+
+        /**
          * Checks whether an Object value can be assigned to this type
          * @param instance to check
          * @return True if assignable, False if not or instance is <i>null</i>
@@ -268,6 +280,41 @@ public class Template {
         public boolean isAssignableFrom(java.lang.Class<?> type) {
             return type != null && this.classType != null && this.classType.isAssignableFrom(type);
         }
+
+        /**
+         * Copies all local field values from the instance of one handle to another.
+         * If any of the handles or their instances is null, no copy is performed.
+         * 
+         * @param handleFrom
+         * @param handleTo
+         */
+        public void copyHandle(H handleFrom, H handleTo) {
+            if (handleFrom == null || handleTo == null) {
+                return;
+            }
+            copy(handleFrom.getRaw(), handleTo.getRaw());
+        }
+
+        /**
+         * Copies all local field values from one instance to another.
+         * If any of the instances are null, no copy is performed.
+         * 
+         * @param instanceFrom
+         * @param instanceTo
+         */
+        public void copy(Object instanceFrom, Object instanceTo) {
+            if (this.fields == null) {
+                ArrayList<FastField<?>> fields = new ArrayList<FastField<?>>();
+                if (this.classType != null) {
+                    ReflectionUtil.fillFastFields(fields, this.classType);
+                }
+                this.fields = fields.toArray(new FastField<?>[fields.size()]);
+            }
+            for (FastField<?> field : this.fields) {
+                field.copier.copy(instanceFrom, instanceTo);
+            }
+        }
+
     }
 
     /**
