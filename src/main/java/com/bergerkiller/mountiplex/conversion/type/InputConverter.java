@@ -83,6 +83,13 @@ public abstract class InputConverter <T> extends Converter<Object, T> {
         if (value == null) {
             converter = (Converter<Object, T>) this.getNullConverter();
         } else {
+            // Shortcut: check if value is already an instance of our output type
+            // This can save us a lot of cycles looking it up for simple Object <> Type conversions
+            if (this.output.isAssignableFrom(value)) {
+                return (T) value;
+            }
+
+            // Find the converter to convert from the value type to the output
             converter = (Converter<Object, T>) this.getConverter(TypeDeclaration.fromClass(value.getClass()));
         }
         if (converter != null) {
