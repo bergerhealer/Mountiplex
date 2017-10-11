@@ -267,7 +267,7 @@ public class TemplateHandleBuilder<H> {
                     } else {
                         // invokeVA(...) for larger amounts of parameters
                         // Fill an array with the parameter values
-                        mv.visitIntInsn(BIPUSH, 7);
+                        mv.visitIntInsn(BIPUSH, paramTypes.length);
                         mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
                         int register = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
