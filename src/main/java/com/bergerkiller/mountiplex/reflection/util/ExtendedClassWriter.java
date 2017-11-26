@@ -47,9 +47,24 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         }
         this.loader = theLoader;
 
+        // Bugfix: pick a different postfix if another class already exists with this name
+        // This can happen by accident as well, when a jar is incorrectly reloaded
+        // Namespace clashes are nasty!
+        {
+            String postfix_original = postfix;
+            for (int i = 1;; i++) {
+                try {
+                    Class.forName(baseClass.getName() + postfix);
+                    postfix = postfix_original + "_" + i;
+                } catch (ClassNotFoundException ex) {
+                    break;
+                }
+            }
+        }
+
         String baseName = Type.getInternalName(baseClass);
         this.name = baseClass.getName() + postfix;
-        this.internalName = Type.getInternalName(baseClass) + postfix;
+        this.internalName = baseName + postfix;
         this.visit(V1_6, ACC_PUBLIC, baseName + postfix, null, baseName, null);
     }
 

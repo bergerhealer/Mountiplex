@@ -72,7 +72,9 @@ public class Template {
             if (this.handleBuilder == null) {
                 TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType);
                 builder.build();
-                this.handleBuilder = builder;
+                if (this.handleBuilder == null) {
+                    this.handleBuilder = builder;
+                }
             }
             return this.handleBuilder.create(instance);
         }
