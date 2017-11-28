@@ -70,10 +70,14 @@ public class Template {
                 return null;
             }
             if (this.handleBuilder == null) {
-                TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType);
-                builder.build();
-                if (this.handleBuilder == null) {
-                    this.handleBuilder = builder;
+                synchronized (this) {
+                    if (this.handleBuilder == null) {
+                        TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType);
+                        builder.build();
+                        if (this.handleBuilder == null) {
+                            this.handleBuilder = builder;
+                        }
+                    }
                 }
             }
             return this.handleBuilder.create(instance);
@@ -102,9 +106,13 @@ public class Template {
                 throw new IllegalStateException("Class " + classPath + " is not available");
             }
             if (this.instantiator == null) {
-                this.instantiator = (ObjectInstantiator<Object>) ObjenesisHelper.getInstantiatorOf(this.classType);
-                if (this.instantiator == null) {
-                    throw new IllegalStateException("Class of type " + this.classType.getName() + " could not be instantiated");
+                synchronized (this) {
+                    if (this.instantiator == null) {
+                        this.instantiator = (ObjectInstantiator<Object>) ObjenesisHelper.getInstantiatorOf(this.classType);
+                        if (this.instantiator == null) {
+                            throw new IllegalStateException("Class of type " + this.classType.getName() + " could not be instantiated");
+                        }
+                    }
                 }
             }
             try {

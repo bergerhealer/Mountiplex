@@ -53,10 +53,22 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         {
             String postfix_original = postfix;
             for (int i = 1;; i++) {
+                String tmpClassPath = baseClass.getName() + postfix;
+                boolean classExists = false;
+
                 try {
-                    Class.forName(baseClass.getName() + postfix);
+                    theLoader.loadClass(tmpClassPath);
+                    classExists = true;
+                } catch (ClassNotFoundException e) {}
+
+                try {
+                    Class.forName(tmpClassPath);
+                    classExists = true;
+                } catch (ClassNotFoundException ex) {}
+
+                if (classExists) {
                     postfix = postfix_original + "_" + i;
-                } catch (ClassNotFoundException ex) {
+                } else {
                     break;
                 }
             }
