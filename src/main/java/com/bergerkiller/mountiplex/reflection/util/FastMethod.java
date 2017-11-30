@@ -116,18 +116,22 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
      */
     private final Invoker<T> init() {
         if (this.invoker == this) {
-            checkInit();
+            synchronized (this) {
+                if (this.invoker == this) {
+                    checkInit();
 
-            if (this.method.body == null) {
-                // Calls an existing member method
-                this.method.method.setAccessible(true);
-                this.invoker = ReflectionInvoker.create(this.method.method);
-            } else if (this.method.getResolver().getDeclaredClass() != null) {
-                // Calls a method that is generated at runtime
-                this.invoker = GeneratedCodeInvoker.create(this.method);
-            } else {
-                throw new UnsupportedOperationException("The declared class for method " + 
-                        this.getName().toString() + " was not found");
+                    if (this.method.body == null) {
+                        // Calls an existing member method
+                        this.method.method.setAccessible(true);
+                        this.invoker = ReflectionInvoker.create(this.method.method);
+                    } else if (this.method.getResolver().getDeclaredClass() != null) {
+                        // Calls a method that is generated at runtime
+                        this.invoker = GeneratedCodeInvoker.create(this.method);
+                    } else {
+                        throw new UnsupportedOperationException("The declared class for method " + 
+                                this.getName().toString() + " was not found");
+                    }
+                }
             }
         }
         return this.invoker;

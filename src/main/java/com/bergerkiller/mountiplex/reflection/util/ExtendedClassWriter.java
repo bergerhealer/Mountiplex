@@ -39,45 +39,52 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
     public ExtendedClassWriter(int flags, Class<T> baseClass, String postfix) {
         super(flags);
-        ClassLoader baseClassLoader = baseClass.getClassLoader();
-        GeneratorClassLoader theLoader = loaders.get(baseClassLoader);
-        if (theLoader == null) {
-            theLoader = new GeneratorClassLoader(baseClassLoader);
-            loaders.put(baseClassLoader, theLoader);
-        }
-        this.loader = theLoader;
 
-        // Bugfix: pick a different postfix if another class already exists with this name
-        // This can happen by accident as well, when a jar is incorrectly reloaded
-        // Namespace clashes are nasty!
-        {
-            String postfix_original = postfix;
-            for (int i = 1;; i++) {
-                String tmpClassPath = baseClass.getName() + postfix;
-                boolean classExists = false;
+        // Note: initialization must be globally synchronized to prevent multithreading bugs
+        // It could accidentally create a duplicate GeneratorClassLoader, or accidentally use the same name twice
+        // This synchronized block protects against these issues
+        // The actual generate() is not thread-safe (for obvious reasons)
+        synchronized (loaders) {
+            ClassLoader baseClassLoader = baseClass.getClassLoader();
+            GeneratorClassLoader theLoader = loaders.get(baseClassLoader);
+            if (theLoader == null) {
+                theLoader = new GeneratorClassLoader(baseClassLoader);
+                loaders.put(baseClassLoader, theLoader);
+            }
+            this.loader = theLoader;
 
-                try {
-                    theLoader.loadClass(tmpClassPath);
-                    classExists = true;
-                } catch (ClassNotFoundException e) {}
+            // Bugfix: pick a different postfix if another class already exists with this name
+            // This can happen by accident as well, when a jar is incorrectly reloaded
+            // Namespace clashes are nasty!
+            {
+                String postfix_original = postfix;
+                for (int i = 1;; i++) {
+                    String tmpClassPath = baseClass.getName() + postfix;
+                    boolean classExists = false;
 
-                try {
-                    Class.forName(tmpClassPath);
-                    classExists = true;
-                } catch (ClassNotFoundException ex) {}
+                    try {
+                        theLoader.loadClass(tmpClassPath);
+                        classExists = true;
+                    } catch (ClassNotFoundException e) {}
 
-                if (classExists) {
-                    postfix = postfix_original + "_" + i;
-                } else {
-                    break;
+                    try {
+                        Class.forName(tmpClassPath);
+                        classExists = true;
+                    } catch (ClassNotFoundException ex) {}
+
+                    if (classExists) {
+                        postfix = postfix_original + "_" + i;
+                    } else {
+                        break;
+                    }
                 }
             }
-        }
 
-        String baseName = Type.getInternalName(baseClass);
-        this.name = baseClass.getName() + postfix;
-        this.internalName = baseName + postfix;
-        this.visit(V1_6, ACC_PUBLIC, baseName + postfix, null, baseName, null);
+            String baseName = Type.getInternalName(baseClass);
+            this.name = baseClass.getName() + postfix;
+            this.internalName = baseName + postfix;
+            this.visit(V1_6, ACC_PUBLIC, baseName + postfix, null, baseName, null);
+        }
     }
 
     /**

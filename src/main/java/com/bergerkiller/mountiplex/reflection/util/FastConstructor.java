@@ -120,11 +120,15 @@ public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject
      */
     private final Constructor<T> init() {
         if (this.constructor == this) {
-            checkInit();
+            synchronized (this) {
+                if (this.constructor == this) {
+                    checkInit();
 
-            // Calls an existing member method
-            this.constructorDec.constructor.setAccessible(true);
-            this.constructor = ReflectionConstructor.create(this.constructorDec.constructor);
+                    // Calls an existing member method
+                    this.constructorDec.constructor.setAccessible(true);
+                    this.constructor = ReflectionConstructor.create(this.constructorDec.constructor);
+                }
+            }
         }
         return this.constructor;
     }

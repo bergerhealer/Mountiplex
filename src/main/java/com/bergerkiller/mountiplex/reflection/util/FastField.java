@@ -143,69 +143,81 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
 
     private Reader<T> read() {
         if (reader == this) {
-            checkInit();
-            if (!Modifier.isPublic(field.getModifiers())) {
-                makeAccessible();
+            synchronized (this) {
+                if (reader == this) {
+                    checkInit();
+                    if (!Modifier.isPublic(field.getModifiers())) {
+                        makeAccessible();
+                    }
+                    reader = access();
+                }
             }
-            reader = access();
         }
         return reader;
     }
 
     private Writer<T> write() {
         if (writer == this) {
-            checkInit();
-            int mod = field.getModifiers();
-            if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
-                makeAccessible();
+            synchronized (this) {
+                if (writer == this) {
+                    checkInit();
+                    int mod = field.getModifiers();
+                    if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                        makeAccessible();
+                    }
+                    writer = access();
+                }
             }
-            writer = access();
         }
         return writer;
     }
 
     private Copier copy() {
         if (copier == this) {
-            checkInit();
+            synchronized (this) {
+                if (copier == this) {
+                    checkInit();
 
-            int mod = field.getModifiers();
-            if (Modifier.isStatic(mod)) {
-                throw new RuntimeException("Static fields can not be copied");
+                    int mod = field.getModifiers();
+                    if (Modifier.isStatic(mod)) {
+                        throw new RuntimeException("Static fields can not be copied");
+                    }
+
+                    if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                        makeAccessible();
+                    }
+
+                    copier = access();
+
+                    /*
+                    if (Modifier.isPublic(mod) && !Modifier.isFinal(mod)) {
+                        // TODO: Generated copy function to prevent needless function calls
+                        Class<?> t = field.getType();
+                        copier = (t==double.class)  ? new DoubleCopier(this):
+                                 (t==float.class)   ? new FloatCopier(this):
+                                 (t==byte.class)    ? new ByteCopier(this):
+                                 (t==short.class)   ? new ShortCopier(this):
+                                 (t==int.class)     ? new IntegerCopier(this):
+                                 (t==long.class)    ? new LongCopier(this):
+                                 (t==char.class)    ? new CharacterCopier(this):
+                                 (t==boolean.class) ? new BooleanCopier(this):
+                                                      new ObjectCopier(this);
+                    } else {
+                        // Use separate get and set calls using the reader and writer
+                        Class<?> t = field.getType();
+                        copier = (t==double.class)  ? new DoubleCopier(this):
+                                 (t==float.class)   ? new FloatCopier(this):
+                                 (t==byte.class)    ? new ByteCopier(this):
+                                 (t==short.class)   ? new ShortCopier(this):
+                                 (t==int.class)     ? new IntegerCopier(this):
+                                 (t==long.class)    ? new LongCopier(this):
+                                 (t==char.class)    ? new CharacterCopier(this):
+                                 (t==boolean.class) ? new BooleanCopier(this):
+                                                      new ObjectCopier(this);
+                    }
+                    */
+                }
             }
-
-            if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
-                makeAccessible();
-            }
-
-            copier = access();
-
-            /*
-            if (Modifier.isPublic(mod) && !Modifier.isFinal(mod)) {
-                // TODO: Generated copy function to prevent needless function calls
-                Class<?> t = field.getType();
-                copier = (t==double.class)  ? new DoubleCopier(this):
-                         (t==float.class)   ? new FloatCopier(this):
-                         (t==byte.class)    ? new ByteCopier(this):
-                         (t==short.class)   ? new ShortCopier(this):
-                         (t==int.class)     ? new IntegerCopier(this):
-                         (t==long.class)    ? new LongCopier(this):
-                         (t==char.class)    ? new CharacterCopier(this):
-                         (t==boolean.class) ? new BooleanCopier(this):
-                                              new ObjectCopier(this);
-            } else {
-                // Use separate get and set calls using the reader and writer
-                Class<?> t = field.getType();
-                copier = (t==double.class)  ? new DoubleCopier(this):
-                         (t==float.class)   ? new FloatCopier(this):
-                         (t==byte.class)    ? new ByteCopier(this):
-                         (t==short.class)   ? new ShortCopier(this):
-                         (t==int.class)     ? new IntegerCopier(this):
-                         (t==long.class)    ? new LongCopier(this):
-                         (t==char.class)    ? new CharacterCopier(this):
-                         (t==boolean.class) ? new BooleanCopier(this):
-                                              new ObjectCopier(this);
-            }
-            */
         }
         return copier;
     }
