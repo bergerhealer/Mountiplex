@@ -7,32 +7,32 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionInvoker;
 
 public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
-    public Invoker<T> invoker;
+    private Invoker<T> invoker;
     private MethodDeclaration method;
     private String missingInfo = "!!UNKNOWN!!"; // stored info for when method is null
 
     public FastMethod() {
         this.method = null;
-        this.invoker = this;
+        this.invoker = new FastMethodInitProxy();
     }
 
     public FastMethod(java.lang.reflect.Method method) {
         this.method = new MethodDeclaration(ClassResolver.DEFAULT, method);
-        this.invoker = this;
+        this.invoker = new FastMethodInitProxy();
     }
 
     public final void init(java.lang.reflect.Method method) {
         this.method = new MethodDeclaration(ClassResolver.DEFAULT, method);
-        this.invoker = this;
+        this.invoker = new FastMethodInitProxy();
     }
 
     public final void init(MethodDeclaration methodDeclaration) {
         if (methodDeclaration != null && methodDeclaration.body == null && methodDeclaration.method == null) {
             this.method = null;
-            this.invoker = this;
+            this.invoker = new FastMethodInitProxy();
         } else {
             this.method = methodDeclaration;
-            this.invoker = this;
+            this.invoker = new FastMethodInitProxy();
         }
     }
 
@@ -43,7 +43,7 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
      */
     public final void initUnavailable(String missingInfo) {
         this.method = null;
-        this.invoker = this;
+        this.invoker = new FastMethodInitProxy();
         this.missingInfo = missingInfo;
     }
 
@@ -102,74 +102,113 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
 
     @Override
     public void forceInitialization() {
-        init();
-    }
-
-    /**
-     * Initializes this method invoker. If this is a generated method body,
-     * the method is compiled. In other cases the method will be found through
-     * reflection and optimized accessors compiled. All of this is only performed once.
-     * 
-     * All calls to invoke() in this class explicitly call init().
-     * 
-     * @return the new invoker that should be used from now on
-     */
-    private final Invoker<T> init() {
-        if (this.invoker == this) {
-            synchronized (this) {
-                if (this.invoker == this) {
-                    checkInit();
-
-                    if (this.method.body == null) {
-                        // Calls an existing member method
-                        this.method.method.setAccessible(true);
-                        this.invoker = ReflectionInvoker.create(this.method.method);
-                    } else if (this.method.getResolver().getDeclaredClass() != null) {
-                        // Calls a method that is generated at runtime
-                        this.invoker = GeneratedCodeInvoker.create(this.method);
-                    } else {
-                        throw new UnsupportedOperationException("The declared class for method " + 
-                                this.getName().toString() + " was not found");
-                    }
-                }
-            }
+        if (invoker instanceof FastMethod.FastMethodInitProxy) {
+            ((FastMethodInitProxy) invoker).init();
         }
-        return this.invoker;
     }
 
     @Override
     public T invokeVA(Object instance, Object... args) {
-        return init().invokeVA(instance, args);
+        return invoker.invokeVA(instance, args);
     }
 
     @Override
     public T invoke(Object instance) {
-        return init().invoke(instance);
+        return invoker.invoke(instance);
     }
 
     @Override
     public T invoke(Object instance, Object arg0) {
-        return init().invoke(instance, arg0);
+        return invoker.invoke(instance, arg0);
     }
 
     @Override
     public T invoke(Object instance, Object arg0, Object arg1) {
-        return init().invoke(instance, arg0, arg1);
+        return invoker.invoke(instance, arg0, arg1);
     }
 
     @Override
     public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
-        return init().invoke(instance, arg0, arg1, arg2);
+        return invoker.invoke(instance, arg0, arg1, arg2);
     }
 
     @Override
     public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
-        return init().invoke(instance, arg0, arg1, arg2, arg3);
+        return invoker.invoke(instance, arg0, arg1, arg2, arg3);
     }
 
     @Override
     public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-        return init().invoke(instance, arg0, arg1, arg2, arg3, arg4);
+        return invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4);
     }
 
+    // This object is used at the first call to initialize the method
+    private final class FastMethodInitProxy implements Invoker<T> {
+        /**
+         * Initializes this method invoker. If this is a generated method body,
+         * the method is compiled. In other cases the method will be found through
+         * reflection and optimized accessors compiled. All of this is only performed once.
+         * 
+         * All calls to invoke() in this class explicitly call init().
+         * 
+         * @return the new invoker that should be used from now on
+         */
+        private final Invoker<T> init() {
+            if (invoker == this) {
+                synchronized (FastMethod.this) {
+                    if (invoker == this) {
+                        checkInit();
+
+                        if (method.body == null) {
+                            // Calls an existing member method
+                            method.method.setAccessible(true);
+                            invoker = ReflectionInvoker.create(method.method);
+                        } else if (method.getResolver().getDeclaredClass() != null) {
+                            // Calls a method that is generated at runtime
+                            invoker = GeneratedCodeInvoker.create(method);
+                        } else {
+                            throw new UnsupportedOperationException("The declared class for method " + 
+                                    getName().toString() + " was not found");
+                        }
+                    }
+                }
+            }
+            return invoker;
+        }
+
+        @Override
+        public T invokeVA(Object instance, Object... args) {
+            return init().invokeVA(instance, args);
+        }
+
+        @Override
+        public T invoke(Object instance) {
+            return init().invoke(instance);
+        }
+
+        @Override
+        public T invoke(Object instance, Object arg0) {
+            return init().invoke(instance, arg0);
+        }
+
+        @Override
+        public T invoke(Object instance, Object arg0, Object arg1) {
+            return init().invoke(instance, arg0, arg1);
+        }
+
+        @Override
+        public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
+            return init().invoke(instance, arg0, arg1, arg2);
+        }
+
+        @Override
+        public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
+            return init().invoke(instance, arg0, arg1, arg2, arg3);
+        }
+
+        @Override
+        public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+            return init().invoke(instance, arg0, arg1, arg2, arg3, arg4);
+        }
+    }
 }

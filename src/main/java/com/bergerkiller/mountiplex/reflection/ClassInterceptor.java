@@ -194,7 +194,7 @@ public abstract class ClassInterceptor {
         @Override
         public final Object invoke(Object instanceObject, Object... args) {
             // This is not actually called, but here for completeness
-            return invoker.invokeVA(((EnhancedObject) instanceObject).CI_getInterceptor(), args);
+            return invokeVA(((EnhancedObject) instanceObject).CI_getInterceptor(), args);
         }
     }
 
@@ -523,11 +523,11 @@ public abstract class ClassInterceptor {
         }
 
         public final void setCallbacks(Callback[] callbacks) {
-            this.setCallbacksMethod.invoker.invoke(null, callbacks);
+            this.setCallbacksMethod.invoke(null, callbacks);
         }
 
         public final void disableCallbacks() {
-            this.setCallbacksMethod.invoker.invoke(null, this.disabledCallbacks);
+            this.setCallbacksMethod.invoke(null, this.disabledCallbacks);
         }
 
         @SuppressWarnings("unchecked")
@@ -537,7 +537,7 @@ public abstract class ClassInterceptor {
                 throw new RuntimeException("Class " + baseType.getName() + " could not be instantiated (newInstance failed)");
 
             for (FastField<?> ff : this.baseTypeFields) {
-                ff.copier.copy(enhanced, base);
+                ff.copy(enhanced, base);
             }
             return (T) base;
         }
@@ -564,7 +564,7 @@ public abstract class ClassInterceptor {
 
             if (base != null) {
                 for (FastField<?> ff : this.baseTypeFields) {
-                    ff.copier.copy(base, enhanced);
+                    ff.copy(base, enhanced);
                 }
             }
             return (T) enhanced;
@@ -634,7 +634,7 @@ public abstract class ClassInterceptor {
 
                 // Make sure to inline the MethodCallbackDelegate to avoid a stack frame
                 if (callback instanceof MethodInvokable) {
-                    return ((MethodInvokable) callback).invoker.invokeVA(this.interceptor, args);
+                    return ((MethodInvokable) callback).invokeVA(this.interceptor, args);
                 }
 
                 // Execute the callback

@@ -276,7 +276,7 @@ public class ClassTemplate<T> {
      */
     public void transfer(Object from, Object to) {
         for (SafeField<?> field : this.getFields()) {
-            field.getFastField().copier.copy(from, to);
+            field.getFastField().copy(from, to);
         }
     }
 

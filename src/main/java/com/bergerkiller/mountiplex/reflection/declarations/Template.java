@@ -321,7 +321,7 @@ public class Template {
                 this.fields = fields.toArray(new FastField<?>[fields.size()]);
             }
             for (FastField<?> field : this.fields) {
-                field.copier.copy(instanceFrom, instanceTo);
+                field.copy(instanceFrom, instanceTo);
             }
         }
 
@@ -898,7 +898,7 @@ public class Template {
          * @return created instance
          */
         public T newInstanceVA(Object... arguments) {
-            return this.constructor.constructor.newInstanceVA(arguments);
+            return this.constructor.newInstanceVA(arguments);
         }
 
         /**
@@ -907,7 +907,7 @@ public class Template {
          * @return created instance
          */
         public T newInstance() {
-            return this.constructor.constructor.newInstance();
+            return this.constructor.newInstance();
         }
 
         /**
@@ -917,7 +917,7 @@ public class Template {
          * @return created instance
          */
         public T newInstance(Object arg0) {
-            return this.constructor.constructor.newInstance(arg0);
+            return this.constructor.newInstance(arg0);
         }
 
         /**
@@ -928,7 +928,7 @@ public class Template {
          * @return created instance
          */
         public T newInstance(Object arg0, Object arg1) {
-            return this.constructor.constructor.newInstance(arg0, arg1);
+            return this.constructor.newInstance(arg0, arg1);
         }
 
         /**
@@ -940,7 +940,7 @@ public class Template {
          * @return created instance
          */
         public T newInstance(Object arg0, Object arg1, Object arg2) {
-            return this.constructor.constructor.newInstance(arg0, arg1, arg2);
+            return this.constructor.newInstance(arg0, arg1, arg2);
         }
 
         /**
@@ -953,7 +953,7 @@ public class Template {
          * @return created instance
          */
         public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.constructor.constructor.newInstance(arg0, arg1, arg2, arg3);
+            return this.constructor.newInstance(arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -967,7 +967,7 @@ public class Template {
          * @return created instance
          */
         public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.constructor.constructor.newInstance(arg0, arg1, arg2, arg3, arg4);
+            return this.constructor.newInstance(arg0, arg1, arg2, arg3, arg4);
         }
 
         @Override
@@ -1182,7 +1182,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invokeVA(Object... arguments) {
-            return this.method.invoker.invokeVA(null, arguments);
+            return this.method.invokeVA(null, arguments);
         }
 
         /**
@@ -1191,7 +1191,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke() {
-            return this.method.invoker.invoke(null);
+            return this.method.invoke(null);
         }
 
         /**
@@ -1201,7 +1201,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0) {
-            return this.method.invoker.invoke(null, arg0);
+            return this.method.invoke(null, arg0);
         }
 
         /**
@@ -1212,7 +1212,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1) {
-            return this.method.invoker.invoke(null, arg0, arg1);
+            return this.method.invoke(null, arg0, arg1);
         }
 
         /**
@@ -1224,7 +1224,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2) {
-            return this.method.invoker.invoke(null, arg0, arg1, arg2);
+            return this.method.invoke(null, arg0, arg1, arg2);
         }
 
         /**
@@ -1237,7 +1237,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.method.invoker.invoke(null, arg0, arg1, arg2, arg3);
+            return this.method.invoke(null, arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -1251,7 +1251,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.method.invoker.invoke(null, arg0, arg1, arg2, arg3, arg4);
+            return this.method.invoke(null, arg0, arg1, arg2, arg3, arg4);
         }
         
         public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
@@ -1421,7 +1421,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invokeVA(Object instance, Object... arguments) {
-            return this.method.invoker.invokeVA(instance, arguments);
+            return this.method.invokeVA(instance, arguments);
         }
 
         /**
@@ -1431,7 +1431,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance) {
-            return this.method.invoker.invoke(instance);
+            return this.method.invoke(instance);
         }
 
         /**
@@ -1442,7 +1442,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0) {
-            return this.method.invoker.invoke(instance, arg0);
+            return this.method.invoke(instance, arg0);
         }
 
         /**
@@ -1454,7 +1454,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1) {
-            return this.method.invoker.invoke(instance, arg0, arg1);
+            return this.method.invoke(instance, arg0, arg1);
         }
 
         /**
@@ -1467,7 +1467,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
-            return this.method.invoker.invoke(instance, arg0, arg1, arg2);
+            return this.method.invoke(instance, arg0, arg1, arg2);
         }
 
         /**
@@ -1481,7 +1481,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.method.invoker.invoke(instance, arg0, arg1, arg2, arg3);
+            return this.method.invoke(instance, arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -1496,7 +1496,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.method.invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4);
+            return this.method.invoke(instance, arg0, arg1, arg2, arg3, arg4);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<Method<Object>, T> {
@@ -1844,7 +1844,7 @@ public class Template {
          * @return static field value
          */
         public final T get() {
-            return field.reader.get(null);
+            return field.get(null);
         }
 
         /**
@@ -1853,7 +1853,7 @@ public class Template {
          * @param value to set to
          */
         public final void set(T value) {
-            field.writer.set(null, value);
+            field.set(null, value);
         }
 
         /**
@@ -1927,12 +1927,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final double getDouble() {
-                return field.reader.getDouble(null);
+                return field.getDouble(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setDouble(double value) {
-                field.writer.setDouble(null, value);
+                field.setDouble(null, value);
             }
         }
 
@@ -1945,12 +1945,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final float getFloat() {
-                return field.reader.getFloat(null);
+                return field.getFloat(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setFloat(float value) {
-                field.writer.setFloat(null, value);
+                field.setFloat(null, value);
             }
         }
 
@@ -1963,12 +1963,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final byte getByte() {
-                return field.reader.getByte(null);
+                return field.getByte(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setByte(byte value) {
-                field.writer.setByte(null, value);
+                field.setByte(null, value);
             }
         }
 
@@ -1981,12 +1981,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final short getShort() {
-                return field.reader.getShort(null);
+                return field.getShort(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setShort(short value) {
-                field.writer.setShort(null, value);
+                field.setShort(null, value);
             }
         }
 
@@ -1999,12 +1999,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final int getInteger() {
-                return field.reader.getInteger(null);
+                return field.getInteger(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setInteger(int value) {
-                field.writer.setInteger(null, value);
+                field.setInteger(null, value);
             }
         }
 
@@ -2017,12 +2017,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final long getLong() {
-                return field.reader.getLong(null);
+                return field.getLong(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setLong(long value) {
-                field.writer.setLong(null, value);
+                field.setLong(null, value);
             }
         }
 
@@ -2035,12 +2035,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final char getCharacter() {
-                return field.reader.getCharacter(null);
+                return field.getCharacter(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setCharacter(char value) {
-                field.writer.setCharacter(null, value);
+                field.setCharacter(null, value);
             }
         }
 
@@ -2053,12 +2053,12 @@ public class Template {
 
             /** @see StaticField#get() */
             public final boolean getBoolean() {
-                return field.reader.getBoolean(null);
+                return field.getBoolean(null);
             }
 
             /** @see StaticField#set(value) */
             public final void setBoolean(boolean value) {
-                field.writer.setBoolean(null, value);
+                field.setBoolean(null, value);
             }
         }
     }
@@ -2073,7 +2073,7 @@ public class Template {
          * @return field value
          */
         public final T get(Object instance) {
-            return this.field.reader.get(instance);
+            return this.field.get(instance);
         }
 
         /**
@@ -2084,7 +2084,7 @@ public class Template {
          * @param value to set to
          */
         public final void set(Object instance, T value) {
-            this.field.writer.set(instance, value);
+            this.field.set(instance, value);
         }
 
         /**
@@ -2094,7 +2094,7 @@ public class Template {
          * @param instanceTo to set the value
          */
         public void copy(Object instanceFrom, Object instanceTo) {
-            this.field.copier.copy(instanceFrom, instanceTo);
+            this.field.copy(instanceFrom, instanceTo);
         }
 
         /*
@@ -2181,96 +2181,96 @@ public class Template {
         public static final class Double extends Field<java.lang.Double> {
             /** @see Field#get(instance) */
             public final double getDouble(Object instance) {
-                return field.reader.getDouble(instance);
+                return field.getDouble(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setDouble(Object instance, double value) {
-                field.writer.setDouble(instance, value);
+                field.setDouble(instance, value);
             }
         }
 
         public static final class Float extends Field<java.lang.Float> {
             /** @see Field#get(instance) */
             public final float getFloat(Object instance) {
-                return field.reader.getFloat(instance);
+                return field.getFloat(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setFloat(Object instance, float value) {
-                field.writer.setFloat(instance, value);
+                field.setFloat(instance, value);
             }
         }
 
         public static final class Byte extends Field<java.lang.Byte> {
             /** @see Field#get(instance) */
             public final byte getByte(Object instance) {
-                return field.reader.getByte(instance);
+                return field.getByte(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setByte(Object instance, byte value) {
-                field.writer.setByte(instance, value);
+                field.setByte(instance, value);
             }
         }
 
         public static final class Short extends Field<java.lang.Short> {
             /** @see Field#get(instance) */
             public final short getShort(Object instance) {
-                return field.reader.getShort(instance);
+                return field.getShort(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setShort(Object instance, short value) {
-                field.writer.setShort(instance, value);
+                field.setShort(instance, value);
             }
         }
 
         public static final class Integer extends Field<java.lang.Integer> {
             /** @see Field#get(instance) */
             public final int getInteger(Object instance) {
-                return field.reader.getInteger(instance);
+                return field.getInteger(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setInteger(Object instance, int value) {
-                field.writer.setInteger(instance, value);
+                field.setInteger(instance, value);
             }
         }
 
         public static final class Long extends Field<java.lang.Long> {
             /** @see Field#get(instance) */
             public final long getLong(Object instance) {
-                return field.reader.getLong(instance);
+                return field.getLong(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setLong(Object instance, long value) {
-                field.writer.setLong(instance, value);
+                field.setLong(instance, value);
             }
         }
 
         public static final class Character extends Field<java.lang.Character> {
             /** @see Field#get(instance) */
             public final char getCharacter(Object instance) {
-                return field.reader.getCharacter(instance);
+                return field.getCharacter(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setCharacter(Object instance, char value) {
-                field.writer.setCharacter(instance, value);
+                field.setCharacter(instance, value);
             }
         }
 
         public static final class Boolean extends Field<java.lang.Boolean> {
             /** @see Field#get(instance) */
             public final boolean getBoolean(Object instance) {
-                return field.reader.getBoolean(instance);
+                return field.getBoolean(instance);
             }
 
             /** @see Field#set(instance, value) */
             public final void setBoolean(Object instance, boolean value) {
-                field.writer.setBoolean(instance, value);
+                field.setBoolean(instance, value);
             }
         }
     }

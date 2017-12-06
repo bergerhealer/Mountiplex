@@ -15,11 +15,15 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Writer;
  * @param <T> type of fast field
  */
 public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyInitializedObject {
-    public Reader<T> reader = this;
-    public Writer<T> writer = this;
-    public Copier copier = this;
+    private Reader<T> reader;
+    private Writer<T> writer;
+    private Copier copier;
     private java.lang.reflect.Field field;
     private String missingInfo = "!!UNKNOWN!!"; // stored info for when field is null
+
+    public FastField() {
+        this.init(null);
+    }
 
     /**
      * Initializes the fast field using a Java Reflection Field.
@@ -29,9 +33,10 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
      */
     public final void init(java.lang.reflect.Field field) {
         this.field = field;
-        this.reader = this;
-        this.writer = this;
-        this.copier = this;
+        FastFieldInitProxy initProxy = new FastFieldInitProxy();
+        this.reader = initProxy;
+        this.writer = initProxy;
+        this.copier = initProxy;
     }
 
     /**
@@ -123,103 +128,9 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private ReflectionAccessor<T> access() {
-        if (writer instanceof ReflectionAccessor) {
-            return (ReflectionAccessor<T>) writer;
-        } else if (reader instanceof ReflectionAccessor) {
-            return (ReflectionAccessor<T>) reader;
-        } else if (copier instanceof ReflectionAccessor) {
-            return (ReflectionAccessor<T>) copier;
-        } else {
-            return ReflectionAccessor.create(field);
-        }
-    }
-
     @Override
     public void forceInitialization() {
-        read();
-    }
-
-    private Reader<T> read() {
-        if (reader == this) {
-            synchronized (this) {
-                if (reader == this) {
-                    checkInit();
-                    if (!Modifier.isPublic(field.getModifiers())) {
-                        makeAccessible();
-                    }
-                    reader = access();
-                }
-            }
-        }
-        return reader;
-    }
-
-    private Writer<T> write() {
-        if (writer == this) {
-            synchronized (this) {
-                if (writer == this) {
-                    checkInit();
-                    int mod = field.getModifiers();
-                    if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
-                        makeAccessible();
-                    }
-                    writer = access();
-                }
-            }
-        }
-        return writer;
-    }
-
-    private Copier copy() {
-        if (copier == this) {
-            synchronized (this) {
-                if (copier == this) {
-                    checkInit();
-
-                    int mod = field.getModifiers();
-                    if (Modifier.isStatic(mod)) {
-                        throw new RuntimeException("Static fields can not be copied");
-                    }
-
-                    if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
-                        makeAccessible();
-                    }
-
-                    copier = access();
-
-                    /*
-                    if (Modifier.isPublic(mod) && !Modifier.isFinal(mod)) {
-                        // TODO: Generated copy function to prevent needless function calls
-                        Class<?> t = field.getType();
-                        copier = (t==double.class)  ? new DoubleCopier(this):
-                                 (t==float.class)   ? new FloatCopier(this):
-                                 (t==byte.class)    ? new ByteCopier(this):
-                                 (t==short.class)   ? new ShortCopier(this):
-                                 (t==int.class)     ? new IntegerCopier(this):
-                                 (t==long.class)    ? new LongCopier(this):
-                                 (t==char.class)    ? new CharacterCopier(this):
-                                 (t==boolean.class) ? new BooleanCopier(this):
-                                                      new ObjectCopier(this);
-                    } else {
-                        // Use separate get and set calls using the reader and writer
-                        Class<?> t = field.getType();
-                        copier = (t==double.class)  ? new DoubleCopier(this):
-                                 (t==float.class)   ? new FloatCopier(this):
-                                 (t==byte.class)    ? new ByteCopier(this):
-                                 (t==short.class)   ? new ShortCopier(this):
-                                 (t==int.class)     ? new IntegerCopier(this):
-                                 (t==long.class)    ? new LongCopier(this):
-                                 (t==char.class)    ? new CharacterCopier(this):
-                                 (t==boolean.class) ? new BooleanCopier(this):
-                                                      new ObjectCopier(this);
-                    }
-                    */
-                }
-            }
-        }
-        return copier;
+        reader.checkCanRead();
     }
 
     @Override
@@ -230,40 +141,152 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
 
     @Override
     public final void checkCanWrite() {
-        write().checkCanWrite();
+        writer.checkCanWrite();
     }
 
     @Override
     public final void checkCanRead() {
-        read().checkCanRead();
+        reader.checkCanRead();
     }
 
     // Reader calls that initialize the reader and forward the call
-    public T get(Object o){return read().get(o);}
-    public double getDouble(Object o){return read().getDouble(o);}
-    public float getFloat(Object o){return read().getFloat(o);}
-    public byte getByte(Object o){return read().getByte(o);}
-    public short getShort(Object o){return read().getShort(o);}
-    public int getInteger(Object o){return read().getInteger(o);}
-    public long getLong(Object o){return read().getLong(o);}
-    public char getCharacter(Object o){return read().getCharacter(o);}
-    public boolean getBoolean(Object o){return read().getBoolean(o);}
-    public java.lang.reflect.Field getReadField(){return read().getReadField();}
+    public T get(Object o){return reader.get(o);}
+    public double getDouble(Object o){return reader.getDouble(o);}
+    public float getFloat(Object o){return reader.getFloat(o);}
+    public byte getByte(Object o){return reader.getByte(o);}
+    public short getShort(Object o){return reader.getShort(o);}
+    public int getInteger(Object o){return reader.getInteger(o);}
+    public long getLong(Object o){return reader.getLong(o);}
+    public char getCharacter(Object o){return reader.getCharacter(o);}
+    public boolean getBoolean(Object o){return reader.getBoolean(o);}
+    public java.lang.reflect.Field getReadField(){return reader.getReadField();}
 
     // Writer calls that initialize the writer and forward the call
-    public void set(Object o, T v){write().set(o, v);}
-    public void setDouble(Object o, double v){write().setDouble(o, v); }
-    public void setFloat(Object o, float v){write().setFloat(o, v); }
-    public void setByte(Object o, byte v){write().setByte(o, v); }
-    public void setShort(Object o, short v){write().setShort(o, v); }
-    public void setInteger(Object o, int v){write().setInteger(o, v); }
-    public void setLong(Object o, long v){write().setLong(o, v); }
-    public void setCharacter(Object o, char v){write().setCharacter(o, v); }
-    public void setBoolean(Object o, boolean v){write().setBoolean(o, v); }
-    public java.lang.reflect.Field getWriteField(){return write().getWriteField();}
+    public void set(Object o, T v){writer.set(o, v);}
+    public void setDouble(Object o, double v){writer.setDouble(o, v); }
+    public void setFloat(Object o, float v){writer.setFloat(o, v); }
+    public void setByte(Object o, byte v){writer.setByte(o, v); }
+    public void setShort(Object o, short v){writer.setShort(o, v); }
+    public void setInteger(Object o, int v){writer.setInteger(o, v); }
+    public void setLong(Object o, long v){writer.setLong(o, v); }
+    public void setCharacter(Object o, char v){writer.setCharacter(o, v); }
+    public void setBoolean(Object o, boolean v){writer.setBoolean(o, v); }
+    public java.lang.reflect.Field getWriteField(){return writer.getWriteField();}
 
     // Copier calls that initialize the copier and forward the call
-    public void copy(Object a, Object b){copy().copy(a, b);}
-    public Field getCopyField(){return copy().getCopyField();}
+    public void copy(Object a, Object b){copier.copy(a, b);}
+    public Field getCopyField(){return copier.getCopyField();}
 
+    // This object is used at the first call to initialize the field
+    private final class FastFieldInitProxy implements Reader<T>, Writer<T>, Copier {
+        @SuppressWarnings("unchecked")
+        private ReflectionAccessor<T> access() {
+            if (writer instanceof ReflectionAccessor) {
+                return (ReflectionAccessor<T>) writer;
+            } else if (reader instanceof ReflectionAccessor) {
+                return (ReflectionAccessor<T>) reader;
+            } else if (copier instanceof ReflectionAccessor) {
+                return (ReflectionAccessor<T>) copier;
+            } else {
+                return ReflectionAccessor.create(field);
+            }
+        }
+
+        private Reader<T> read() {
+            if (reader == this) {
+                synchronized (FastField.this) {
+                    if (reader == this) {
+                        checkInit();
+                        if (!Modifier.isPublic(field.getModifiers())) {
+                            makeAccessible();
+                        }
+                        reader = access();
+                    }
+                }
+            }
+            return reader;
+        }
+
+        private Writer<T> write() {
+            if (writer == this) {
+                synchronized (FastField.this) {
+                    if (writer == this) {
+                        checkInit();
+                        int mod = field.getModifiers();
+                        if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                            makeAccessible();
+                        }
+                        writer = access();
+                    }
+                }
+            }
+            return writer;
+        }
+
+        private Copier copy() {
+            if (copier == this) {
+                synchronized (FastField.this) {
+                    if (copier == this) {
+                        checkInit();
+
+                        int mod = field.getModifiers();
+                        if (Modifier.isStatic(mod)) {
+                            throw new RuntimeException("Static fields can not be copied");
+                        }
+
+                        if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                            makeAccessible();
+                        }
+
+                        copier = access();
+                    }
+                }
+            }
+            return copier;
+        }
+
+        @Override
+        public final void checkCanCopy() {
+            checkCanWrite();
+            checkCanRead();
+        }
+
+        @Override
+        public final void checkCanWrite() {
+            write().checkCanWrite();
+        }
+
+        @Override
+        public final void checkCanRead() {
+            read().checkCanRead();
+        }
+
+        // Reader calls that initialize the reader and forward the call
+        public T get(Object o){return read().get(o);}
+        public double getDouble(Object o){return read().getDouble(o);}
+        public float getFloat(Object o){return read().getFloat(o);}
+        public byte getByte(Object o){return read().getByte(o);}
+        public short getShort(Object o){return read().getShort(o);}
+        public int getInteger(Object o){return read().getInteger(o);}
+        public long getLong(Object o){return read().getLong(o);}
+        public char getCharacter(Object o){return read().getCharacter(o);}
+        public boolean getBoolean(Object o){return read().getBoolean(o);}
+        public java.lang.reflect.Field getReadField(){return read().getReadField();}
+
+        // Writer calls that initialize the writer and forward the call
+        public void set(Object o, T v){write().set(o, v);}
+        public void setDouble(Object o, double v){write().setDouble(o, v); }
+        public void setFloat(Object o, float v){write().setFloat(o, v); }
+        public void setByte(Object o, byte v){write().setByte(o, v); }
+        public void setShort(Object o, short v){write().setShort(o, v); }
+        public void setInteger(Object o, int v){write().setInteger(o, v); }
+        public void setLong(Object o, long v){write().setLong(o, v); }
+        public void setCharacter(Object o, char v){write().setCharacter(o, v); }
+        public void setBoolean(Object o, boolean v){write().setBoolean(o, v); }
+        public java.lang.reflect.Field getWriteField(){return write().getWriteField();}
+
+        // Copier calls that initialize the copier and forward the call
+        public void copy(Object a, Object b){copy().copy(a, b);}
+        public Field getCopyField(){return copy().getCopyField();}
+    }
 }

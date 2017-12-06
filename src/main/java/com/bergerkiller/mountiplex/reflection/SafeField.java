@@ -106,7 +106,7 @@ public class SafeField<T> implements FieldAccessor<T> {
     @Override
     public T get(Object object) {
         try {
-            return this.field.reader.get(object);
+            return this.field.get(object);
         } catch (RuntimeException ex) {
             ex.printStackTrace();
             this.field.init(null);
@@ -117,7 +117,7 @@ public class SafeField<T> implements FieldAccessor<T> {
     @Override
     public boolean set(Object object, T value) {
         try {
-            this.field.writer.set(object, value);
+            this.field.set(object, value);
             return true;
         } catch (RuntimeException ex) {
             ex.printStackTrace();

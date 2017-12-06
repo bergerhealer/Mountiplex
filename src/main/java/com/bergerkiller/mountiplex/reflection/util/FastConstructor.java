@@ -7,32 +7,32 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Constructor;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionConstructor;
 
 public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject {
-    public Constructor<T> constructor;
+    private Constructor<T> constructor;
     private ConstructorDeclaration constructorDec;
     private String missingInfo = "!!UNKNOWN!!"; // stored info for when constructor is null
 
     public FastConstructor() {
         this.constructorDec = null;
-        this.constructor = this;
+        this.constructor = new FastConstructorInitProxy();
     }
 
     public FastConstructor(java.lang.reflect.Constructor<?> constructor) {
         this.constructorDec = new ConstructorDeclaration(ClassResolver.DEFAULT, constructor);
-        this.constructor = this;
+        this.constructor = new FastConstructorInitProxy();
     }
 
     public final void init(java.lang.reflect.Constructor<?> constructor) {
         this.constructorDec = new ConstructorDeclaration(ClassResolver.DEFAULT, constructor);
-        this.constructor = this;
+        this.constructor = new FastConstructorInitProxy();
     }
 
     public final void init(ConstructorDeclaration constructorDeclaration) {
         if (constructorDeclaration != null && constructorDeclaration.constructor == null) {
             this.constructorDec = null;
-            this.constructor = this;
+            this.constructor = new FastConstructorInitProxy();
         } else {
             this.constructorDec = constructorDeclaration;
-            this.constructor = this;
+            this.constructor = new FastConstructorInitProxy();
         }
     }
 
@@ -43,7 +43,7 @@ public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject
      */
     public final void initUnavailable(String missingInfo) {
         this.constructorDec = null;
-        this.constructor = this;
+        this.constructor = new FastConstructorInitProxy();
         this.missingInfo = missingInfo;
     }
 
@@ -107,65 +107,104 @@ public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject
 
     @Override
     public void forceInitialization() {
-        init();
-    }
-
-    /**
-     * Initializes this constructor invoker. The method will be found through
-     * reflection and optimized accessors compiled. All of this is only performed once.
-     * 
-     * All calls to invoke() in this class explicitly call init().
-     * 
-     * @return the new invoker that should be used from now on
-     */
-    private final Constructor<T> init() {
-        if (this.constructor == this) {
-            synchronized (this) {
-                if (this.constructor == this) {
-                    checkInit();
-
-                    // Calls an existing member method
-                    this.constructorDec.constructor.setAccessible(true);
-                    this.constructor = ReflectionConstructor.create(this.constructorDec.constructor);
-                }
-            }
+        if (this.constructor instanceof FastConstructor.FastConstructorInitProxy) {
+            ((FastConstructorInitProxy) this.constructor).init();
         }
-        return this.constructor;
     }
 
     @Override
     public T newInstanceVA(Object... args) {
-        return init().newInstanceVA(args);
+        return constructor.newInstanceVA(args);
     }
 
     @Override
     public T newInstance() {
-        return init().newInstance();
+        return constructor.newInstance();
     }
 
     @Override
     public T newInstance(Object arg0) {
-        return init().newInstance(arg0);
+        return constructor.newInstance(arg0);
     }
 
     @Override
     public T newInstance(Object arg0, Object arg1) {
-        return init().newInstance(arg0, arg1);
+        return constructor.newInstance(arg0, arg1);
     }
 
     @Override
     public T newInstance(Object arg0, Object arg1, Object arg2) {
-        return init().newInstance(arg0, arg1, arg2);
+        return constructor.newInstance(arg0, arg1, arg2);
     }
 
     @Override
     public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3) {
-        return init().newInstance(arg0, arg1, arg2, arg3);
+        return constructor.newInstance(arg0, arg1, arg2, arg3);
     }
 
     @Override
     public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-        return init().newInstance(arg0, arg1, arg2, arg3, arg4);
+        return constructor.newInstance(arg0, arg1, arg2, arg3, arg4);
     }
 
+    // This object is used at the first call to initialize the constructor
+    private final class FastConstructorInitProxy implements Constructor<T> {
+        /**
+         * Initializes this constructor invoker. The method will be found through
+         * reflection and optimized accessors compiled. All of this is only performed once.
+         * 
+         * All calls to invoke() in this class explicitly call init().
+         * 
+         * @return the new invoker that should be used from now on
+         */
+        private final Constructor<T> init() {
+            if (constructor == this) {
+                synchronized (FastConstructor.this) {
+                    if (constructor == this) {
+                        checkInit();
+
+                        // Calls an existing member method
+                        constructorDec.constructor.setAccessible(true);
+                        constructor = ReflectionConstructor.create(constructorDec.constructor);
+                    }
+                }
+            }
+            return constructor;
+        }
+
+        @Override
+        public T newInstanceVA(Object... args) {
+            return init().newInstanceVA(args);
+        }
+
+        @Override
+        public T newInstance() {
+            return init().newInstance();
+        }
+
+        @Override
+        public T newInstance(Object arg0) {
+            return init().newInstance(arg0);
+        }
+
+        @Override
+        public T newInstance(Object arg0, Object arg1) {
+            return init().newInstance(arg0, arg1);
+        }
+
+        @Override
+        public T newInstance(Object arg0, Object arg1, Object arg2) {
+            return init().newInstance(arg0, arg1, arg2);
+        }
+
+        @Override
+        public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3) {
+            return init().newInstance(arg0, arg1, arg2, arg3);
+        }
+
+        @Override
+        public T newInstance(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
+            return init().newInstance(arg0, arg1, arg2, arg3, arg4);
+        }
+    }
 }
