@@ -128,7 +128,7 @@ public class TemplateSpeedTest {
     
     @Test
     public void testPrimitive() {
-        TestUtil.printASM(GenConstructorImpl.class);
+        //TestUtil.printASM(GenConstructorImpl.class);
         
         final SpeedTestObject object = new SpeedTestObject();
         final SpeedTestObjectHandle handle = SpeedTestObjectHandle.createHandle(object);

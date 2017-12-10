@@ -347,6 +347,7 @@ public class Conversion {
         private boolean nullConverterSearched = false;
         private boolean isReset = false;
         public final InputConverter<Object> converter;
+        private int stepStuckCounter = 0;
 
         public OutputConverterTree(TypeDeclaration output) {
             this.root = new Node(null, new NullConverter(output, output));
@@ -398,6 +399,7 @@ public class Conversion {
             }
 
             // generate more layers deeper into the tree
+            stepStuckCounter = 0;
             isReset = false;
             while (!nextNodes.isEmpty()) {
                 lastNodes.clear();
@@ -483,6 +485,7 @@ public class Conversion {
         }
 
         private final class Node {
+            private static final int MAX_STEPS = 10000;
             public final Node previous;
             public final Converter<Object, Object> converter;
             public final ArrayList<Node> children = new ArrayList<Node>();
@@ -497,12 +500,26 @@ public class Conversion {
 
             // generates the next series of input conversion steps
             public final void step() {
+                // This here mechanic protects and reports endless step() calls, instead of freezing
+                if (stepStuckCounter >= (MAX_STEPS + 10)) {
+                    return;
+                }
                 for (Converter<?, ?> next : OutputConverterList.get(this.converter.input).getConverters()) {
                     Node n = new Node(this, next);
                     Node old = mapping.get(next.input);
-                    if (old == null || old.cost >= n.cost) {
+                    if (old == null || old.cost > n.cost) {
                         mapping.put(next.input, n);
                         this.children.add(n);
+                        ++stepStuckCounter;
+                        if (stepStuckCounter == MAX_STEPS) {
+                            MountiplexUtil.LOGGER.severe("Cyclical Conversion step() detected!");
+                            if (this.previous != null) {
+                                MountiplexUtil.LOGGER.severe("Previous: " + this.previous.converter);
+                            }
+                        }
+                        if (stepStuckCounter >= MAX_STEPS) {
+                            MountiplexUtil.LOGGER.severe("Next [" + n.cost + "]: " + n.converter);
+                        }
                     }
                 }
             }

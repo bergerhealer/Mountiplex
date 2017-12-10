@@ -116,6 +116,11 @@ public class CollectionConversion {
         protected abstract T create(T original, DuplexConverter<Object, Object> elementConverter);
 
         @Override
+        public int getCost() {
+            return 2;
+        }
+
+        @Override
         public final Converter<?, T> getConverter(TypeDeclaration input) {
             // Converting something Input<Type> to Output<Type>
             TypeDeclaration inputElementType = input.getGenericType(0);
