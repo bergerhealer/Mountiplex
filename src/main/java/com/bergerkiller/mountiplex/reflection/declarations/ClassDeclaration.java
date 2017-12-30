@@ -209,7 +209,13 @@ public class ClassDeclaration extends Declaration {
     }
 
     private void resolveFields() {
-        java.lang.reflect.Field[] realRefFields = this.type.type.getDeclaredFields();
+        java.lang.reflect.Field[] realRefFields;
+        try {
+            realRefFields = this.type.type.getDeclaredFields();
+        } catch (Throwable t) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get declared fields of " + this.type.typePath, t);
+            return;
+        }
         FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
         for (int i = 0; i < realFields.length; i++) {
             try {
