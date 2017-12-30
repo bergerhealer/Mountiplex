@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.types;
 
+import java.util.List;
+
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
@@ -9,6 +11,7 @@ public class TestObjectHandle extends Template.Handle {
     public static final String CONSTANT = T.staticField.getSafe();
 
     public static class TestObjectClass extends Template.Class<TestObjectHandle> {
+        public final Template.Field.Converted<List<String>> testRawField = new Template.Field.Converted<List<String>>();
         public final Template.StaticField<String> staticField = new Template.StaticField<String>();
         public final Template.Field<String> localField = new Template.Field<String>();
         public final Template.Field.Converted<String> intConvField = new Template.Field.Converted<String>();

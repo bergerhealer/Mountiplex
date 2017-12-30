@@ -694,10 +694,15 @@ public class TypeDeclaration extends Declaration {
         if (this.type == null || type.type == null) return false;
         if (this.isWildcard != type.isWildcard) return false;
         if (!this.type.equals(type.type)) return false;
-        if (this.genericTypes.length != type.genericTypes.length) return false;
-        for (int i = 0; i < this.genericTypes.length; i++) {
-            if (!this.genericTypes[i].match(type.genericTypes[i])) return false;
+
+        // Ignore rawtype assignment: List<Integer> = List
+        if (this.genericTypes.length != 0 && type.genericTypes.length != 0) {
+            if (this.genericTypes.length != type.genericTypes.length) return false;
+            for (int i = 0; i < this.genericTypes.length; i++) {
+                if (!this.genericTypes[i].match(type.genericTypes[i])) return false;
+            }
         }
+
         return true;
     }
 

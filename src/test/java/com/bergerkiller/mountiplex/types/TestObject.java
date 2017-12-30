@@ -1,10 +1,14 @@
 package com.bergerkiller.mountiplex.types;
 
-@SuppressWarnings("unused")
+import java.util.ArrayList;
+import java.util.List;
+
+@SuppressWarnings({"unused", "rawtypes"})
 public class TestObject {
     private static String a = "static_test";
     private String b = "local_test";
     private int c = 12;
+    public final List testRawField = new ArrayList();
 
     private int d(int k, int l) {
         return k + l;

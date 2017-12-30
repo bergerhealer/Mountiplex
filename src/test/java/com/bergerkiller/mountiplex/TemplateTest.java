@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.util.List;
+
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
@@ -26,6 +28,7 @@ public class TemplateTest {
                                       "    private static String staticField:a;\n"+
                                       "    private String localField:b;\n" +
                                       "    private (String) int intConvField:c;\n" +
+                                      "    public final (List<String>) List<Integer> testRawField;\n" +
                                       "    \n" +
                                       "    private int testFunc:d(int k, int l);\n" +
                                       "    private (String) int testConvFunc1:e(int k, int l);\n" +
@@ -55,6 +58,21 @@ public class TemplateTest {
         assertEquals("77", TestObjectHandle.T.testConvFunc1.invokeVA(object, 43, 33));
         assertEquals(68, TestObjectHandle.T.testConvFunc2.invokeVA(object, "22", "44").intValue());
         assertEquals(Long.valueOf(288), TestObjectHandle.T.testing2.invokeVA(12, "24"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testRawList() {
+        // Verify that it stores Integer values for String values put in
+        TestObject obj = new TestObject();
+        List<String> list = TestObjectHandle.T.testRawField.get(obj);
+        list.add("12");
+        list.add("-55");
+        list.add("0");
+        List<Integer> rawList = (List<Integer>) TestObjectHandle.T.testRawField.raw.get(obj);
+        assertEquals(Integer.valueOf(12), rawList.get(0));
+        assertEquals(Integer.valueOf(-55), rawList.get(1));
+        assertEquals(Integer.valueOf(0), rawList.get(2));
     }
 
     @Test
