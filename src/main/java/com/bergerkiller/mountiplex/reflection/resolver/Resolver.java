@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.resolver;
 
 import java.lang.reflect.MalformedParameterizedTypeException;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -310,15 +311,17 @@ public class Resolver {
     }
 
     public static final class ClassMeta {
-        public Class<?> type;
+        public final Class<?> type;
         protected boolean loaded;
         public final TypeDeclaration typeDec;
         public final TypeDeclaration[] interfaces;
         public final TypeDeclaration superType;
+        public final boolean isPublic;
 
         public ClassMeta(Class<?> type, boolean loaded) {
             this.type = type;
             this.loaded = loaded;
+            this.isPublic = isPublicClass(type);
             if (type != null) {
                 this.typeDec = new TypeDeclaration(ClassResolver.DEFAULT, type);
                 this.superType = findSuperType(this.typeDec);
@@ -328,6 +331,12 @@ public class Resolver {
                 this.superType = TypeDeclaration.OBJECT;
                 this.interfaces = new TypeDeclaration[0];
             }
+        }
+
+        private static boolean isPublicClass(Class<?> type) {
+            if (type == null) return true;
+            if (!Modifier.isPublic(type.getModifiers())) return false;
+            return isPublicClass(type.getDeclaringClass());
         }
 
         /// some bad class was found and we have to figure out what type variable is used <>
