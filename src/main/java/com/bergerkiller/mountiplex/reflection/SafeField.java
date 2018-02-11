@@ -109,7 +109,6 @@ public class SafeField<T> implements FieldAccessor<T> {
             return this.field.get(object);
         } catch (RuntimeException ex) {
             ex.printStackTrace();
-            this.field.init(null);
             return null;
         }
     }
@@ -121,7 +120,6 @@ public class SafeField<T> implements FieldAccessor<T> {
             return true;
         } catch (RuntimeException ex) {
             ex.printStackTrace();
-            this.field.init(null);
             return false;
         }
     }
