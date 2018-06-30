@@ -333,6 +333,23 @@ public abstract class ClassInterceptor {
         return proxy;
     }
 
+    /**
+     * Finds the base class of an enhanced class type. If the type is not enhanced,
+     * it is returned as is.
+     * 
+     * @param enhancedType
+     * @return base type of enhancedType
+     */
+    public static Class<?> findBaseType(Class<?> enhancedType) {
+        if (enhancedType == null) {
+            return null;
+        }
+        while (EnhancedObject.class.isAssignableFrom(enhancedType)) {
+            enhancedType = enhancedType.getSuperclass();
+        }
+        return enhancedType;
+    }
+
     /* ====================================================================================== */
     /* ================================== Implementation Code =============================== */
     /* ====================================================================================== */

@@ -17,9 +17,11 @@ public class ClassInterceptorTest {
 
         Cat old_cat = new Cat("meow");
         assertEquals("meow", old_cat.meow());
+        assertEquals(Cat.class, ClassInterceptor.findBaseType(old_cat.getClass()));
 
         Cat dna_engineered_cat = enhancer.hook(old_cat);
         assertEquals("woof", dna_engineered_cat.meow());
+        assertEquals(Cat.class, ClassInterceptor.findBaseType(dna_engineered_cat.getClass()));
 
         ClassInterceptor enhancer2 = new CatInterceptor("ribbit");
         Cat old_cat2 = new Cat("meow");

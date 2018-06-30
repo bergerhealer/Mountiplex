@@ -4,6 +4,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 import com.bergerkiller.mountiplex.reflection.ClassHook;
+import com.bergerkiller.mountiplex.reflection.ClassInterceptor;
 
 public class ClassHookTest {
 
@@ -16,6 +17,7 @@ public class ClassHookTest {
         DogHook hook = new DogHook();
 
         Dog hooked_dog = hook.hook(dog);
+        assertEquals(Dog.class, ClassInterceptor.findBaseType(hooked_dog.getClass()));
 
         assertEquals("DogHook::theWoofMethod()", hooked_dog.woof());
 
