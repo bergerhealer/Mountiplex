@@ -6,7 +6,9 @@ import java.util.List;
 @SuppressWarnings({"unused", "rawtypes"})
 public class TestObject {
     private static String a = "static_test";
+    private static final String a_f = "static_final_test";
     private String b = "local_test";
+    private final String b_f = "local_final_test";
     private int c = 12;
     public final List testRawField = new ArrayList();
 

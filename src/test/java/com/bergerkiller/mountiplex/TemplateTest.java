@@ -25,8 +25,10 @@ public class TemplateTest {
                     String template = "package com.bergerkiller.mountiplex.types;\n" +
                                       "\n" +
                                       "public class TestObject {\n" +
-                                      "    private static String staticField:a;\n"+
+                                      "    private static String staticField:a;\n" +
+                                      "    private static final String staticFinalField:a_f;\n" +
                                       "    private String localField:b;\n" +
+                                      "    private final String localFinalField:b_f;\n" +
                                       "    private (String) int intConvField:c;\n" +
                                       "    public final (List<String>) List<Integer> testRawField;\n" +
                                       "    \n" +
@@ -48,16 +50,23 @@ public class TemplateTest {
         TestObject object = new TestObject();
         assertEquals("static_test", TestObjectHandle.CONSTANT);
         assertEquals("static_test", TestObjectHandle.T.staticField.get());
+        assertEquals("static_final_test", TestObjectHandle.T.staticFinalField.get());
         assertEquals("local_test", TestObjectHandle.T.localField.get(object));
+        assertEquals("local_final_test", TestObjectHandle.T.localFinalField.get(object));
         TestObjectHandle.T.staticField.set("static_changed");
+        TestObjectHandle.T.staticFinalField.set("static_final_changed");
         TestObjectHandle.T.localField.set(object, "local_changed");
+        TestObjectHandle.T.localFinalField.set(object, "local_final_changed");
         assertEquals("static_changed", TestObjectHandle.T.staticField.get());
+        assertEquals("static_final_changed", TestObjectHandle.T.staticFinalField.get());
         assertEquals("local_changed", TestObjectHandle.T.localField.get(object));
+        assertEquals("local_final_changed", TestObjectHandle.T.localFinalField.get(object));
         assertEquals("12", TestObjectHandle.T.intConvField.get(object));
         assertEquals(57, TestObjectHandle.T.testFunc.invokeVA(object, 12, 45).intValue());
         assertEquals("77", TestObjectHandle.T.testConvFunc1.invokeVA(object, 43, 33));
         assertEquals(68, TestObjectHandle.T.testConvFunc2.invokeVA(object, "22", "44").intValue());
         assertEquals(Long.valueOf(288), TestObjectHandle.T.testing2.invokeVA(12, "24"));
+        
     }
 
     @Test

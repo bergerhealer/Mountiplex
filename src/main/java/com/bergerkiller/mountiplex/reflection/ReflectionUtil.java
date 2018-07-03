@@ -14,6 +14,16 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 
 public class ReflectionUtil {
+    private static final java.lang.reflect.Field MODIFIERS_FIELD;
+
+    static {
+        Field f = null;
+        try {
+            f = Field.class.getDeclaredField("modifiers");
+        } catch (Throwable t) {}
+        MODIFIERS_FIELD = f;
+    }
+
     /// removes generics from a field/method declaration
     /// example: Map<String, String> stuff -> Map stuff
     public static String filterGenerics(String input) {
@@ -318,5 +328,17 @@ public class ReflectionUtil {
         System.arraycopy(oldTrace, 0, newTrace, 1, oldTrace.length);
         newTrace[0] = ASMUtil.findMethodDetails(m);
         t.setStackTrace(newTrace);
+    }
+
+    /**
+     * Removes the final field modifier, making a final field writable
+     * 
+     * @param field
+     * @throws IllegalAccessException
+     */
+    public static void removeFinalModifier(java.lang.reflect.Field field) throws IllegalAccessException {
+        MODIFIERS_FIELD.setAccessible(true);
+        MODIFIERS_FIELD.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+        MODIFIERS_FIELD.setAccessible(false);
     }
 }

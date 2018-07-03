@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.util;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.fast.Copier;
 import com.bergerkiller.mountiplex.reflection.util.fast.Reader;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
@@ -121,6 +122,18 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
     }
 
     private void makeAccessible() {
+        // Setting a static final field requires hacking away the final modifier in the field
+        // Otherwise an illegalAccessException occurs when attempting to set it
+        int mod = field.getModifiers();
+        if (Modifier.isFinal(mod) && Modifier.isStatic(mod)) {
+            try {
+                ReflectionUtil.removeFinalModifier(field);
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to make final field " + field.getName() + " accessible");
+            }
+        }
+
+        // Basic tier takes care of most cases
         try {
             field.setAccessible(true);
         } catch (Throwable t) {

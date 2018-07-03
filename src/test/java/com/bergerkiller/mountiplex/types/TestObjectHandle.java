@@ -13,7 +13,9 @@ public class TestObjectHandle extends Template.Handle {
     public static class TestObjectClass extends Template.Class<TestObjectHandle> {
         public final Template.Field.Converted<List<String>> testRawField = new Template.Field.Converted<List<String>>();
         public final Template.StaticField<String> staticField = new Template.StaticField<String>();
+        public final Template.StaticField<String> staticFinalField = new Template.StaticField<String>();
         public final Template.Field<String> localField = new Template.Field<String>();
+        public final Template.Field<String> localFinalField = new Template.Field<String>();
         public final Template.Field.Converted<String> intConvField = new Template.Field.Converted<String>();
         public final Template.Method<Integer> testFunc = new Template.Method<Integer>();
         public final Template.Method.Converted<String> testConvFunc1 = new Template.Method.Converted<String>();
