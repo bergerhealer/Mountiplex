@@ -11,6 +11,7 @@ public class TestObject {
     private final String b_f = "local_final_test";
     private int c = 12;
     public final List testRawField = new ArrayList();
+    public String unusedField = "unused";
 
     private int d(int k, int l) {
         return k + l;

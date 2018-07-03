@@ -21,5 +21,7 @@ public class TestObjectHandle extends Template.Handle {
         public final Template.Method.Converted<String> testConvFunc1 = new Template.Method.Converted<String>();
         public final Template.Method.Converted<Integer> testConvFunc2 = new Template.Method.Converted<Integer>();
         public final Template.StaticMethod.Converted<Long> testing2 = new Template.StaticMethod.Converted<Long>();
+        @Template.Optional
+        public final Template.Field<String> unusedField = new Template.Field<String>();
     }
 }

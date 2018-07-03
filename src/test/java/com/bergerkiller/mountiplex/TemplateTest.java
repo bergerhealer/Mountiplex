@@ -31,6 +31,7 @@ public class TemplateTest {
                                       "    private final String localFinalField:b_f;\n" +
                                       "    private (String) int intConvField:c;\n" +
                                       "    public final (List<String>) List<Integer> testRawField;\n" +
+                                      "    public optional String unusedField:???;\n" +
                                       "    \n" +
                                       "    private int testFunc:d(int k, int l);\n" +
                                       "    private (String) int testConvFunc1:e(int k, int l);\n" +
@@ -66,7 +67,7 @@ public class TemplateTest {
         assertEquals("77", TestObjectHandle.T.testConvFunc1.invokeVA(object, 43, 33));
         assertEquals(68, TestObjectHandle.T.testConvFunc2.invokeVA(object, "22", "44").intValue());
         assertEquals(Long.valueOf(288), TestObjectHandle.T.testing2.invokeVA(12, "24"));
-        
+        assertFalse(TestObjectHandle.T.unusedField.isAvailable());
     }
 
     @Test
