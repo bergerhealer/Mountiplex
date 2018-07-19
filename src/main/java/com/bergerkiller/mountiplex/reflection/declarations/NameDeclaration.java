@@ -193,9 +193,11 @@ public class NameDeclaration extends Declaration {
             if (this.hasAlias() && other.hasAlias()) {
                 return other._alias.equals(this._alias);
             } else if (this.isAliasOnly()) {
-                return this._alias.equals(other._alias) && other.isAliasOnly();
+                // getName() == getName:???
+                return other._name.equals(this._alias);
             } else if (other.isAliasOnly()) {
-                return false;
+                // getName() == getName:???
+                return this._name.equals(other._alias);
             } else {
                 return other._name.equals(this._name);
             }

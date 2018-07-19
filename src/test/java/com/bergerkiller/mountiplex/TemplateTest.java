@@ -31,7 +31,7 @@ public class TemplateTest {
                                       "    private final String localFinalField:b_f;\n" +
                                       "    private (String) int intConvField:c;\n" +
                                       "    public final (List<String>) List<Integer> testRawField;\n" +
-                                      "    public optional String unusedField:???;\n" +
+                                      "    public optional String unusedField:###;\n" +
                                       "    \n" +
                                       "    private int testFunc:d(int k, int l);\n" +
                                       "    private (String) int testConvFunc1:e(int k, int l);\n" +
