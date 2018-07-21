@@ -17,12 +17,12 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
     }
 
     public FastMethod(java.lang.reflect.Method method) {
-        this.method = new MethodDeclaration(ClassResolver.DEFAULT, method);
+        this.method = (method == null) ? null : new MethodDeclaration(ClassResolver.DEFAULT, method);
         this.invoker = new FastMethodInitProxy();
     }
 
     public final void init(java.lang.reflect.Method method) {
-        this.method = new MethodDeclaration(ClassResolver.DEFAULT, method);
+        this.method = (method == null) ? null : new MethodDeclaration(ClassResolver.DEFAULT, method);
         this.invoker = new FastMethodInitProxy();
     }
 
