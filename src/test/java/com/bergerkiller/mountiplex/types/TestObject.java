@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings({"unused", "rawtypes"})
-public class TestObject {
+public class TestObject extends TestObjectDefInherited implements TestObjectDefInterface {
     private static String a = "static_test";
     private static final String a_f = "static_final_test";
     private String b = "local_test";

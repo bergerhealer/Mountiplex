@@ -250,13 +250,23 @@ public class ClassDeclaration extends Declaration {
     }
 
     private void resolveMethods() {
-        java.lang.reflect.Method[] realRefMethods = this.type.type.getDeclaredMethods();
-        MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.length];
+        // Merge declared and public methods as one long list
+        // Skip declared methods that are public - they are already in the list
+        ArrayList<java.lang.reflect.Method> realRefMethods = new ArrayList<java.lang.reflect.Method>();
+        realRefMethods.addAll(Arrays.asList(this.type.type.getMethods()));
+        for (java.lang.reflect.Method decMethod : this.type.type.getDeclaredMethods()) {
+            if (Modifier.isPublic(decMethod.getModifiers())) {
+                continue;
+            }
+            realRefMethods.add(decMethod);
+        }
+
+        MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.size()];
         for (int i = 0; i < realMethods.length; i++) {
             try {
-                realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods[i]);
+                realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods.get(i));
             } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods[i], t);
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods.get(i), t);
             }
         }
 

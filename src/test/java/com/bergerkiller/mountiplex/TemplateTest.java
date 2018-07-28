@@ -37,6 +37,8 @@ public class TemplateTest {
                                       "    private (String) int testConvFunc1:e(int k, int l);\n" +
                                       "    private int testConvFunc2:f((String) int k, (String) int l);\n" +
                                       "    private static (long) int testing2:g(int a, (String) int b);\n" +
+                                      "    public int defaultInterfaceMethod();\n" +
+                                      "    public int inheritedClassMethod();\n" +
                                       "}\n";
 
                     return SourceDeclaration.parse(template).classes[0];
@@ -68,6 +70,8 @@ public class TemplateTest {
         assertEquals(68, TestObjectHandle.T.testConvFunc2.invokeVA(object, "22", "44").intValue());
         assertEquals(Long.valueOf(288), TestObjectHandle.T.testing2.invokeVA(12, "24"));
         assertFalse(TestObjectHandle.T.unusedField.isAvailable());
+        assertEquals(12, TestObjectHandle.T.defaultInterfaceMethod.invoke(object).intValue());
+        assertEquals(13, TestObjectHandle.T.inheritedClassMethod.invoke(object).intValue());
     }
 
     @Test
