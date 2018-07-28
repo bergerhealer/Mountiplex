@@ -31,8 +31,8 @@ public class CollectionConversion {
                 if (output.type.equals(Iterable.class)) {
                     converters.add(new CollectionConverter<Iterable<?>>(output) {
                         @Override
-                        protected Iterable<?> change(Collection<?> original) {
-                            return original; // all collections are iterables
+                        protected Iterable<?> change(Iterable<?> original) {
+                            return original;
                         }
 
                         @Override
@@ -46,8 +46,16 @@ public class CollectionConversion {
                 if (output.type.equals(Collection.class)) {
                     converters.add(new CollectionConverter<Collection<?>>(output) {
                         @Override
-                        protected Collection<?> change(Collection<?> original) {
-                            return original;
+                        protected Collection<?> change(Iterable<?> original) {
+                            if (original instanceof Collection) {
+                                return (Collection<?>) original;
+                            } else {
+                                ArrayList<Object> result = new ArrayList<Object>();
+                                for (Object o : original) {
+                                    result.add(o);
+                                }
+                                return result;
+                            }
                         }
 
                         @Override
@@ -61,8 +69,16 @@ public class CollectionConversion {
                 if (output.type.equals(Queue.class)) {
                     converters.add(new CollectionConverter<Queue<?>>(output) {
                         @Override
-                        protected Queue<?> change(Collection<?> original) {
-                            return new LinkedList<Object>(original);
+                        protected Queue<?> change(Iterable<?> original) {
+                            if (original instanceof Collection) {
+                                return new LinkedList<Object>((Collection<?>) original);
+                            } else {
+                                LinkedList<Object> result = new LinkedList<Object>();
+                                for (Object o : original) {
+                                    result.add(o);
+                                }
+                                return result;
+                            }
                         }
 
                         @Override
@@ -76,8 +92,16 @@ public class CollectionConversion {
                 if (output.type.equals(List.class)) {
                     converters.add(new CollectionConverter<List<?>>(output) {
                         @Override
-                        protected List<?> change(Collection<?> original) {
-                            return new ArrayList<Object>(original);
+                        protected List<?> change(Iterable<?> original) {
+                            if (original instanceof Collection) {
+                                return new ArrayList<Object>((Collection<?>) original);
+                            } else {
+                                ArrayList<Object> result = new ArrayList<Object>();
+                                for (Object o : original) {
+                                    result.add(o);
+                                }
+                                return result;
+                            }
                         }
 
                         @Override
@@ -91,8 +115,16 @@ public class CollectionConversion {
                 if (output.type.equals(Set.class)) {
                     converters.add(new CollectionConverter<Set<?>>(output) {
                         @Override
-                        protected Set<?> change(Collection<?> original) {
-                            return new HashSet<Object>(original);
+                        protected Set<?> change(Iterable<?> original) {
+                            if (original instanceof Collection) {
+                                return new HashSet<Object>((Collection<?>) original);
+                            } else {
+                                HashSet<Object> result = new HashSet<Object>();
+                                for (Object o : original) {
+                                    result.add(o);
+                                }
+                                return result;
+                            }
                         }
 
                         @Override
@@ -108,10 +140,10 @@ public class CollectionConversion {
     private static abstract class CollectionConverter <T extends Iterable<?>> extends InputConverter<T> {
 
         public CollectionConverter(TypeDeclaration output) {
-            super(TypeDeclaration.fromClass(Collection.class), output);
+            super(TypeDeclaration.fromClass(Iterable.class), output);
         }
 
-        protected abstract T change(Collection<?> original);
+        protected abstract T change(Iterable<?> original);
 
         protected abstract T create(T original, DuplexConverter<Object, Object> elementConverter);
 
@@ -149,8 +181,8 @@ public class CollectionConversion {
             @Override
             public final T convertInput(T value) {
                 if (this.convertCollection) {
-                    if (value instanceof Collection) {
-                        value = CollectionConverter.this.change((Collection<?>) value);
+                    if (value instanceof Iterable) {
+                        value = CollectionConverter.this.change((Iterable<?>) value);
                     } else {
                         return null;
                     }
