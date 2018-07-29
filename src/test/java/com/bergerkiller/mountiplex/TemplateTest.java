@@ -39,6 +39,9 @@ public class TemplateTest {
                                       "    private static (long) int testing2:g(int a, (String) int b);\n" +
                                       "    public int defaultInterfaceMethod();\n" +
                                       "    public int inheritedClassMethod();\n" +
+                                      "    public optional int testGenerated() {\n" +
+                                      "        return 621;\n" +
+                                      "    }\n" +
                                       "}\n";
 
                     return SourceDeclaration.parse(template).classes[0];
@@ -72,6 +75,8 @@ public class TemplateTest {
         assertFalse(TestObjectHandle.T.unusedField.isAvailable());
         assertEquals(12, TestObjectHandle.T.defaultInterfaceMethod.invoke(object).intValue());
         assertEquals(13, TestObjectHandle.T.inheritedClassMethod.invoke(object).intValue());
+        assertEquals(621, TestObjectHandle.T.testGenerated.invoke(object).intValue());
+        assertTrue(TestObjectHandle.T.testGenerated.isAvailable());
     }
 
     @Test

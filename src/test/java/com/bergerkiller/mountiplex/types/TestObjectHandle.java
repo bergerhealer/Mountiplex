@@ -24,6 +24,8 @@ public class TestObjectHandle extends Template.Handle {
         public final Template.Method<Integer> inheritedClassMethod = new Template.Method<Integer>();
         public final Template.StaticMethod.Converted<Long> testing2 = new Template.StaticMethod.Converted<Long>();
         @Template.Optional
+        public final Template.Method<Integer> testGenerated = new Template.Method<Integer>();
+        @Template.Optional
         public final Template.Field<String> unusedField = new Template.Field<String>();
     }
 }

@@ -665,7 +665,7 @@ public class Template {
 
         @Override
         public boolean isAvailable() {
-            return method.getMethod() != null;
+            return method.isAvailable();
         }
 
         /**
