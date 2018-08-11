@@ -242,9 +242,14 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
                 invoker.addMethod(CtNewMethod.make(proxyInvokeBody.toString(), invoker));
             }
 
-            GeneratedCodeInvoker<T> result = (GeneratedCodeInvoker<T>) invoker.toClass(GeneratedCodeInvoker.class.getClassLoader(), null).newInstance();
-            result.argCount = argCount;
-            return result;
+            try {
+                GeneratedCodeInvoker<T> result = (GeneratedCodeInvoker<T>) invoker.toClass(GeneratedCodeInvoker.class.getClassLoader(), null).newInstance();
+                result.argCount = argCount;
+                return result;
+            } catch (java.lang.VerifyError ex) {
+                System.err.println("Failed to verify generated method: " + declaration.body);
+                throw ex;
+            }
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
