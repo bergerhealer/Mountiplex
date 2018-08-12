@@ -3,6 +3,8 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -67,18 +69,30 @@ public class TemplateGenerator {
             addLine("import " + importPath);
         }
         this.builder.append(resultStr);
+        String templateContents = this.builder.toString();
 
         try {
             File sourceFileDir = new File(this.rootDir, packagePath.replace('.', File.separatorChar));
             sourceFileDir.mkdirs();
             File sourceFile = new File(sourceFileDir, handleName(this.rootClassDec) + ".java");
-            BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile));
-            try {
-                writer.write(this.builder.toString());
-            } catch (Throwable t) {
-                t.printStackTrace();
+
+            // First, check if the template contents have changed before writing
+            // This avoids unneeded compilation of classes that have not (actually) changed
+            boolean changed = true;
+            if (sourceFile.exists()) {
+                String originalContents = new String(Files.readAllBytes(sourceFile.toPath()), StandardCharsets.UTF_8);
+                changed = !originalContents.equals(templateContents);
             }
-            writer.close();
+
+            if (changed) {
+                BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile));
+                try {
+                    writer.write(templateContents);
+                } finally {
+                    writer.close();
+                }
+            }
+
         } catch (Throwable t) {
             t.printStackTrace();
         }
