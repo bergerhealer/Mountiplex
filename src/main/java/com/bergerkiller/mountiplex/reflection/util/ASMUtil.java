@@ -3,18 +3,84 @@ package com.bergerkiller.mountiplex.reflection.util;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Set;
 import java.util.TreeSet;
 
 import net.sf.cglib.asm.AnnotationVisitor;
 import net.sf.cglib.asm.Attribute;
 import net.sf.cglib.asm.ClassReader;
 import net.sf.cglib.asm.ClassVisitor;
+import net.sf.cglib.asm.ClassWriter;
 import net.sf.cglib.asm.FieldVisitor;
 import net.sf.cglib.asm.Label;
 import net.sf.cglib.asm.MethodVisitor;
 import net.sf.cglib.asm.Type;
 
 public class ASMUtil {
+
+    /**
+     * Rewrites class data to remove the signatures of methods defined in the class
+     * 
+     * @param classData
+     * @param methodsSignatures to remove, each entry should be name and signature combined
+     * @return generated class data
+     */
+    public static byte[] removeClassMethods(byte[] classData, Set<String> methodsSignatures) {
+        ClassReader cr = new ClassReader(classData);
+        ClassWriter cw = new ClassWriter(cr, 0);
+        cr.accept(new ClassVisitor() {
+
+            @Override
+            public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
+                return cw.visitAnnotation(arg0, arg1);
+            }
+
+            @Override
+            public void visitAttribute(Attribute arg0) {
+                cw.visitAttribute(arg0);
+            }
+
+            @Override
+            public void visitEnd() {
+                cw.visitEnd();
+            }
+
+            @Override
+            public FieldVisitor visitField(int arg0, String arg1, String arg2, String arg3, Object arg4) {
+                return cw.visitField(arg0, arg1, arg2, arg3, arg4);
+            }
+
+            @Override
+            public void visitInnerClass(String arg0, String arg1, String arg2, int arg3) {
+                cw.visitInnerClass(arg0, arg1, arg2, arg3);
+            }
+
+            @Override
+            public MethodVisitor visitMethod(int arg0, String name, String signature, String arg3, String[] arg4) {
+                if (methodsSignatures.contains(name+signature)) {
+                    return null;
+                }
+                return cw.visitMethod(arg0, name, signature, arg3, arg4);
+            }
+
+            @Override
+            public void visitOuterClass(String arg0, String arg1, String arg2) {
+                cw.visitOuterClass(arg0, arg1, arg2);
+            }
+
+            @Override
+            public void visitSource(String arg0, String arg1) {
+                cw.visitSource(arg0, arg1);
+            }
+
+            @Override
+            public void visit(int arg0, int arg1, String arg2, String arg3, String arg4, String[] arg5) {
+                cw.visit(arg0, arg1, arg2, arg3, arg4, arg5);
+            }
+        }, 0);
+
+        return cw.toByteArray();
+    }
 
     /**
      * Reads the raw .class file to resolve all Class types used in contained fields, methods and subclasses.
