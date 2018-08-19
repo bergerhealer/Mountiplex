@@ -12,6 +12,7 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
     private int c = 12;
     public final List testRawField = new ArrayList();
     public String unusedField = "unused";
+    public final OneWayConvertableType oneWay = new OneWayConvertableType();
 
     private int d(int k, int l) {
         return k + l;

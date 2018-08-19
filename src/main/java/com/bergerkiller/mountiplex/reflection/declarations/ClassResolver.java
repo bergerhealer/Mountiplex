@@ -174,6 +174,9 @@ public class ClassResolver {
             varName = expression;
             expression = "";
         }
+        if (varName.equals("classexists")) {
+            return Resolver.loadClass(expression, false) != null;
+        }
         String value1 = this.variables.get(varName);
         if (value1 == null) {
             // Edge cases: true/false constants

@@ -27,5 +27,7 @@ public class TestObjectHandle extends Template.Handle {
         public final Template.Method<Integer> testGenerated = new Template.Method<Integer>();
         @Template.Optional
         public final Template.Field<String> unusedField = new Template.Field<String>();
+        @Template.Readonly
+        public final Template.Field.Converted<UniqueType> oneWay = new Template.Field.Converted<UniqueType>();
     }
 }

@@ -218,10 +218,12 @@ public class TemplateGenerator {
                     addLine("}");
 
                     // Setter
-                    populateModifiers(fDec.modifiers);
-                    addLine("public static void " + fName + "_set(" + typeStr + " value) {");
-                    addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(value)");
-                    addLine("}");
+                    if (!fDec.modifiers.isReadonly()) {
+                        populateModifiers(fDec.modifiers);
+                        addLine("public static void " + fName + "_set(" + typeStr + " value) {");
+                        addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(value)");
+                        addLine("}");
+                    }
                 }
 
                 // Static methods
@@ -266,8 +268,10 @@ public class TemplateGenerator {
                     addLine("public abstract " + typeStr + " " + getGetterName(fDec) + "()");
 
                     // Setter
-                    populateModifiers(fDec.modifiers);
-                    addLine("public abstract void " + getSetterName(fDec) + "(" + typeStr + " value)");
+                    if (!fDec.modifiers.isReadonly()) {
+                        populateModifiers(fDec.modifiers);
+                        addLine("public abstract void " + getSetterName(fDec) + "(" + typeStr + " value)");
+                    }
 
                     /*
                     String primTypeStr = getPrimFieldType(fDec);
@@ -457,6 +461,9 @@ public class TemplateGenerator {
         }
         if (dec.isOptional()) {
             addLine("@Template.Optional");
+        }
+        if (dec.isReadonly()) {
+            addLine("@Template.Readonly");
         }
     }
 

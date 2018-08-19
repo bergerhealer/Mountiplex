@@ -14,6 +14,7 @@ public class ModifierDeclaration extends Declaration {
     private final boolean _final;
     private final boolean _unknown;
     private final boolean _optional;
+    private final boolean _readonly;
     private final boolean _rawtype;
 
     static {
@@ -35,6 +36,7 @@ public class ModifierDeclaration extends Declaration {
         this._unknown = false;
         this._optional = false;
         this._rawtype = false;
+        this._readonly = false;
     }
 
     public ModifierDeclaration(ClassResolver resolver, String declaration) {
@@ -48,12 +50,14 @@ public class ModifierDeclaration extends Declaration {
             this._unknown = false;
             this._optional = false;
             this._rawtype = false;
+            this._readonly = false;
             this.setInvalid();
             return;
         }
 
         boolean isUnknown = false;
         boolean isOptional = false;
+        boolean isReadonly = false;
         boolean isRawtype = false;
         int modifiers = 0;
         String modifiersStr = "";
@@ -80,6 +84,9 @@ public class ModifierDeclaration extends Declaration {
                 } else if (token.equals("optional")) {
                     isOptional = true;
                     validToken = true;
+                } else if (token.equals("readonly")) {
+                    isReadonly = true;
+                    validToken = true;
                 } else if (token.equals("rawtype")) {
                     isRawtype = true;
                     validToken = true;
@@ -105,6 +112,7 @@ public class ModifierDeclaration extends Declaration {
         this._modifiersStr = modifiersStr;
         this._unknown = isUnknown;
         this._optional = isOptional;
+        this._readonly = isReadonly;
         this._rawtype = isRawtype;
         this.setPostfix(postfix);
     }
@@ -118,6 +126,20 @@ public class ModifierDeclaration extends Declaration {
      */
     public final boolean isUnknown() {
         return this._unknown;
+    }
+
+    /**
+     * Gets whether the custom 'readonly' modifier is set.
+     * This modifier indicates that the upcoming declaration refers to an object that can
+     * only be read from, not written to. For field declarations, this means only getting the
+     * field is possible, setting is not.<br>
+     * <br>
+     * In generated code, no setter code will be included.
+     * 
+     * @return True if readonly, False if not
+     */
+    public final boolean isReadonly() {
+        return this._readonly;
     }
 
     /**

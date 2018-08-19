@@ -32,6 +32,7 @@ public class TemplateTest {
                                       "    private (String) int intConvField:c;\n" +
                                       "    public final (List<String>) List<Integer> testRawField;\n" +
                                       "    public optional String unusedField:###;\n" +
+                                      "    public readonly final (UniqueType) OneWayConvertableType oneWay;\n" +
                                       "    \n" +
                                       "    private int testFunc:d(int k, int l);\n" +
                                       "    private (String) int testConvFunc1:e(int k, int l);\n" +
@@ -77,6 +78,16 @@ public class TemplateTest {
         assertEquals(13, TestObjectHandle.T.inheritedClassMethod.invoke(object).intValue());
         assertEquals(621, TestObjectHandle.T.testGenerated.invoke(object).intValue());
         assertTrue(TestObjectHandle.T.testGenerated.isAvailable());
+        assertTrue(TestObjectHandle.T.oneWay.isReadonly());
+        assertEquals("OneWayConvertableType::UniqueType", TestObjectHandle.T.oneWay.get(object).name);
+
+        try {
+            TestObjectHandle.T.oneWay.set(object, null);
+            fail("Readonly field was written to");
+        } catch (UnsupportedOperationException ex) {
+            assertEquals("Field oneWay is readonly", ex.getMessage());
+        }
+        assertNotNull(TestObjectHandle.T.oneWay.get(object));
     }
 
     @Test

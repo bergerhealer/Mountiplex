@@ -167,25 +167,27 @@ public class TemplateHandleBuilder<H> {
                 mv.visitEnd();
 
                 // Generate setter
-                String setterName = TemplateGenerator.getSetterName(fieldDec);
-                mv = cw.visitMethod(ACC_PUBLIC + ACC_FINAL, setterName, "(" + fieldTypeDesc + ")V", null, null);
-                mv.visitCode();
-                if (isPublicNonfinalField) {
-                    mv.visitVarInsn(ALOAD, 0);
-                    mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                    mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
-                    mv.visitFieldInsn(PUTFIELD, instanceTypeName, fieldDec.name.value(), fieldTypeDesc);
-                } else {
-                    mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
-                    mv.visitFieldInsn(GETFIELD, templateClassName, fieldName, templateElementDesc);
-                    mv.visitVarInsn(ALOAD, 0);
-                    mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                    mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
-                    mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "set" + accessorName, "(Ljava/lang/Object;" + accessorType + ")V");
+                if (!fieldDec.modifiers.isReadonly()) {
+                    String setterName = TemplateGenerator.getSetterName(fieldDec);
+                    mv = cw.visitMethod(ACC_PUBLIC + ACC_FINAL, setterName, "(" + fieldTypeDesc + ")V", null, null);
+                    mv.visitCode();
+                    if (isPublicNonfinalField) {
+                        mv.visitVarInsn(ALOAD, 0);
+                        mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
+                        mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
+                        mv.visitFieldInsn(PUTFIELD, instanceTypeName, fieldDec.name.value(), fieldTypeDesc);
+                    } else {
+                        mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
+                        mv.visitFieldInsn(GETFIELD, templateClassName, fieldName, templateElementDesc);
+                        mv.visitVarInsn(ALOAD, 0);
+                        mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
+                        mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
+                        mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "set" + accessorName, "(Ljava/lang/Object;" + accessorType + ")V");
+                    }
+                    mv.visitInsn(RETURN);
+                    mv.visitMaxs(4, 3);
+                    mv.visitEnd();
                 }
-                mv.visitInsn(RETURN);
-                mv.visitMaxs(4, 3);
-                mv.visitEnd();
             }
 
             // Implement the invoke method for all non-static methods

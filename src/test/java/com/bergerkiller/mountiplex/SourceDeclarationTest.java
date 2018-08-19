@@ -12,6 +12,13 @@ public class SourceDeclarationTest {
     public void testPreprocess() {
         String sourceDec = "#set test 1.23.55\n" +
                            "#set dummy 12\n" +
+                           "#if classexists this.class.does.not.exist\n" +
+                             "THIS SHOULD NOT EVALUATE BECAUSE CLASS DOES NOT EXIST\n" +
+                           "#elseif classexists com.bergerkiller.mountiplex.types.TestObject\n" +
+                             "THIS SHOULD EVALUATE BECAUSE THE CLASS EXISTS\n" +
+                           "#else\n" +
+                             "THIS SHOULD NOT EVALUATE, PREVIOUS CLASS EXISTED\n" +
+                           "#endif\n" +
                            "#if test >= 1.22.0\n" +
                              "THIS SHOULD EVALUATE\n" +
                              "#if dummy == 11\n" +
@@ -43,6 +50,7 @@ public class SourceDeclarationTest {
 
         String expected = "#set test 1.23.55\n" +
                           "#set dummy 12\n" +
+                          "THIS SHOULD EVALUATE BECAUSE THE CLASS EXISTS\n" +
                           "THIS SHOULD EVALUATE\n" +
                           "DUMMY==12 SHOULD EVALUATE\n" +
                           "AFTER ENDIF SHOULD EVALUATE\n" +

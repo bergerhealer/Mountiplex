@@ -11,6 +11,7 @@ import org.objenesis.instantiator.ObjectInstantiator;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.conversion.type.DisabledConverter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
@@ -174,6 +175,9 @@ public class Template {
                         elementsList.add(element);
                         if (templateFieldRef.getAnnotation(Optional.class) != null) {
                             element.setOptional();
+                        }
+                        if (templateFieldRef.getAnnotation(Readonly.class) != null) {
+                            element.setReadonly();
                         }
                         if (valid) {
                             Object result = element.init(classDec, templateFieldName);
@@ -472,6 +476,7 @@ public class Template {
     // all declared class element types must extend this type
     public static abstract class TemplateElement<T extends Declaration> implements LazyInitializedObject {
         private boolean _optional = false;
+        private boolean _readonly = false;
         protected boolean _hasClass = true;
         private String _elementName = "!!UNKNOWN!!";
 
@@ -545,6 +550,10 @@ public class Template {
             this._optional = true;
         }
 
+        protected void setReadonly() {
+            _readonly = true;
+        }
+
         /**
          * Gets whether this Class element is optional, and could possibly not exist at runtime
          * 
@@ -552,6 +561,16 @@ public class Template {
          */
         public boolean isOptional() {
             return this._optional;
+        }
+
+        /**
+         * Gets whether this Class element is readonly, and only read access is allowed.
+         * Setter methods will fail at runtime.
+         * 
+         * @return True if readonly, False if not
+         */
+        public boolean isReadonly() {
+            return this._readonly;
         }
     }
 
@@ -715,7 +734,17 @@ public class Template {
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
             FieldDeclaration fDec = this.raw.init(dec, name);
             if (fDec != null) {
-                this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
+                if (this.isReadonly()) {
+                    Converter<?, T> conv_a = (Converter<?, T>) Conversion.find(fDec.type, fDec.type.cast);
+                    if (conv_a == null) {
+                        this.converter = null;
+                    } else {
+                        Converter<T, ?> conv_b = new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly");
+                        this.converter = DuplexConverter.pair(conv_a, conv_b);
+                    }
+                } else {
+                    this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
+                }
                 if (this.converter == null) {
                     initFail("Converter for field " + fDec.name.toString() + 
                              " not found: " + fDec.type.toString());
@@ -2280,5 +2309,12 @@ public class Template {
      */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Optional {
+    }
+
+    /**
+     * Indicates a declaration statement is readonly and only get-access is possible
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Readonly {
     }
 }
