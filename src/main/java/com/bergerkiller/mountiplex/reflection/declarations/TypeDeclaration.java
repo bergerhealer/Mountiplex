@@ -531,10 +531,6 @@ public class TypeDeclaration extends Declaration {
                     return type;
                 }
             }
-            System.out.println("FAILED TO FIND CAST " + this + " TO TYPE " + classType.getName());
-            for (TypeDeclaration type : this.getSuperTypes()) {
-                System.out.println("SUPER TYPE: " + type.toString());
-            }
         }
         return null;
     }

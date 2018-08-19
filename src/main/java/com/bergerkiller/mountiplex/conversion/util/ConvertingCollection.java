@@ -25,6 +25,15 @@ public class ConvertingCollection<T> implements Collection<T> {
     }
 
     /**
+     * Gets the converter used to translate items inside the collection
+     * 
+     * @return element converter
+     */
+    public DuplexConverter<Object, T> getElementConverter() {
+        return this.converter;
+    }
+
+    /**
      * Gets the base collection that is used
      *
      * @return base collection

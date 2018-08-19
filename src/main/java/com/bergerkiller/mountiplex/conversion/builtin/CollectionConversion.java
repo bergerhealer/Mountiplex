@@ -138,7 +138,6 @@ public class CollectionConversion {
     }
 
     private static abstract class CollectionConverter <T extends Iterable<?>> extends InputConverter<T> {
-
         public CollectionConverter(TypeDeclaration output) {
             super(TypeDeclaration.fromClass(Iterable.class), output);
         }
@@ -155,7 +154,18 @@ public class CollectionConversion {
         @Override
         public final Converter<?, T> getConverter(TypeDeclaration input) {
             // Converting something Input<Type> to Output<Type>
-            TypeDeclaration inputElementType = input.getGenericType(0);
+
+            // First we must deduce the generic type of Collection<T> that is used in the input
+            TypeDeclaration collectionType = input.castAsType(Iterable.class);
+
+            // If not found, something is off! Assume Object and hope for the best...
+            TypeDeclaration inputElementType;
+            if (collectionType == null) {
+                inputElementType = TypeDeclaration.OBJECT;
+            } else {
+                inputElementType = collectionType.getGenericType(0);
+            }
+
             TypeDeclaration outputElementType = this.output.getGenericType(0);
             if (inputElementType.equals(outputElementType)) {
                 return new ElementConverter(input, this.output, DuplexConverter.createNull(inputElementType));
@@ -175,7 +185,7 @@ public class CollectionConversion {
             public ElementConverter(TypeDeclaration input, TypeDeclaration output, DuplexConverter<Object, Object> elementConverter) {
                 super(input, output);
                 this.elementConverter = elementConverter;
-                this.convertCollection =  !output.type.equals(input.type);
+                this.convertCollection = !output.type.isAssignableFrom(input.type);
             }
 
             @Override

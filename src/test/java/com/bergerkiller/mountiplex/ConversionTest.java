@@ -17,11 +17,13 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
+import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.AnnotatedConverters;
 import com.bergerkiller.mountiplex.types.CustomListType;
 import com.bergerkiller.mountiplex.types.CustomSetType;
 import com.bergerkiller.mountiplex.types.CustomType;
+import com.bergerkiller.mountiplex.types.CustomTypedListType;
 import com.bergerkiller.mountiplex.types.EnumWithBooleanNames;
 import com.bergerkiller.mountiplex.types.TestObject;
 import com.bergerkiller.mountiplex.types.UniqueType;
@@ -321,6 +323,42 @@ public class ConversionTest {
         assertEquals(CustomListType.class, result.getClass());
     }
 
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testExtendedTypedList() {
+        // CustomTypedListType is a List<String>, but can conversion figure this out
+        // when translating String <> Integer? That is the question.
+        TypeDeclaration base = TypeDeclaration.fromClass(CustomTypedListType.class);
+        TypeDeclaration expo = TypeDeclaration.createGeneric(List.class, Integer.class);
+        Converter<?, List<Integer>> conv = (Converter) Conversion.find(base, expo);
+
+        CustomTypedListType baseInstance = new CustomTypedListType();
+        baseInstance.add("12");
+        baseInstance.add("654");
+        baseInstance.add("-633");
+
+        List<Integer> convertedRaw = conv.convert(baseInstance);
+        assertTrue(convertedRaw instanceof ConvertingList);
+        ConvertingList<Integer> convertingList = (ConvertingList<Integer>) convertedRaw;
+
+        // Verify base is correctly detected, and it's not using a copy of the original list
+        List<?> convertingListBase = convertingList.getBase();
+        if (baseInstance != convertingListBase) {
+            fail("Instead of using the base instance, it is " + convertingListBase.getClass());
+        }
+
+        DuplexConverter<?, Integer> elementConverter = convertingList.getElementConverter();
+        assertEquals(String.class, elementConverter.input.type);
+        assertEquals(Integer.class, elementConverter.output.type);
+
+        // Take it for a spin!
+        assertTrue(convertingList.contains(12));
+        assertFalse(convertingList.contains(13));
+        convertingList.add(53);
+        assertTrue(convertingList.contains(53));
+        assertTrue(baseInstance.contains("53"));
+    }
+    
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 
