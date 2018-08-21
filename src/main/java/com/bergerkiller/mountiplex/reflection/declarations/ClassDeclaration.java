@@ -213,7 +213,9 @@ public class ClassDeclaration extends Declaration {
         try {
             realRefFields = this.type.type.getDeclaredFields();
         } catch (Throwable t) {
-            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get declared fields of " + this.type.typePath, t);
+            if (this.getResolver().getLogErrors()) {
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get declared fields of " + this.type.typePath, t);
+            }
             return;
         }
         FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
@@ -221,7 +223,9 @@ public class ClassDeclaration extends Declaration {
             try {
                 realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
             } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
+                if (this.getResolver().getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
+                }
             }
         }
         List<FieldLCSResolver.Pair> pairs = FieldLCSResolver.lcs(this.fields, realFields);
@@ -266,7 +270,9 @@ public class ClassDeclaration extends Declaration {
             try {
                 realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods.get(i));
             } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods.get(i), t);
+                if (this.getResolver().getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods.get(i), t);
+                }
             }
         }
 
@@ -294,7 +300,9 @@ public class ClassDeclaration extends Declaration {
             try {
                 realConstructors[i] = new ConstructorDeclaration(getResolver(), realRefConstructors[i]);
             } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read constructor " + realRefConstructors[i], t);
+                if (this.getResolver().getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read constructor " + realRefConstructors[i], t);
+                }
             }
         }
 
@@ -316,6 +324,9 @@ public class ClassDeclaration extends Declaration {
     }
 
     private <T extends Declaration> void logAlternatives(String category, T[] alternatives, T declaration) {
+        if (!this.getResolver().getLogErrors()) {
+            return;
+        }
         MountiplexUtil.LOGGER.warning("A class member of " + this.type.toString(true) + " was not found!");
         if (alternatives.length == 0) {
             MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " (No alternatives)");

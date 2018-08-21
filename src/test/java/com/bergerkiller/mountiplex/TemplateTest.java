@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -154,5 +156,21 @@ public class TemplateTest {
         assertTrue(resolver.evaluateExpression("version < 1.13-pre5"));
         assertTrue(resolver.evaluateExpression("version >= 1.12"));
         assertFalse(resolver.evaluateExpression("version >= 1.12-pre6"));
+    }
+
+    @Test
+    public void testUnresolvedField() {
+        // Verify that when parsing a template that stores in incorrect type, a proper error is raised
+        String template = "package com.bergerkiller.mountiplex.types;\n" +
+                "\n" +
+                "public class TestObject {\n" +
+                "    private static int staticField:a;\n" +
+                "}\n";
+
+        ClassResolver resolver = new ClassResolver();
+        resolver.setLogErrors(false);
+        ClassDeclaration cdec = SourceDeclaration.parse(resolver, template).classes[0];
+        assertEquals(1, cdec.fields.length);
+        assertNull(cdec.fields[0].field);
     }
 }

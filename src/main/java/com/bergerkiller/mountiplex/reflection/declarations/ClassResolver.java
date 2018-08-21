@@ -23,12 +23,14 @@ public class ClassResolver {
     private final HashMap<String, String> variables = new HashMap<String, String>();
     private String packagePath;
     private Class<?> declaredClass;
+    private boolean logErrors;
 
     private ClassResolver(ClassResolver src) {
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.packagePath = src.packagePath;
         this.declaredClass = src.declaredClass;
+        this.logErrors = src.logErrors;
     }
 
     public ClassResolver() {
@@ -36,6 +38,7 @@ public class ClassResolver {
         this.manualImports = new ArrayList<String>(default_imports);
         this.packagePath = "";
         this.declaredClass = null;
+        this.logErrors = true;
         this.regenImports();
     }
 
@@ -44,6 +47,24 @@ public class ClassResolver {
         this.manualImports = new ArrayList<String>();
         this.packagePath = "";
         this.setPackage(packagePath);
+    }
+
+    /**
+     * Gets whether errors during resolving of declarations are logged
+     * 
+     * @return True if declaration resolving errors are logged
+     */
+    public boolean getLogErrors() {
+        return this.logErrors;
+    }
+
+    /**
+     * Sets whether errors during resolving of declarations are logged
+     * 
+     * @param log option
+     */
+    public void setLogErrors(boolean log) {
+        this.logErrors = log;
     }
 
     /**

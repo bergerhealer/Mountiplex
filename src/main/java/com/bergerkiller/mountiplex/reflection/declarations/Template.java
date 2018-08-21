@@ -734,21 +734,26 @@ public class Template {
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
             FieldDeclaration fDec = this.raw.init(dec, name);
             if (fDec != null) {
+                Converter<?, T> conv_a = null;
+                Converter<T, ?> conv_b = null;
                 if (this.isReadonly()) {
-                    Converter<?, T> conv_a = (Converter<?, T>) Conversion.find(fDec.type, fDec.type.cast);
-                    if (conv_a == null) {
-                        this.converter = null;
-                    } else {
-                        Converter<T, ?> conv_b = new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly");
-                        this.converter = DuplexConverter.pair(conv_a, conv_b);
-                    }
+                    conv_a = (Converter<?, T>) Conversion.find(fDec.type, fDec.type.cast);
+                    conv_b = new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly");
                 } else {
-                    this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
+                    conv_a = (Converter<?, T>) Conversion.find(fDec.type, fDec.type.cast);
+                    conv_b = (Converter<T, ?>) Conversion.find(fDec.type.cast, fDec.type);
                 }
-                if (this.converter == null) {
+                if (conv_a == null) {
+                    
                     initFail("Converter for field " + fDec.name.toString() + 
-                             " not found: " + fDec.type.toString());
+                            " not found: " + fDec.type.toString(true) + " -> " + fDec.type.cast.toString(true));
                     return null;
+                } else if (conv_b == null) {
+                    initFail("Converter for field " + fDec.name.toString() + 
+                            " not found: " + fDec.type.cast.toString(true) + " -> " + fDec.type.toString(true));
+                    return null;
+                } else {
+                    this.converter = DuplexConverter.pair(conv_a, conv_b);
                 }
             }
             return fDec;

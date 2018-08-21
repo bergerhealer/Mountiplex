@@ -96,7 +96,13 @@ public class FieldLCSResolver {
                     while (fb_iter.hasNext()) {
                         FieldDeclaration fb = fb_iter.next();
                         if (fa.name.value().equals(fb.name.value())) {
-                            pairs.add(new Pair(fa, fb, aa, bb));
+                            // If not actually matching, do not pair up, but still show alternatives!
+                            if (fa.match(fb)) {
+                                pairs.add(new Pair(fa, fb, aa, bb));
+                            } else {
+                                pairs.add(new Pair(fa, null, aa, bb));
+                                pairs.add(new Pair(null, fb, aa, bb));
+                            }
                             fa_iter.remove();
                             fb_iter.remove();
                             break;

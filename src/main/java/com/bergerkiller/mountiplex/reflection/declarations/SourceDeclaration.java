@@ -17,8 +17,8 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 public class SourceDeclaration extends Declaration {
     public final ClassDeclaration[] classes;
 
-    private SourceDeclaration(ClassLoader classLoader, File sourceDirectory, String declaration) {
-        super(new ClassResolver(), preprocess(declaration));
+    private SourceDeclaration(ClassResolver resolver, ClassLoader classLoader, File sourceDirectory, String declaration) {
+        super(resolver, preprocess(declaration));
 
         trimWhitespace(0);
 
@@ -157,7 +157,7 @@ public class SourceDeclaration extends Declaration {
                             subSource += getResolver().saveDeclaration() + "\n";
                             subSource += "#setpath " + name +  "\n";
                             subSource += inclSourceStr;
-                            SourceDeclaration inclSource = new SourceDeclaration(classLoader, sourceDirectory, subSource);
+                            SourceDeclaration inclSource = new SourceDeclaration(this.getResolver(), classLoader, sourceDirectory, subSource);
                             classes.addAll(Arrays.asList(inclSource.classes));
                         }
                     }
@@ -350,7 +350,19 @@ public class SourceDeclaration extends Declaration {
     public double similarity(Declaration other) {
     	return 0.0; // not implemented
     }
-    
+
+    /**
+     * Parses the full source contents into a Source Declaration from a String.
+     * The class resolver root can be specified.
+     * 
+     * @param resolver to use as base for resolving types and classes
+     * @param source to parse
+     * @return Source Declaration
+     */
+    public static SourceDeclaration parse(ClassResolver resolver, String source) {
+        return new SourceDeclaration(resolver, null, null, source);
+    }
+
     /**
      * Parses the full source contents into a Source Declaration from a String
      * 
@@ -358,7 +370,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parse(String source) {
-        return new SourceDeclaration(null, null, source);
+        return new SourceDeclaration(new ClassResolver(), null, null, source);
     }
 
     private static String saveVars(Map<String, String> variables) {
@@ -381,7 +393,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parseFromResources(ClassLoader classLoader, String sourceInclude, Map<String, String> variables) {
-        return new SourceDeclaration(classLoader, null, saveVars(variables) + "\n" + "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), classLoader, null, saveVars(variables) + "\n" + "#include " + sourceInclude);
     }
 
     /**
@@ -393,7 +405,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude, Map<String, String> variables) {
-        return new SourceDeclaration(null, sourceDirectory, saveVars(variables) + "\n" + "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), null, sourceDirectory, saveVars(variables) + "\n" + "#include " + sourceInclude);
     }
 
     /**
@@ -404,7 +416,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parseFromResources(ClassLoader classLoader, String sourceInclude) {
-        return new SourceDeclaration(classLoader, null, "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), classLoader, null, "#include " + sourceInclude);
     }
 
     /**
@@ -415,6 +427,6 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude) {
-        return new SourceDeclaration(null, sourceDirectory, "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), null, sourceDirectory, "#include " + sourceInclude);
     }
 }
