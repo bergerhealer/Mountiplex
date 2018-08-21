@@ -358,7 +358,14 @@ public class ConversionTest {
         assertTrue(convertingList.contains(53));
         assertTrue(baseInstance.contains("53"));
     }
-    
+
+    @Test
+    public void testArrayToString() {
+        int[] values = new int[] { 5, -6, 23, 66, 35, Integer.MAX_VALUE };
+        String s = Conversion.find(int[].class, String.class).convert(values);
+        assertEquals("[5, -6, 23, 66, 35, 2147483647]", s);
+    }
+
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 

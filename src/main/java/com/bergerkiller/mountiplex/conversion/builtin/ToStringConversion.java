@@ -1,7 +1,9 @@
 package com.bergerkiller.mountiplex.conversion.builtin;
 
+import java.lang.reflect.Array;
 import java.util.Collection;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 
@@ -15,8 +17,8 @@ public class ToStringConversion {
             }
 
             @Override
-            public boolean isLazy() {
-                return true;
+            public int getCost() {
+                return 100;
             }
         });
 
@@ -86,6 +88,31 @@ public class ToStringConversion {
             }
         });
 
+        // Primitive[] array -> String
+        for (Class<?> primitiveType : new Class<?>[] {double.class, float.class, long.class, int.class, short.class, byte.class, boolean.class}) {
+            Class<?> arrType = MountiplexUtil.getArrayType(primitiveType);
+
+            @SuppressWarnings("unchecked")
+            final Converter<Object, String> elToStrConv = (Converter<Object, String>) Conversion.find(primitiveType, String.class);
+
+            Conversion.registerConverter(new Converter<Object, String>(arrType, String.class) {
+                @Override
+                public String convertInput(Object value) {
+                    int len = Array.getLength(value);
+                    StringBuilder builder = new StringBuilder(len * 5);
+                    builder.append('[');
+                    for (int i = 0; i < len; i++) {
+                        if (i > 0) {
+                            builder.append(", ");
+                        }
+                        builder.append(elToStrConv.convertInput(Array.get(value, i)));
+                    }
+                    builder.append(']');
+                    return builder.toString();
+                }
+            });
+        }
+
         // Array -> String
         Conversion.registerConverter(new Converter<Object[], String>(Object[].class, String.class) {
             @Override
@@ -113,8 +140,9 @@ public class ToStringConversion {
                 boolean first = true;
                 builder.append("[");
                 for (Object element : collection) {
-                    if (!first) {
+                    if (first) {
                         first = false;
+                    } else {
                         builder.append(", ");
                     }
                     builder.append(toStringConv.convert(element, "null"));
