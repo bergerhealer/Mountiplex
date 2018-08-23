@@ -22,7 +22,7 @@ public class TemplateTest {
     static {
         Resolver.registerClassDeclarationResolver(new ClassDeclarationResolver() {
             @Override
-            public ClassDeclaration resolveClassDeclaration(Class<?> classType) {
+            public ClassDeclaration resolveClassDeclaration(String classPath, Class<?> classType) {
                 if (classType.equals(TestObject.class)) {
                     String template = "package com.bergerkiller.mountiplex.types;\n" +
                                       "\n" +

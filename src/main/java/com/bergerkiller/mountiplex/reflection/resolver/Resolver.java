@@ -194,9 +194,39 @@ public class Resolver {
         return methodName;
     }
 
+    /**
+     * Discovers the Class Declaration registered for a Class by class path.
+     * If the Class does not exist, null is returned also.
+     * 
+     * @param classPath of the Class
+     * @return Class Declaration, null if not found
+     */
+    public static ClassDeclaration resolveClassDeclaration(String classPath) {
+        Class<?> classType = loadClass(classPath, false);
+        return (classType == null) ? null : resolveClassDeclaration(classPath, classType);
+    }
+
+    /**
+     * Discovers the Class Declaration registered for a Class Type
+     * 
+     * @param classType
+     * @return Class Declaration, null if not found
+     */
     public static ClassDeclaration resolveClassDeclaration(Class<?> classType) {
+        return resolveClassDeclaration(classType.getName(), classType);
+    }
+
+    /**
+     * Discovers the Class Declaration registered for a Class, specifying both
+     * the path that loads the class, and the loaded Class Type itself.
+     * 
+     * @param classPath
+     * @param classType
+     * @return Class Declaration, null if not found
+     */
+    public static ClassDeclaration resolveClassDeclaration(String classPath, Class<?> classType) {
         for (ClassDeclarationResolver resolver : Resolver.resolver.classDeclarationResolvers) {
-            ClassDeclaration dec = resolver.resolveClassDeclaration(classType);
+            ClassDeclaration dec = resolver.resolveClassDeclaration(classPath, classType);
             if (dec != null) {
                 return dec;
             }

@@ -41,6 +41,7 @@ public class Template {
         private String classPath = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
         private FastField<?>[] fields = null;
+        private ClassDeclaration classDec = null;
 
         @SuppressWarnings("unchecked")
         public Class() {
@@ -139,7 +140,6 @@ public class Template {
             this.valid = (classType != null);
 
             // Create duplex converter between handle type and instance type
-            ClassDeclaration classDec = null;
             if (this.valid) {
                 this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
                     @Override
@@ -155,8 +155,8 @@ public class Template {
                 Conversion.registerConverter(this.handleConverter);
 
                 // Resolve class declaration
-                classDec = Resolver.resolveClassDeclaration(this.classType);
-                if (classDec == null) {
+                this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
+                if (this.classDec == null) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
                     valid = false;
                 }
@@ -180,7 +180,7 @@ public class Template {
                             element.setReadonly();
                         }
                         if (valid) {
-                            Object result = element.init(classDec, templateFieldName);
+                            Object result = element.init(this.classDec, templateFieldName);
                             if (result == null && !element._optional) {
                                 fieldsSuccessful = false;
                             }
@@ -234,6 +234,15 @@ public class Template {
          */
         public java.lang.Class<?> getType() {
             return this.classType;
+        }
+
+        /**
+         * Gets the Class Declaration that was used to initialize this template
+         * 
+         * @return class declaration
+         */
+        public ClassDeclaration getClassDeclaration() {
+            return this.classDec;
         }
 
         /**
@@ -579,6 +588,9 @@ public class Template {
 
         @Override
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
+            if (dec == null) {
+                throw new IllegalArgumentException("ClassDeclaration is null");
+            }
             for (FieldDeclaration fieldDec : dec.fields) {
                 if (fieldDec.field != null && fieldDec.name.real().equals(name)) {
                     this.field.init(fieldDec.field);
@@ -660,6 +672,9 @@ public class Template {
 
         @Override
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
+            if (dec == null) {
+                throw new IllegalArgumentException("ClassDeclaration is null");
+            }
             for (MethodDeclaration methodDec : dec.methods) {
                 if ((methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
                     this.method.init(methodDec);
@@ -732,6 +747,9 @@ public class Template {
         @Override
         @SuppressWarnings("unchecked")
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
+            if (dec == null) {
+                throw new IllegalArgumentException("ClassDeclaration is null");
+            }
             FieldDeclaration fDec = this.raw.init(dec, name);
             if (fDec != null) {
                 Converter<?, T> conv_a = null;
@@ -914,6 +932,9 @@ public class Template {
 
         @Override
         protected MethodDeclaration init(ClassDeclaration dec, String name) {
+            if (dec == null) {
+                throw new IllegalArgumentException("ClassDeclaration is null");
+            }
             MethodDeclaration mDec = this.raw.init(dec, name);
             if (mDec != null) {
                 initConverters("method " + mDec.name.toString(), mDec.returnType, mDec.parameters);
@@ -1028,6 +1049,9 @@ public class Template {
 
         @Override
         protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
+            if (dec == null) {
+                throw new IllegalArgumentException("ClassDeclaration is null");
+            }
             for (ConstructorDeclaration cDec : dec.constructors) {
                 if (cDec.constructor != null && cDec.getName().equals(name)) {
                     try {
@@ -1051,6 +1075,9 @@ public class Template {
 
             @Override
             protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
+                if (dec == null) {
+                    throw new IllegalArgumentException("ClassDeclaration is null");
+                }
                 ConstructorDeclaration cDec = this.raw.init(dec, name);
                 if (cDec != null) {
                     initConverters("constructor " + cDec.parameters.toString(), cDec.type, cDec.parameters);
@@ -1732,6 +1759,9 @@ public class Template {
         @Override
         @SuppressWarnings("unchecked")
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
+            if (dec == null) {
+                throw new IllegalArgumentException("ClassDeclaration is null");
+            }
             constantName = name;
             for (FieldDeclaration fDec : dec.fields) {
                 if (fDec.isEnum && fDec.name.real().equals(name)) {
@@ -1833,6 +1863,9 @@ public class Template {
             @Override
             @SuppressWarnings("unchecked")
             protected FieldDeclaration init(ClassDeclaration dec, String name) {
+                if (dec == null) {
+                    throw new IllegalArgumentException("ClassDeclaration is null");
+                }
                 FieldDeclaration fDec = raw.init(dec, name);
                 if (fDec != null) {
                     this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);

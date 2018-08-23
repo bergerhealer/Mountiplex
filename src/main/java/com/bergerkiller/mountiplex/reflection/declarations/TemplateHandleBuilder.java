@@ -96,7 +96,10 @@ public class TemplateHandleBuilder<H> {
             String templateClassDesc = Type.getDescriptor(templateClassType);
             String templateClassName = Type.getInternalName(templateClassType);
             Class<?> instanceType = templateClass.getType();
-            ClassDeclaration classDec = Resolver.resolveClassDeclaration(instanceType);
+            ClassDeclaration classDec = templateClass.getClassDeclaration();
+            if (classDec == null) {
+                throw new IllegalStateException("Template Handle Class " + templateClass + " has no Class Declaration! Not initialized?");
+            }
 
             // Implement the getter and setter methods for all non-static fields
             for (FieldDeclaration fieldDec : classDec.fields) {
