@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -366,6 +368,39 @@ public class ConversionTest {
         assertEquals("[5, -6, 23, 66, 35, 2147483647]", s);
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void testStreamConversion() {
+        List<Integer> inputs = Arrays.asList(12, 56, -75, 23, 642);
+        Stream<Integer> input_stream = inputs.stream();
+
+        Converter<Stream<Integer>, Stream<String>> converter = (Converter) Conversion.find(
+                TypeDeclaration.createGeneric(Stream.class, Integer.class),
+                TypeDeclaration.createGeneric(Stream.class, String.class));
+
+        assertNotNull(converter);
+
+        Stream<String> output_stream = converter.convert(input_stream);
+        List<String> outputs = output_stream.collect(Collectors.toList());
+        assertCollectionSame(outputs, "12", "56", "-75", "23", "642");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void testElementToStream() {
+        String input = "hello, world";
+
+        Converter<String, Stream<String>> converter = (Converter) Conversion.find(
+                TypeDeclaration.fromClass(String.class),
+                TypeDeclaration.createGeneric(Stream.class, String.class));
+
+        assertNotNull(converter);
+
+        Stream<String> output_stream = converter.convert(input);
+        List<String> outputs = output_stream.collect(Collectors.toList());
+        assertCollectionSame(outputs, "hello, world");
+    }
+    
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 

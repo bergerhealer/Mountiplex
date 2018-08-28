@@ -22,6 +22,7 @@ import com.bergerkiller.mountiplex.conversion.builtin.CollectionConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.EnumConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.MapConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.NumberConversion;
+import com.bergerkiller.mountiplex.conversion.builtin.StreamConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.ToStringConversion;
 import com.bergerkiller.mountiplex.conversion.builtin.VoidTypeConverter;
 import com.bergerkiller.mountiplex.conversion.type.AnnotatedConverter;
@@ -63,6 +64,7 @@ public class Conversion {
         ArrayConversion.register();
         VoidTypeConverter.register();
         BooleanConversion.register();
+        StreamConversion.register();
 
         // We can not remove registered converters and providers for safety reasons
         // We will clear all generated data, though
