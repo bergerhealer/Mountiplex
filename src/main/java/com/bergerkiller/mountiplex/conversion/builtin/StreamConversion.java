@@ -59,6 +59,11 @@ public class StreamConversion {
                 return null;
             }
         }
+
+        @Override
+        public int getCost() {
+            return 10;
+        }
     }
 
     private static final class StreamConverterMapper extends Converter<Stream<?>, Stream<?>> implements Function<Object, Object> {
@@ -89,7 +94,7 @@ public class StreamConversion {
         @Override
         public Stream<T> convertInput(T value) {
             return Stream.of(value);
-        }        
+        }
     }
 
     private static final class StreamToListConverter<T> extends Converter<Stream<T>, List<T>> {
@@ -102,6 +107,11 @@ public class StreamConversion {
         @Override
         public List<T> convertInput(Stream<T> value) {
             return value.collect(Collectors.toList());
+        }
+
+        @Override
+        public int getCost() {
+            return 100;
         }
     }
 
