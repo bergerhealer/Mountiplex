@@ -6,6 +6,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
@@ -93,7 +94,7 @@ public class StreamConversion {
 
         @Override
         public Stream<T> convertInput(T value) {
-            return Stream.of(value);
+            return MountiplexUtil.toStream(value);
         }
     }
 

@@ -149,6 +149,17 @@ public class MountiplexUtil {
     }
 
     /**
+     * Creates a Stream from a singleton value.
+     * This is here because Stream.of does not work on Java 9+.
+     * 
+     * @param value
+     * @return Stream
+     */
+    public static <T> java.util.stream.Stream<T> toStream(T value) {
+        return Collections.singleton(value).stream();
+    }
+
+    /**
      * A basic toArray implementation. (does not call collection.toArray) A new
      * array of Objects is allocated and filled with the contents of the
      * collection
