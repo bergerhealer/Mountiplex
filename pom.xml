@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.mountiplex</groupId>
     <artifactId>Mountiplex</artifactId>
-    <version>1.45</version>
+    <version>1.46</version>
     <packaging>maven-plugin</packaging>
     <name>mountiplex</name>
 
@@ -47,7 +47,7 @@
         <dependency>
             <groupId>org.javassist</groupId>
             <artifactId>javassist</artifactId>
-            <version>3.22.0-GA</version>
+            <version>3.23.1-GA</version>
         </dependency>
 
         <dependency>
