@@ -479,7 +479,9 @@ public class ClassTemplate<T> {
         }
     }
 
-    private void addMethods(Class<?> type, HashSet<Signature> addedSignatures) {
+    // N.B.: Use rawtype otherwise IDEs complain of Signature
+    @SuppressWarnings("unchecked")
+    private void addMethods(Class<?> type, HashSet</*Signature*/ ?> addedSignatures) {
         // Get sorted array of methods
         Method[] declMethods = type.getDeclaredMethods();
 
@@ -517,7 +519,7 @@ public class ClassTemplate<T> {
         // Add while checking for duplicates using the hashset, ignoring those
         for (Method m : declMethods) {
             Signature sig = new Signature(m.getName(), Type.getReturnType(m), Type.getArgumentTypes(m));
-            if (addedSignatures.add(sig)) {
+            if (((HashSet<Signature>) addedSignatures).add(sig)) {
                 typeMethods.add(new MethodDeclaration(resolver, m));
             }
         }
