@@ -197,6 +197,24 @@ public class ClassResolver {
         }
         if (varName.equals("classexists")) {
             return Resolver.loadClass(expression, false) != null;
+        } else if (varName.equals("methodexists")) {
+            int decClassEnd = expression.indexOf(' ');
+            if (decClassEnd == -1) {
+                return false; // Class not declared
+            }
+
+            // Class the method should be found in
+            String classPath = expression.substring(0, decClassEnd);
+            Class<?> methodDeclaredClass = Resolver.loadClass(classPath, false);
+            if (methodDeclaredClass == null) {
+                return false; // Class not available
+            }
+
+            // Rest is method signature
+            String methodSignature = expression.substring(decClassEnd + 1).trim();
+
+            // Attempt to find the method by this declaration inside the Class
+            return Resolver.findMethod(methodDeclaredClass, methodSignature) != null;
         }
         String value1 = this.variables.get(varName);
         if (value1 == null) {

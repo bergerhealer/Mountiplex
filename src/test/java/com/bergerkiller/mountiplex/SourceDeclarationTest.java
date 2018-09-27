@@ -42,6 +42,11 @@ public class SourceDeclarationTest {
                            "#else\n" +
                            "DEFINITELY NOT\n" +
                            "#endif\n" +
+                           "#if methodexists java.lang.String public static String copyValueOf(char[] arg)\n" +
+                           "COPYVALUEOF SHOULD EXIST\n" +
+                           "#else\n" +
+                           "METHODEXISTS SHOULD NOT FAIL\n" +
+                           "#endif\n" +
                            "/*\n" +
                            "#if dummy >= 5\n" +
                            "THIS SHOULD BE IGNORED, BLOCK COMMENT\n" +
@@ -54,7 +59,8 @@ public class SourceDeclarationTest {
                           "THIS SHOULD EVALUATE\n" +
                           "DUMMY==12 SHOULD EVALUATE\n" +
                           "AFTER ENDIF SHOULD EVALUATE\n" +
-                          "THIS SHOULD MATCH BECAUSE FIRST IF\n";
+                          "THIS SHOULD MATCH BECAUSE FIRST IF\n" +
+                          "COPYVALUEOF SHOULD EXIST\n";
 
         String result = SourceDeclaration.preprocess(sourceDec);
         if (!result.equals(expected)) {
