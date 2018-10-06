@@ -16,7 +16,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
-import net.sf.cglib.asm.Type;
+import net.sf.cglib.asm.$Type;
 import net.sf.cglib.core.Signature;
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
@@ -318,7 +318,7 @@ public abstract class ClassInterceptor {
         }
 
         // Slower way of instantiating a new MethodProxy for this type
-        Signature sig = new Signature(method.getName(), Type.getReturnType(method), Type.getArgumentTypes(method));
+        Signature sig = new Signature(method.getName(), $Type.getReturnType(method), $Type.getArgumentTypes(method));
         MethodProxy proxy = null;
         try {
             proxy = MethodProxy.find(instance.getClass(), sig);

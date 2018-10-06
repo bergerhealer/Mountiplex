@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import net.sf.cglib.asm.Type;
+import net.sf.cglib.asm.$Type;
 import net.sf.cglib.core.Signature;
 
 import org.objenesis.ObjenesisHelper;
@@ -518,7 +518,7 @@ public class ClassTemplate<T> {
 
         // Add while checking for duplicates using the hashset, ignoring those
         for (Method m : declMethods) {
-            Signature sig = new Signature(m.getName(), Type.getReturnType(m), Type.getArgumentTypes(m));
+            Signature sig = new Signature(m.getName(), $Type.getReturnType(m), $Type.getArgumentTypes(m));
             if (((HashSet<Signature>) addedSignatures).add(sig)) {
                 typeMethods.add(new MethodDeclaration(resolver, m));
             }

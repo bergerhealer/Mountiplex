@@ -6,17 +6,19 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
-import net.sf.cglib.asm.AnnotationVisitor;
-import net.sf.cglib.asm.Attribute;
-import net.sf.cglib.asm.ClassReader;
-import net.sf.cglib.asm.ClassVisitor;
-import net.sf.cglib.asm.ClassWriter;
-import net.sf.cglib.asm.FieldVisitor;
-import net.sf.cglib.asm.Label;
-import net.sf.cglib.asm.MethodVisitor;
-import net.sf.cglib.asm.Type;
+import net.sf.cglib.asm.$AnnotationVisitor;
+import net.sf.cglib.asm.$Attribute;
+import net.sf.cglib.asm.$ClassReader;
+import net.sf.cglib.asm.$ClassVisitor;
+import net.sf.cglib.asm.$ClassWriter;
+import net.sf.cglib.asm.$FieldVisitor;
+import net.sf.cglib.asm.$Label;
+import net.sf.cglib.asm.$MethodVisitor;
+import net.sf.cglib.asm.$Opcodes;
+import net.sf.cglib.asm.$Type;
 
 public class ASMUtil {
+    private static final int ASM_VERSION = $Opcodes.ASM6;
 
     /**
      * Rewrites class data to remove the signatures of methods defined in the class
@@ -26,17 +28,17 @@ public class ASMUtil {
      * @return generated class data
      */
     public static byte[] removeClassMethods(byte[] classData, Set<String> methodsSignatures) {
-        ClassReader cr = new ClassReader(classData);
-        ClassWriter cw = new ClassWriter(cr, 0);
-        cr.accept(new ClassVisitor() {
+        $ClassReader cr = new $ClassReader(classData);
+        $ClassWriter cw = new $ClassWriter(cr, 0);
+        cr.accept(new $ClassVisitor(ASM_VERSION) {
 
             @Override
-            public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
+            public $AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
                 return cw.visitAnnotation(arg0, arg1);
             }
 
             @Override
-            public void visitAttribute(Attribute arg0) {
+            public void visitAttribute($Attribute arg0) {
                 cw.visitAttribute(arg0);
             }
 
@@ -46,7 +48,7 @@ public class ASMUtil {
             }
 
             @Override
-            public FieldVisitor visitField(int arg0, String arg1, String arg2, String arg3, Object arg4) {
+            public $FieldVisitor visitField(int arg0, String arg1, String arg2, String arg3, Object arg4) {
                 return cw.visitField(arg0, arg1, arg2, arg3, arg4);
             }
 
@@ -56,7 +58,7 @@ public class ASMUtil {
             }
 
             @Override
-            public MethodVisitor visitMethod(int arg0, String name, String signature, String arg3, String[] arg4) {
+            public $MethodVisitor visitMethod(int arg0, String name, String signature, String arg3, String[] arg4) {
                 if (methodsSignatures.contains(name+signature)) {
                     return null;
                 }
@@ -95,29 +97,29 @@ public class ASMUtil {
             if (classStream == null) {
                 return result;
             }
-            ClassReader reader = new ClassReader(classStream);
-            reader.accept(new ClassVisitor() {
+            $ClassReader reader = new $ClassReader(classStream);
+            reader.accept(new $ClassVisitor(ASM_VERSION) {
 
                 @Override
                 public void visit(int ver, int acc, String name, String sig, String supername, String[] interfaces) {
-                    result.add(Type.getObjectType(name));
+                    result.add($Type.getObjectType(name));
                     if (supername != null) {
-                        result.add(Type.getObjectType(supername));
+                        result.add($Type.getObjectType(supername));
                     }
                     if (interfaces != null) {
                         for (String iif : interfaces) {
-                            result.add(Type.getObjectType(iif));
+                            result.add($Type.getObjectType(iif));
                         }
                     }
                 }
 
                 @Override
-                public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
+                public $AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
                     return null;
                 }
 
                 @Override
-                public void visitAttribute(Attribute arg0) {
+                public void visitAttribute($Attribute arg0) {
                 }
 
                 @Override
@@ -125,8 +127,8 @@ public class ASMUtil {
                 }
 
                 @Override
-                public FieldVisitor visitField(int arg0, String name, String desc, String sig, Object value) {
-                    result.add(Type.getType(desc));
+                public $FieldVisitor visitField(int arg0, String name, String desc, String sig, Object value) {
+                    result.add($Type.getType(desc));
                     return null;
                 }
 
@@ -135,25 +137,25 @@ public class ASMUtil {
                 }
 
                 @Override
-                public MethodVisitor visitMethod(int arg0, String name, String desc, String sig, String[] exceptions) {
-                    for (Type t : Type.getArgumentTypes(desc)) {
+                public $MethodVisitor visitMethod(int arg0, String name, String desc, String sig, String[] exceptions) {
+                    for ($Type t : $Type.getArgumentTypes(desc)) {
                         result.add(t);
                     }
-                    result.add(Type.getReturnType(desc));
-                    return new MethodVisitor() {
+                    result.add($Type.getReturnType(desc));
+                    return new $MethodVisitor(ASM_VERSION) {
 
                         @Override
-                        public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
+                        public $AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
                             return null;
                         }
 
                         @Override
-                        public AnnotationVisitor visitAnnotationDefault() {
+                        public $AnnotationVisitor visitAnnotationDefault() {
                             return null;
                         }
 
                         @Override
-                        public void visitAttribute(Attribute arg0) {
+                        public void visitAttribute($Attribute arg0) {
                         }
 
                         @Override
@@ -166,8 +168,8 @@ public class ASMUtil {
 
                         @Override
                         public void visitFieldInsn(int arg0, String owner, String name, String desc) {
-                            result.add(Type.getObjectType(owner));
-                            result.add(Type.getType(desc));
+                            result.add($Type.getObjectType(owner));
+                            result.add($Type.getType(desc));
                         }
 
                         @Override
@@ -187,31 +189,31 @@ public class ASMUtil {
                         }
 
                         @Override
-                        public void visitJumpInsn(int arg0, Label arg1) {
+                        public void visitJumpInsn(int arg0, $Label arg1) {
                         }
 
                         @Override
-                        public void visitLabel(Label arg0) {
+                        public void visitLabel($Label arg0) {
                         }
 
                         @Override
                         public void visitLdcInsn(Object arg0) {
-                            if (arg0 instanceof Type) {
-                                result.add((Type) arg0);
+                            if (arg0 instanceof $Type) {
+                                result.add(($Type) arg0);
                             }
                         }
 
                         @Override
-                        public void visitLineNumber(int arg0, Label arg1) {
+                        public void visitLineNumber(int arg0, $Label arg1) {
                         }
 
                         @Override
-                        public void visitLocalVariable(String name, String desc, String sig, Label arg3, Label arg4, int arg5) {
-                            result.add(Type.getType(desc));
+                        public void visitLocalVariable(String name, String desc, String sig, $Label arg3, $Label arg4, int arg5) {
+                            result.add($Type.getType(desc));
                         }
 
                         @Override
-                        public void visitLookupSwitchInsn(Label arg0, int[] arg1, Label[] arg2) {
+                        public void visitLookupSwitchInsn($Label arg0, int[] arg1, $Label[] arg2) {
                         }
 
                         @Override
@@ -220,34 +222,34 @@ public class ASMUtil {
 
                         @Override
                         public void visitMethodInsn(int arg0, String owner, String name, String desc) {
-                            result.add(Type.getObjectType(owner));
-                            for (Type t : Type.getArgumentTypes(desc)) {
+                            result.add($Type.getObjectType(owner));
+                            for ($Type t : $Type.getArgumentTypes(desc)) {
                                 result.add(t);
                             }
-                            result.add(Type.getReturnType(desc));
+                            result.add($Type.getReturnType(desc));
                         }
 
                         @Override
                         public void visitMultiANewArrayInsn(String arg0, int arg1) {
-                            result.add(Type.getType(arg0));
+                            result.add($Type.getType(arg0));
                         }
 
                         @Override
-                        public AnnotationVisitor visitParameterAnnotation(int arg0, String arg1, boolean arg2) {
+                        public $AnnotationVisitor visitParameterAnnotation(int arg0, String arg1, boolean arg2) {
                             return null;
                         }
 
                         @Override
-                        public void visitTableSwitchInsn(int arg0, int arg1, Label arg2, Label[] arg3) {
+                        public void visitTableSwitchInsn(int arg0, int arg1, $Label arg2, $Label... arg3) {
                         }
 
                         @Override
-                        public void visitTryCatchBlock(Label arg0, Label arg1, Label arg2, String arg3) {
+                        public void visitTryCatchBlock($Label arg0, $Label arg1, $Label arg2, String arg3) {
                         }
 
                         @Override
                         public void visitTypeInsn(int arg0, String arg1) {
-                            result.add(Type.getObjectType(arg1));
+                            result.add($Type.getObjectType(arg1));
                         }
 
                         @Override
@@ -286,20 +288,20 @@ public class ASMUtil {
             if (classStream == null) {
                 return info.toTrace();
             }
-            ClassReader reader = new ClassReader(classStream);
-            reader.accept(new ClassVisitor() {
+            $ClassReader reader = new $ClassReader(classStream);
+            reader.accept(new $ClassVisitor(ASM_VERSION) {
 
                 @Override
                 public void visit(int ver, int acc, String name, String sig, String supername, String[] interfaces) {
                 }
 
                 @Override
-                public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
+                public $AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
                     return null;
                 }
 
                 @Override
-                public void visitAttribute(Attribute arg0) {
+                public void visitAttribute($Attribute arg0) {
                 }
 
                 @Override
@@ -307,7 +309,7 @@ public class ASMUtil {
                 }
 
                 @Override
-                public FieldVisitor visitField(int arg0, String name, String desc, String sig, Object value) {
+                public $FieldVisitor visitField(int arg0, String name, String desc, String sig, Object value) {
                     return null;
                 }
 
@@ -316,25 +318,25 @@ public class ASMUtil {
                 }
 
                 @Override
-                public MethodVisitor visitMethod(int arg0, String name, String desc, String sig, String[] exceptions) {
+                public $MethodVisitor visitMethod(int arg0, String name, String desc, String sig, String[] exceptions) {
                     if (!name.equals(info.method.getName())) {
                         return null;
                     }
 
-                    return new MethodVisitor() {
+                    return new $MethodVisitor(ASM_VERSION) {
 
                         @Override
-                        public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
+                        public $AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
                             return null;
                         }
 
                         @Override
-                        public AnnotationVisitor visitAnnotationDefault() {
+                        public $AnnotationVisitor visitAnnotationDefault() {
                             return null;
                         }
 
                         @Override
-                        public void visitAttribute(Attribute arg0) {
+                        public void visitAttribute($Attribute arg0) {
                         }
 
                         @Override
@@ -366,11 +368,11 @@ public class ASMUtil {
                         }
 
                         @Override
-                        public void visitJumpInsn(int arg0, Label arg1) {
+                        public void visitJumpInsn(int arg0, $Label arg1) {
                         }
 
                         @Override
-                        public void visitLabel(Label arg0) {
+                        public void visitLabel($Label arg0) {
                         }
 
                         @Override
@@ -378,18 +380,18 @@ public class ASMUtil {
                         }
 
                         @Override
-                        public void visitLineNumber(int arg0, Label arg1) {
+                        public void visitLineNumber(int arg0, $Label arg1) {
                             if (info.lineNumber == -1) {
                                 info.lineNumber = arg0 - 1;
                             }
                         }
 
                         @Override
-                        public void visitLocalVariable(String name, String desc, String sig, Label arg3, Label arg4, int arg5) {
+                        public void visitLocalVariable(String name, String desc, String sig, $Label arg3, $Label arg4, int arg5) {
                         }
 
                         @Override
-                        public void visitLookupSwitchInsn(Label arg0, int[] arg1, Label[] arg2) {
+                        public void visitLookupSwitchInsn($Label arg0, int[] arg1, $Label[] arg2) {
                         }
 
                         @Override
@@ -405,16 +407,16 @@ public class ASMUtil {
                         }
 
                         @Override
-                        public AnnotationVisitor visitParameterAnnotation(int arg0, String arg1, boolean arg2) {
+                        public $AnnotationVisitor visitParameterAnnotation(int arg0, String arg1, boolean arg2) {
                             return null;
                         }
 
                         @Override
-                        public void visitTableSwitchInsn(int arg0, int arg1, Label arg2, Label[] arg3) {
+                        public void visitTableSwitchInsn(int arg0, int arg1, $Label arg2, $Label... arg3) {
                         }
 
                         @Override
-                        public void visitTryCatchBlock(Label arg0, Label arg1, Label arg2, String arg3) {
+                        public void visitTryCatchBlock($Label arg0, $Label arg1, $Label arg2, String arg3) {
                         }
 
                         @Override
@@ -477,7 +479,7 @@ public class ASMUtil {
             this.loader = loader;
         }
 
-        public void add(Type type) {
+        public void add($Type type) {
             String name = type.getClassName();
             while (name.endsWith("[]")) {
                 name = name.substring(0, name.length() - 2);
