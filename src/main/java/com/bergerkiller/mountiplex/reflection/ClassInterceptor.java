@@ -4,6 +4,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -401,13 +402,13 @@ public abstract class ClassInterceptor {
                     }
 
                     // Handle callbacks/no-op
-                    Invokable callback = stackInfo.methodDelegates.get(method);
+                    Invokable callback = stackInfo.getCallback(method);
                     if (callback == null) {
                         callback = interceptor.getCallback(method);
                         if (callback == null) {
                             return (callbacks.length - 1); /* No callback, redirect to No Operation handler */
                         }
-                        stackInfo.methodDelegates.put(method, callback);
+                        stackInfo.storeCallback(method, callback);
                     }
                     return (callbacks.length - 2); /* Has callback, redirect to CallbackMethodInterceptor */
                 }
@@ -628,7 +629,7 @@ public abstract class ClassInterceptor {
                 stack.current_instance = obj;
 
                 // Find method callback delegate if we don't know yet
-                Invokable callback = stack.methodDelegates.get(method);
+                Invokable callback = stack.getCallback(method);
                 if (callback == null) {
                     synchronized (interceptor.globalMethodDelegates) {
                         callback = interceptor.globalMethodDelegates.get(method);
@@ -638,7 +639,6 @@ public abstract class ClassInterceptor {
                         if (callback == null) {
                             callback = new SuperClassInvokable(method, proxy);
                         }
-                        stack.methodDelegates.put(method, callback);
 
                         // Register globally if needed
                         if (interceptor.useGlobalCallbacks){
@@ -647,6 +647,7 @@ public abstract class ClassInterceptor {
                             }
                         }
                     }
+                    stack.storeCallback(method, callback);
                 }
 
                 // Make sure to inline the MethodCallbackDelegate to avoid a stack frame
@@ -698,7 +699,13 @@ public abstract class ClassInterceptor {
      * These are also stored here so they are thread-local, preventing cross-thread Map access.
      */
     private static final class StackInformation {
-        public final Map<Method, Invokable> methodDelegates = new HashMap<Method, Invokable>();
+        // Method -> Invokable (Fast & slow method that uses Method.equals)
+        private final Map<Method, Invokable> methodDelegates_fast = new IdentityHashMap<Method, Invokable>();
+        private final Map<Method, Invokable> methodDelegates = new HashMap<Method, Invokable>();
+
+        // Avoid map lookup for methods called very often
+        private Method last_method = null;
+        private Invokable last_method_callback = null;
 
         public StackFrame[] frames;
         public Object current_instance;
@@ -708,6 +715,39 @@ public abstract class ClassInterceptor {
             this.frames = new StackFrame[] {new StackFrame()};
             this.current_index = 0;
             this.current_instance = null;
+        }
+
+        public Invokable getCallback(Method method) { 
+            // Last called method (Fastest)
+            if (method == last_method) {
+                return last_method_callback;
+            }
+
+            // From Method instance cache (Faster)
+            Invokable callback = methodDelegates_fast.get(method);
+            if (callback != null) {
+                last_method = method;
+                last_method_callback = callback;
+                return callback;
+            }
+
+            // From Method equals-based hashmap (slower)
+            callback = methodDelegates.get(method);
+            if (callback != null) {
+                methodDelegates_fast.put(method, callback);
+                last_method = method;
+                last_method_callback = callback;
+                return callback;
+            }
+
+            // Not found
+            return null;
+        }
+
+        public void storeCallback(Method method, Invokable callback) {
+            last_method = method;
+            last_method_callback = callback;
+            methodDelegates.put(method, callback);
         }
     }
 
