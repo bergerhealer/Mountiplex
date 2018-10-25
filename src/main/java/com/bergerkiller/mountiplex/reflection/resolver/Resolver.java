@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
@@ -268,8 +269,31 @@ public class Resolver {
         ClassDeclaration cDec = resolveClassDeclaration(type.type);
         return (cDec == null) ? null : cDec.findMethod(method);
     }
-    
-    
+
+    /**
+     * Attempts to find the resolved Field Declaration from a given declaration.
+     * 
+     * @param type class to start looking for the field
+     * @param declaration to parse and look for
+     * @return found field declaration, <i>null</i> on failure
+     */
+    public static FieldDeclaration findField(Class<?> type, String declaration) {
+        ClassResolver resolver = new ClassResolver();
+        resolver.setDeclaredClass(type);
+        FieldDeclaration fDec = new FieldDeclaration(resolver, declaration);
+
+        // Attempt finding the field in the class
+        try {
+            fDec.field = type.getDeclaredField(fDec.name.real());
+            if (!fDec.field.getType().equals(fDec.type.type)) {
+                fDec.field = null;
+            }
+        } catch (Throwable t) {
+            fDec.field = null;
+        }
+        return fDec;
+    }
+
     /**
      * Attempts to find the resolved Method Declaration from a given declaration.
      * First template declarations are queried. If that fails, the class itself is inspected.

@@ -197,24 +197,29 @@ public class ClassResolver {
         }
         if (varName.equals("classexists")) {
             return Resolver.loadClass(expression, false) != null;
-        } else if (varName.equals("methodexists")) {
+        } else if (varName.equals("methodexists") || varName.equals("fieldexists")) {
             int decClassEnd = expression.indexOf(' ');
             if (decClassEnd == -1) {
                 return false; // Class not declared
             }
 
-            // Class the method should be found in
+            // Class the method/field should be found in
             String classPath = expression.substring(0, decClassEnd);
-            Class<?> methodDeclaredClass = Resolver.loadClass(classPath, false);
-            if (methodDeclaredClass == null) {
+            Class<?> declaredClass = Resolver.loadClass(classPath, false);
+            if (declaredClass == null) {
                 return false; // Class not available
             }
 
-            // Rest is method signature
-            String methodSignature = expression.substring(decClassEnd + 1).trim();
+            // Rest is method/field signature
+            String signatureStr = expression.substring(decClassEnd + 1).trim();
 
-            // Attempt to find the method by this declaration inside the Class
-            return Resolver.findMethod(methodDeclaredClass, methodSignature) != null;
+            if (varName.equals("methodexists")) {
+                // Attempt to find the method by this declaration inside the Class
+                return Resolver.findMethod(declaredClass, signatureStr) != null;
+            } else {
+                // Attempt to find the field by this declaration inside the Class
+                return Resolver.findField(declaredClass, signatureStr) != null;
+            }
         }
         String value1 = this.variables.get(varName);
         if (value1 == null) {
