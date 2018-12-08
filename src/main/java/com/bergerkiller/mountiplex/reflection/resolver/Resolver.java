@@ -286,10 +286,10 @@ public class Resolver {
         try {
             fDec.field = type.getDeclaredField(fDec.name.real());
             if (!fDec.field.getType().equals(fDec.type.type)) {
-                fDec.field = null;
+                fDec = null;
             }
         } catch (Throwable t) {
-            fDec.field = null;
+            fDec = null;
         }
         return fDec;
     }
