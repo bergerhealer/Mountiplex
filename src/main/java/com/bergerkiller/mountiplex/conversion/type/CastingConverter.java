@@ -8,7 +8,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  *
  * @param <T> output type
  */
-public class CastingConverter<T> extends Converter<Object, T> {
+public final class CastingConverter<T> extends Converter<Object, T> {
 
     public CastingConverter(Class<?> input, Class<?> output) {
         super(input, output);

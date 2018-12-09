@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.type.DisabledConverter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion.type.NullConverter;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.MethodAccessor;
@@ -762,7 +763,6 @@ public class Template {
                     conv_b = (Converter<T, ?>) Conversion.find(fDec.type.cast, fDec.type);
                 }
                 if (conv_a == null) {
-                    
                     initFail("Converter for field " + fDec.name.toString() + 
                             " not found: " + fDec.type.toString(true) + " -> " + fDec.type.cast.toString(true));
                     return null;
@@ -846,6 +846,8 @@ public class Template {
                     this.isConvertersInitialized = false;
                     MountiplexUtil.LOGGER.warning("Converter for " + name + 
                             " return type not found: " + returnType.toString());
+                } else if (this.resultConverter instanceof NullConverter) {
+                    this.resultConverter = null;
                 }
             }
 
@@ -855,12 +857,16 @@ public class Template {
             boolean hasArgumentConversion = false;
             for (int i = 0; i < params.length; i++) {
                 if (params[i].type.cast != null) {
-                    hasArgumentConversion = true;
                     this.argConverters[i] = Conversion.find(params[i].type.cast, params[i].type);
                     if (this.argConverters[i] == null) {
                         this.isConvertersInitialized = false;
                         MountiplexUtil.LOGGER.warning("Converter for " + name + 
                                 " argument " + params[i].name.toString() + " not found: " + params[i].type.toString());
+                    } else if (this.argConverters[i] instanceof NullConverter) {
+                        this.argConverters[i] = null;
+                    } else {
+                        // It's ok
+                        hasArgumentConversion = true;
                     }
                 }
             }
