@@ -1,7 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
@@ -101,9 +100,8 @@ public class ReflectionConstructor<T> implements Constructor<T> {
 
     @SuppressWarnings("unchecked")
     public static <T> Constructor<T> create(java.lang.reflect.Constructor<?> constructor) {
-        int mod = constructor.getModifiers();
         Class<?>[] paramTypes = constructor.getParameterTypes();
-        if (Modifier.isPublic(mod) && paramTypes.length <= 5 && Resolver.getMeta(constructor.getDeclaringClass()).isPublic) {
+        if (paramTypes.length <= 5 && Resolver.isPublic(constructor)) {
             return (Constructor<T>) GeneratedConstructor.create(constructor);
         } else {
             return new ReflectionConstructor<T>(constructor);

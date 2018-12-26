@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ReflectionInvoker<T> implements Invoker<T> {
@@ -125,9 +126,8 @@ public class ReflectionInvoker<T> implements Invoker<T> {
 
     @SuppressWarnings("unchecked")
     public static <T> Invoker<T> create(java.lang.reflect.Method method) {
-        int mod = method.getModifiers();
         Class<?>[] paramTypes = method.getParameterTypes();
-        if (Modifier.isPublic(mod) && paramTypes.length <= 5) {
+        if (paramTypes.length <= 5 && Resolver.isPublic(method)) {
             return (Invoker<T>) GeneratedInvoker.create(method);
         } else {
             return new ReflectionInvoker<T>(method);

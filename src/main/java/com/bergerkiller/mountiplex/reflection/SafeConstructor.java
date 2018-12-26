@@ -71,4 +71,8 @@ public class SafeConstructor<T> {
             }
         };
     }
+
+    public static <T> SafeConstructor<T> create(Class<T> type, Class<?>... parameterTypes) {
+        return new SafeConstructor<T>(type, parameterTypes);
+    }
 }

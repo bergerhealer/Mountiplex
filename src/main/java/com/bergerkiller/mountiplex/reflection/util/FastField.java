@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.fast.Copier;
 import com.bergerkiller.mountiplex.reflection.util.fast.Reader;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
@@ -210,7 +211,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                 synchronized (FastField.this) {
                     if (reader == this) {
                         checkInit();
-                        if (!Modifier.isPublic(field.getModifiers())) {
+                        if (!Resolver.isPublic(field)) {
                             makeAccessible();
                         }
                         reader = access();
@@ -226,7 +227,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                     if (writer == this) {
                         checkInit();
                         int mod = field.getModifiers();
-                        if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                        if (!Resolver.isPublic(field) || Modifier.isFinal(mod)) {
                             makeAccessible();
                         }
                         writer = access();
@@ -247,7 +248,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                             throw new RuntimeException("Static fields can not be copied");
                         }
 
-                        if (!Modifier.isPublic(mod) || Modifier.isFinal(mod)) {
+                        if (!Resolver.isPublic(field) || Modifier.isFinal(mod)) {
                             makeAccessible();
                         }
 

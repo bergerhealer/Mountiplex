@@ -6,6 +6,7 @@ import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.Template.Handle;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
@@ -49,6 +50,15 @@ public class TemplateHandleBuilder<H> {
         // Set up the class writer for the implementation of the handle type
         ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>($ClassWriter.COMPUTE_MAXS, this.handleType, "$impl");
         Class<?> topInstanceType = getTemplateClass(this.handleType).getType();
+
+        // Non-public classes can not be stored as a type in another class
+        // In those cases, we can only access them through reflection, and in
+        // the generated class we store an 'Object' field for the instance.
+        boolean instanceAccessible = Resolver.getMeta(topInstanceType).isPublic;
+        if (!instanceAccessible) {
+            topInstanceType = Object.class;
+        }
+
         String instanceTypeDesc = $Type.getDescriptor(topInstanceType);
         String instanceTypeName = $Type.getInternalName(topInstanceType);
         $MethodVisitor mv;
@@ -138,7 +148,8 @@ public class TemplateHandleBuilder<H> {
 
                 // If the variable is public, we can get it without having to use the accessor in Template.Class
                 // This allows for a slight performance improvement (and avoids unneeded initialization of FastField)
-                boolean isPublicField = (fieldDec.type.cast == null && 
+                boolean isPublicField = instanceAccessible &&
+                        (fieldDec.type.cast == null && 
                         fieldDec.field != null && 
                         Modifier.isPublic(fieldDec.field.getModifiers()));
 
@@ -227,7 +238,8 @@ public class TemplateHandleBuilder<H> {
 
                 // Check if we can inline the function call directly, instead of invoking the template method
                 // This is only possible when not performing conversion, and the method is public.
-                boolean canInline = (methodDec.method != null) &&
+                boolean canInline = instanceAccessible &&
+                        (methodDec.method != null) &&
                         Modifier.isPublic(methodDec.method.getModifiers()) &&
                         !hasTypeConversion;
 

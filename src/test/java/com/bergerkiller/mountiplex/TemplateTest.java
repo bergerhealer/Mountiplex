@@ -6,11 +6,13 @@ import java.util.List;
 
 import org.junit.Test;
 
+import com.bergerkiller.mountiplex.reflection.SafeConstructor;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.types.PrivateTestObjectHandle;
 import com.bergerkiller.mountiplex.types.TestObject;
 import com.bergerkiller.mountiplex.types.TestObjectHandle;
 
@@ -44,6 +46,15 @@ public class TemplateTest {
                                       "        return 621;\n" +
                                       "    }\n" +
                                       "}\n";
+
+                    return SourceDeclaration.parse(template).classes[0];
+                } else if (classType.getName().equals("com.bergerkiller.mountiplex.types.PrivateTestObject")) {
+                    String template = "package com.bergerkiller.mountiplex.types;\n" +
+                            "\n" +
+                            "class PrivateTestObject {\n" +
+                            "    public String field;\n" +
+                            "    public String method();\n" +
+                            "}\n";
 
                     return SourceDeclaration.parse(template).classes[0];
                 }
@@ -88,6 +99,15 @@ public class TemplateTest {
             assertEquals("Field oneWay is readonly", ex.getMessage());
         }
         assertNotNull(TestObjectHandle.T.oneWay.get(object));
+    }
+
+    @Test
+    public void testPrivateClass() {
+        Object privateTestObject = SafeConstructor.create(Resolver.loadClass("com.bergerkiller.mountiplex.types.PrivateTestObject", true)).newInstance();
+        PrivateTestObjectHandle handle = PrivateTestObjectHandle.createHandle(privateTestObject);
+        handle.setField("test");
+        assertEquals("test", handle.getField());
+        assertEquals("test", handle.method());
     }
 
     @Test

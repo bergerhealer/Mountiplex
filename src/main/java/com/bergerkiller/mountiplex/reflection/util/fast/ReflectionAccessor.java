@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ReflectionAccessor<T> implements Reader<T>, Writer<T>, Copier {
@@ -112,6 +113,10 @@ public class ReflectionAccessor<T> implements Reader<T>, Writer<T>, Copier {
     public void checkCanCopy() {}
 
     public static <T> ReflectionAccessor<T> create(java.lang.reflect.Field field) {
-        return GeneratedAccessor.create(field);
+        if (Resolver.isPublic(field)) {
+            return GeneratedAccessor.create(field);
+        } else {
+            return new ReflectionAccessor<T>(field);
+        }
     }
 }

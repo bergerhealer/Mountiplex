@@ -38,6 +38,42 @@ public class Resolver {
     }
 
     /**
+     * Gets whether a field is public and can be accessed from outside code.
+     * This requires the field to have a 'public' modifier, and that the class in
+     * which it is defined is also public.
+     * 
+     * @param field
+     * @return True if the field is public
+     */
+    public static boolean isPublic(java.lang.reflect.Field field) {
+        return Modifier.isPublic(field.getModifiers()) && getMeta(field.getDeclaringClass()).isPublic;
+    }
+
+    /**
+     * Gets whether a method is public and can be accessed from outside code.
+     * This requires the method to have a 'public' modifier, and that the class in
+     * which it is defined is also public.
+     * 
+     * @param method
+     * @return True if the method is public
+     */
+    public static boolean isPublic(java.lang.reflect.Method method) {
+        return Modifier.isPublic(method.getModifiers()) && getMeta(method.getDeclaringClass()).isPublic;
+    }
+
+    /**
+     * Gets whether a constructor is public and can be accessed from outside code.
+     * This requires the constructor to have a 'public' modifier, and that the class in
+     * which it is defined is also public.
+     * 
+     * @param constructor
+     * @return True if the constructor is public
+     */
+    public static boolean isPublic(java.lang.reflect.Constructor<?> constructor) {
+        return Modifier.isPublic(constructor.getModifiers()) && getMeta(constructor.getDeclaringClass()).isPublic;
+    }
+
+    /**
      * Retrieves the metadata for a particular class type
      * 
      * @param type to get the metadata for
