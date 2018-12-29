@@ -5,7 +5,7 @@ import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
 public abstract class PrivateTestObjectHandle extends Template.Handle {
     public static final PrivateTestObjectClass T = new PrivateTestObjectClass();
-    protected static final StaticInitHelper _init_helper = new StaticInitHelper(PrivateTestObjectHandle.class, "com.bergerkiller.mountiplex.types.PrivateTestObject");
+    protected static final StaticInitHelper _init_helper = new StaticInitHelper(PrivateTestObjectHandle.class, "com.bergerkiller.mountiplex.types.PrivateTestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
 
     /* ============================================================================== */
 

@@ -10,8 +10,8 @@ import com.bergerkiller.mountiplex.reflection.SafeConstructor;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
-import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.types.BootstrapState;
 import com.bergerkiller.mountiplex.types.PrivateTestObjectHandle;
 import com.bergerkiller.mountiplex.types.TestObject;
 import com.bergerkiller.mountiplex.types.TestObjectHandle;
@@ -19,52 +19,7 @@ import com.bergerkiller.mountiplex.types.TestObjectHandle;
 // tests the correct working of Template elements
 public class TemplateTest {
 
-    static {
-        Resolver.registerClassDeclarationResolver(new ClassDeclarationResolver() {
-            @Override
-            public ClassDeclaration resolveClassDeclaration(String classPath, Class<?> classType) {
-                if (classType.equals(TestObject.class)) {
-                    String template = "package com.bergerkiller.mountiplex.types;\n" +
-                                      "\n" +
-                                      "public class TestObject {\n" +
-                                      "    private static String staticField:a;\n" +
-                                      "    private static final String staticFinalField:a_f;\n" +
-                                      "    private String localField:b;\n" +
-                                      "    private final String localFinalField:b_f;\n" +
-                                      "    private (String) int intConvField:c;\n" +
-                                      "    public final (List<String>) List<Integer> testRawField;\n" +
-                                      "    public optional String unusedField:###;\n" +
-                                      "    public readonly final (UniqueType) OneWayConvertableType oneWay;\n" +
-                                      "    \n" +
-                                      "    private int testFunc:d(int k, int l);\n" +
-                                      "    private (String) int testConvFunc1:e(int k, int l);\n" +
-                                      "    private int testConvFunc2:f((String) int k, (String) int l);\n" +
-                                      "    private static (long) int testing2:g(int a, (String) int b);\n" +
-                                      "    public int defaultInterfaceMethod();\n" +
-                                      "    public int inheritedClassMethod();\n" +
-                                      "    public optional int testGenerated() {\n" +
-                                      "        return 621;\n" +
-                                      "    }\n" +
-                                      "}\n";
-
-                    return SourceDeclaration.parse(template).classes[0];
-                } else if (classType.getName().equals("com.bergerkiller.mountiplex.types.PrivateTestObject")) {
-                    String template = "package com.bergerkiller.mountiplex.types;\n" +
-                            "\n" +
-                            "class PrivateTestObject {\n" +
-                            "    public String field;\n" +
-                            "    public String method();\n" +
-                            "}\n";
-
-                    return SourceDeclaration.parse(template).classes[0];
-                }
-                return null;
-            }
-        });
-    }
-
-    @Test
-    public void testTemplate() {
+    private void test_TestObject() {
         TestObject object = new TestObject();
         assertEquals("static_test", TestObjectHandle.CONSTANT);
         assertEquals("static_test", TestObjectHandle.T.staticField.get());
@@ -101,13 +56,27 @@ public class TemplateTest {
         assertNotNull(TestObjectHandle.T.oneWay.get(object));
     }
 
-    @Test
-    public void testPrivateClass() {
+    private void test_PrivateTestObject() {
         Object privateTestObject = SafeConstructor.create(Resolver.loadClass("com.bergerkiller.mountiplex.types.PrivateTestObject", true)).newInstance();
         PrivateTestObjectHandle handle = PrivateTestObjectHandle.createHandle(privateTestObject);
         handle.setField("test");
         assertEquals("test", handle.getField());
         assertEquals("test", handle.method());
+    }
+
+    @Test
+    public void testTemplate() {
+        // Run tests, verify bootstrap is called once and only once
+        test_TestObject();
+
+        assertEquals(1, BootstrapState.CALLED_ROOT);
+        assertEquals(1, BootstrapState.CALLED_TESTOBJECT);
+
+        test_PrivateTestObject();
+
+        assertEquals(1, BootstrapState.CALLED_ROOT);
+        assertEquals(1, BootstrapState.CALLED_TESTOBJECT);
+        assertEquals(1, BootstrapState.CALLED_PRIVATETESTOBJECT);
     }
 
     @Test

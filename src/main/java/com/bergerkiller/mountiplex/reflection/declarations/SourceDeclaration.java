@@ -27,8 +27,7 @@ public class SourceDeclaration extends Declaration {
         String templatefile = "";
         LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
         while ((postfix = this.getPostfix()) != null && postfix.length() > 0) {
-            if (postfix.startsWith("//")) {
-                trimLine();
+            if (nextInternal()) {
                 continue;
             }
 

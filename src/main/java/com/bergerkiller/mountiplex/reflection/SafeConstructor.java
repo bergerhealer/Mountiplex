@@ -26,7 +26,12 @@ public class SafeConstructor<T> {
     public SafeConstructor(Class<T> type, Class<?>... parameterTypes) {
         this.constructor = new FastConstructor<T>();
         try {
-            this.constructor.init(type.getDeclaredConstructor(parameterTypes));
+            if (type == null) {
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to find constructor because type is null");
+                this.constructor.initUnavailable("NULL_UNKNOWN_TYPE()");
+            } else {
+                this.constructor.init(type.getDeclaredConstructor(parameterTypes));
+            }
         } catch (SecurityException e) {
             MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to access constructor", e);
         } catch (NoSuchMethodException e) {

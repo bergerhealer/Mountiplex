@@ -532,12 +532,14 @@ public class ClassTemplate<T> {
 
             // Load all methods top-down and then all abstract methods from the interfaces
             Class<?> currentType = this.getType();
-            HashSet<Signature> addedSignatures = new HashSet<Signature>();
-            do {
-                addMethods(currentType, addedSignatures);
-            } while ((currentType = currentType.getSuperclass()) != null);
-            for (Class<?> interfaceClass : this.getType().getInterfaces()) {
-                addMethods(interfaceClass, addedSignatures);
+            if (currentType != null) {
+                HashSet<Signature> addedSignatures = new HashSet<Signature>();
+                do {
+                    addMethods(currentType, addedSignatures);
+                } while ((currentType = currentType.getSuperclass()) != null);
+                for (Class<?> interfaceClass : this.getType().getInterfaces()) {
+                    addMethods(interfaceClass, addedSignatures);
+                }
             }
 
             /*
@@ -796,6 +798,15 @@ public class ClassTemplate<T> {
     }
 
     public Method selectRawMethod(MethodDeclaration declare, boolean logErrors) {
+        // Check null type first
+        if (this.type == null) {
+            if (logErrors) {
+                logMethodWarning(declare.toString(), "can not be loaded because this class is null");
+            }
+            return null;
+        }
+
+        // Load all methods of this class
         loadMethods();
 
         // Find the exact method

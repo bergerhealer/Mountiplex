@@ -10,42 +10,52 @@ import java.util.Map;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 
 /**
  * Resolves class names into Class Types based on package and import paths.
  */
 public class ClassResolver {
     private static final List<String> default_imports = Arrays.asList("java.lang.*", "java.util.*");
+    private static final Runnable[] default_bootstrap = new Runnable[0];
     public static final ClassResolver DEFAULT = new ClassResolver().immutable();
 
     private final ArrayList<String> imports;
     private final ArrayList<String> manualImports;
     private final HashMap<String, String> variables = new HashMap<String, String>();
+    private String classDeclarationResolverName;
     private String packagePath;
     private Class<?> declaredClass;
     private boolean logErrors;
+    private Runnable[] bootstrap;
 
     private ClassResolver(ClassResolver src) {
+        this.classDeclarationResolverName = src.classDeclarationResolverName;
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.packagePath = src.packagePath;
         this.declaredClass = src.declaredClass;
         this.logErrors = src.logErrors;
+        this.bootstrap = src.bootstrap;
     }
 
     public ClassResolver() {
+        this.classDeclarationResolverName = "null";
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>(default_imports);
         this.packagePath = "";
         this.declaredClass = null;
         this.logErrors = true;
+        this.bootstrap = default_bootstrap;
         this.regenImports();
     }
 
     public ClassResolver(String packagePath) {
+        this.classDeclarationResolverName = "null";
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
         this.packagePath = "";
+        this.bootstrap = default_bootstrap;
         this.setPackage(packagePath);
     }
 
@@ -129,6 +139,69 @@ public class ClassResolver {
      */
     public String getPackage() {
         return this.packagePath;
+    }
+
+    /**
+     * Sets the full name or method used to obtain the class declaration resolver that
+     * loads the declaration for the classes managed by this resolver.
+     * This is used internally to initialize the templates for the first time.
+     * 
+     * @param name class declaration resolver name
+     */
+    public void setClassDeclarationResolverName(String name) {
+        this.classDeclarationResolverName = name;
+    }
+
+    /**
+     * Gets the full name or method used to obtain the class declaration resolver that
+     * loads the declaration for the classes managed by this resolver.
+     * This is used internally to initialize the templates for the first time.
+     * 
+     * @return class declaration resolver name
+     */
+    public String getClassDeclarationResolverName() {
+        return this.classDeclarationResolverName;
+    }
+
+    /**
+     * Gets a list of runnables that should be executed prior to using any portions of this Class
+     * 
+     * @return bootstrap runnable list
+     */
+    public List<Runnable> getBootstrap() {
+        return Arrays.asList(this.bootstrap);
+    }
+
+    public void runBootstrap() {
+        for (int i = 0; i < this.bootstrap.length; i++) {
+            try {
+                this.bootstrap[i].run();
+            } catch (Throwable t) {
+                throw new BootstrapException(this.bootstrap[i], t);
+            }
+        }
+    }
+
+    /**
+     * Adds a runnable to be executed prior to using any portions of this Class.
+     * The code is only going to be ever executed once
+     * 
+     * @param runnable to add
+     */
+    public void addBootstrap(Runnable runnable) {
+        this.bootstrap = Arrays.copyOf(this.bootstrap, this.bootstrap.length + 1);
+        this.bootstrap[this.bootstrap.length - 1] = new BootstrapRunnable(runnable);
+    }
+
+    /**
+     * Adds code to be executed prior to using any portions of this Class.
+     * The code is compiled at runtime when the code is meant to be called.
+     * 
+     * @param code to add
+     */
+    public void addBootstrap(String code) {
+        this.bootstrap = Arrays.copyOf(this.bootstrap, this.bootstrap.length + 1);
+        this.bootstrap[this.bootstrap.length - 1] = new BootstrapCode(this, code);
     }
 
     /**
@@ -406,6 +479,62 @@ public class ClassResolver {
         @Override
         public void setVariable(String name, String value) {
             throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
+    }
+
+    private static class BootstrapRunnable implements Runnable {
+        private final Runnable runnable;
+        private boolean needsExecuting = true;
+
+        public BootstrapRunnable(Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public synchronized void run() {
+            if (needsExecuting) {
+                runnable.run();
+                needsExecuting = false;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "RUNNABLE{" + this.runnable + "}";
+        }
+    }
+
+    private static class BootstrapCode implements Runnable {
+        private final ClassResolver resolver;
+        private final String code;
+        private boolean needsExecuting = true;
+
+        public BootstrapCode(ClassResolver resolver, String code) {
+            this.resolver = resolver;
+            this.code = code;
+        }
+
+        @Override
+        public void run() {
+            if (needsExecuting) {
+                MethodDeclaration decl = new MethodDeclaration(resolver, "public static void run() {\n" + code + "\n}");
+                GeneratedCodeInvoker<Void> invoker = GeneratedCodeInvoker.create(decl);
+                invoker.invoke(null);
+                needsExecuting = false;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "CODE" + this.code;
+        }
+    }
+
+    private static class BootstrapException extends RuntimeException {
+        private static final long serialVersionUID = -1827332615527781142L;
+
+        public BootstrapException(Runnable runnable, Throwable cause) {
+            super("Failed to bootstrap " + runnable, cause);
         }
     }
 }

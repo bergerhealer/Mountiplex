@@ -50,6 +50,9 @@ public class TemplateHandleBuilder<H> {
         // Set up the class writer for the implementation of the handle type
         ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>($ClassWriter.COMPUTE_MAXS, this.handleType, "$impl");
         Class<?> topInstanceType = getTemplateClass(this.handleType).getType();
+        if (topInstanceType == null) {
+            throw new IllegalStateException("Handle internal type of " + this.handleType + " is null");
+        }
 
         // Non-public classes can not be stored as a type in another class
         // In those cases, we can only access them through reflection, and in

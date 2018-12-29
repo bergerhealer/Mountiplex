@@ -7,7 +7,7 @@ import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
 public class TestObjectHandle extends Template.Handle {
     public static final TestObjectClass T = new TestObjectClass();
-    protected static final StaticInitHelper _init_helper = new StaticInitHelper(TestObjectHandle.class, "com.bergerkiller.mountiplex.types.TestObject");
+    protected static final StaticInitHelper _init_helper = new StaticInitHelper(TestObjectHandle.class, "com.bergerkiller.mountiplex.types.TestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
     public static final String CONSTANT = T.staticField.getSafe();
 
     public static class TestObjectClass extends Template.Class<TestObjectHandle> {

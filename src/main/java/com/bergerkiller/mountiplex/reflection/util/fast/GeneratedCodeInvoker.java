@@ -197,9 +197,16 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
                 invokeBody.append(") {");
             }
 
-            // Cast the instance type to the correct type
-            invokeBody.append(instanceType.getName()).append(" instance = ");
-            invokeBody.append("(").append(instanceType.getName()).append(") instance_raw;");
+            // Cast the instance type to the correct type (if available)
+            // Does not apply when the method is static, and instance will always be null
+            if (!declaration.modifiers.isStatic()) {
+                if (instanceType == null) {
+                    invokeBody.append("Object instance = instance_raw;");
+                } else {
+                    invokeBody.append(instanceType.getName()).append(" instance = ");
+                    invokeBody.append("(").append(instanceType.getName()).append(") instance_raw;");
+                }
+            }
 
             // Generate a section that casts all parameters to the correct type
             for (ParameterDeclaration param : declaration.parameters.parameters) {

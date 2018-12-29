@@ -143,7 +143,9 @@ public class TemplateGenerator {
         {
             addComment("@See {@link " + className(classDec) + "}");
             addLine("public static final " + className(classDec) + " T = new " + className(classDec) + "()");
-            addLine("static final StaticInitHelper _init_helper = new StaticInitHelper(" + handleName(classDec) + ".class, \"" + classDec.type.typePath + "\")");
+            addLine("static final StaticInitHelper _init_helper = new StaticInitHelper(" + handleName(classDec) + ".class, " +
+                "\"" + classDec.type.typePath + "\", " +
+                classDec.getResolver().getClassDeclarationResolverName() + ")");
             addLine();
 
             {

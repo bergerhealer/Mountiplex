@@ -149,6 +149,10 @@ public class ClassDeclaration extends Declaration {
         LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
         LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
         while ((postfix = getPostfix()) != null && postfix.length() > 0) {
+            if (nextInternal()) {
+                continue;
+            }
+
             if (postfix.charAt(0) == '}') {
                 trimWhitespace(1);
                 break;

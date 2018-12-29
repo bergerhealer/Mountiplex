@@ -21,6 +21,7 @@ import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.SafeField;
 import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
+import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
@@ -136,7 +137,7 @@ public class Template {
             }
         }
 
-        private final void init(java.lang.Class<?> classType) {
+        private final void init(java.lang.Class<?> classType, ClassDeclarationResolver classDecResolver) {
             this.classType = classType;
             this.valid = (classType != null);
 
@@ -156,11 +157,18 @@ public class Template {
                 Conversion.registerConverter(this.handleConverter);
 
                 // Resolve class declaration
-                this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
+                if (classDecResolver != null) {
+                    this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
+                } else {
+                    this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
+                }
                 if (this.classDec == null) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
                     valid = false;
                 }
+
+                // Execute bootstrap code
+                this.classDec.getResolver().runBootstrap();
             }
 
             // Initialize all declared fields
@@ -430,7 +438,7 @@ public class Template {
         }
 
         @InitMethod
-        protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath) {
+        protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath, ClassDeclarationResolver resolver) {
             try {
                 Class<?> handleClass = ((Class<?>) handleType.getField("T").get(null));
                 handleClass.classPath = classPath;
@@ -445,7 +453,7 @@ public class Template {
                 }
 
                 // Initialize the template class fields
-                handleClass.init(classType);
+                handleClass.init(classType, resolver);
             } catch (Throwable t) {
                 MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register " + handleType.getName(), t);
             }

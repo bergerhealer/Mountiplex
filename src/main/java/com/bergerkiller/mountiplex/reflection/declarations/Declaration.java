@@ -72,7 +72,71 @@ public abstract class Declaration {
     }
 
     protected final ClassDeclaration nextClass() {
-        return updatePostfix(new ClassDeclaration(this._resolver, this._postfix));
+        return updatePostfix(new ClassDeclaration(this._resolver.clone(), this._postfix));
+    }
+
+    // Processes internal template declaration lines
+    protected boolean nextInternal() {
+        if (this._postfix == null) {
+            return false;
+        }
+
+        // Comments
+        if (this._postfix.startsWith("//")) {
+            trimLine();
+            return true;
+        }
+
+        // Bootstrap code
+        if (this._postfix.startsWith("#bootstrap ")) {
+            this.trimWhitespace(11);
+
+            // Add code
+            String postfix = this.getPostfix();
+            int code_end_index;
+            if (postfix.startsWith("{")) {
+                // Code block. Find matching }, keep embedded { into account
+                code_end_index = -1;
+                int depth = 0;
+                for (int i = 1; i < postfix.length(); i++) {
+                    char c = postfix.charAt(i);
+                    if (c == '{') {
+                        depth++;
+                    } else if (c == '}' && (depth--) <= 0) {
+                        code_end_index = i + 1;
+                        break;
+                    }
+                }
+            } else {
+                // Single line of code
+                code_end_index = postfix.indexOf('\n');
+            }
+            if (code_end_index == -1) {
+                setPostfix("");
+            } else {
+                String code = postfix.substring(0, code_end_index);
+                this._resolver.addBootstrap(code);
+                this.trimWhitespace(code_end_index);
+            }
+            return true;
+        }
+
+        // Sets the resolver used to obtain the class declarations
+        if (this._postfix.startsWith("#resolver ")) {
+            this.trimWhitespace(10);
+
+            int endOfLine = this._postfix.indexOf('\n');
+            if (endOfLine == -1) {
+                setPostfix("");
+            } else {
+                String name = this._postfix.substring(0, endOfLine);
+                this._resolver.setClassDeclarationResolverName(name);
+                this.trimWhitespace(endOfLine);
+            }
+            return true;
+        }
+
+        return false;
     }
 
     /**
