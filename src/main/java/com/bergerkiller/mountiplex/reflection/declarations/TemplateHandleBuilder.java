@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
-import static net.sf.cglib.asm.$Opcodes.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.lang.reflect.Modifier;
 
@@ -11,10 +11,10 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 
-import net.sf.cglib.asm.$ClassWriter;
-import net.sf.cglib.asm.$FieldVisitor;
-import net.sf.cglib.asm.$MethodVisitor;
-import net.sf.cglib.asm.$Type;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 /**
  * Reads the abstract class information of a Template Handle type and generates an appropriate
@@ -48,7 +48,7 @@ public class TemplateHandleBuilder<H> {
 
     public void build() {
         // Set up the class writer for the implementation of the handle type
-        ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>($ClassWriter.COMPUTE_MAXS, this.handleType, "$impl");
+        ExtendedClassWriter<H> cw = new ExtendedClassWriter<H>(ClassWriter.COMPUTE_MAXS, this.handleType, "$impl");
         Class<?> topInstanceType = getTemplateClass(this.handleType).getType();
         if (topInstanceType == null) {
             throw new IllegalStateException("Handle internal type of " + this.handleType + " is null");
@@ -62,10 +62,10 @@ public class TemplateHandleBuilder<H> {
             topInstanceType = Object.class;
         }
 
-        String instanceTypeDesc = $Type.getDescriptor(topInstanceType);
-        String instanceTypeName = $Type.getInternalName(topInstanceType);
-        $MethodVisitor mv;
-        $FieldVisitor fv;
+        String instanceTypeDesc = Type.getDescriptor(topInstanceType);
+        String instanceTypeName = Type.getInternalName(topInstanceType);
+        MethodVisitor mv;
+        FieldVisitor fv;
 
         // Add instance field of the main handle instance type
         fv = cw.visitField(ACC_PUBLIC + ACC_FINAL, "instance", instanceTypeDesc, null, null);
@@ -77,7 +77,7 @@ public class TemplateHandleBuilder<H> {
         mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(" + instanceTypeDesc + ")V", null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESPECIAL, $Type.getInternalName(this.handleType), "<init>", "()V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(this.handleType), "<init>", "()V", false);
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 1);
         mv.visitFieldInsn(PUTFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
@@ -102,11 +102,11 @@ public class TemplateHandleBuilder<H> {
             Template.Class<?> templateClass = getTemplateClass(currentHandleType);
 
             // Internal name of the handle type, when writing access to T
-            String currentHandleName = $Type.getInternalName(currentHandleType);
+            String currentHandleName = Type.getInternalName(currentHandleType);
 
             Class<?> templateClassType = templateClass.getClass();
-            String templateClassDesc = $Type.getDescriptor(templateClassType);
-            String templateClassName = $Type.getInternalName(templateClassType);
+            String templateClassDesc = Type.getDescriptor(templateClassType);
+            String templateClassName = Type.getInternalName(templateClassType);
             Class<?> instanceType = templateClass.getType();
             ClassDeclaration classDec = templateClass.getClassDeclaration();
             if (classDec == null) {
@@ -120,7 +120,7 @@ public class TemplateHandleBuilder<H> {
                 }
 
                 Class<?> fieldType = TemplateGenerator.getExposedType(fieldDec.type).type;
-                String fieldTypeDesc = $Type.getDescriptor(fieldType);
+                String fieldTypeDesc = Type.getDescriptor(fieldType);
                 String fieldName = fieldDec.name.real();
 
                 // Find out what Template accessor names to use
@@ -130,8 +130,8 @@ public class TemplateHandleBuilder<H> {
                 String templateElementDesc;
                 try {
                     templateElement = templateClassType.getField(fieldName).getType();
-                    templateElementName = $Type.getInternalName(templateElement);
-                    templateElementDesc = $Type.getDescriptor(templateElement);
+                    templateElementName = Type.getInternalName(templateElement);
+                    templateElementDesc = Type.getDescriptor(templateElement);
                 } catch (Throwable t) {
                     throw MountiplexUtil.uncheckedRethrow(t);
                 }
@@ -175,10 +175,10 @@ public class TemplateHandleBuilder<H> {
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                     mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "get" + accessorName, "(Ljava/lang/Object;)" + accessorType, false);
                     if (accessorName.isEmpty() && !fieldType.equals(Object.class)) {
-                        mv.visitTypeInsn(CHECKCAST, $Type.getInternalName(fieldType));
+                        mv.visitTypeInsn(CHECKCAST, Type.getInternalName(fieldType));
                     }
                 }
-                mv.visitInsn($Type.getType(fieldType).getOpcode(IRETURN));
+                mv.visitInsn(Type.getType(fieldType).getOpcode(IRETURN));
                 mv.visitMaxs(2, 1);
                 mv.visitEnd();
 
@@ -190,14 +190,14 @@ public class TemplateHandleBuilder<H> {
                     if (isPublicNonfinalField) {
                         mv.visitVarInsn(ALOAD, 0);
                         mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                        mv.visitVarInsn($Type.getType(fieldType).getOpcode(ILOAD), 1);
+                        mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
                         mv.visitFieldInsn(PUTFIELD, instanceTypeName, fieldDec.name.value(), fieldTypeDesc);
                     } else {
                         mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
                         mv.visitFieldInsn(GETFIELD, templateClassName, fieldName, templateElementDesc);
                         mv.visitVarInsn(ALOAD, 0);
                         mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                        mv.visitVarInsn($Type.getType(fieldType).getOpcode(ILOAD), 1);
+                        mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
                         mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "set" + accessorName, "(Ljava/lang/Object;" + accessorType + ")V", false);
                     }
                     mv.visitInsn(RETURN);
@@ -217,15 +217,15 @@ public class TemplateHandleBuilder<H> {
                 // Build the method descriptor
                 boolean hasTypeConversion = (methodDec.returnType.cast != null);
                 Class<?> returnTypeClass = TemplateGenerator.getExposedType(methodDec.returnType).type;
-                $Type returnType = $Type.getType(returnTypeClass);
+                Type returnType = Type.getType(returnTypeClass);
                 Class<?>[] paramTypeClasses = new Class<?>[methodDec.parameters.parameters.length];
-                $Type[] paramTypes = new $Type[paramTypeClasses.length];
+                Type[] paramTypes = new Type[paramTypeClasses.length];
                 for (int i = 0; i < paramTypes.length; i++) {
                     hasTypeConversion |= (methodDec.parameters.parameters[i].type.cast != null);
                     paramTypeClasses[i] = TemplateGenerator.getExposedType(methodDec.parameters.parameters[i].type).type;
-                    paramTypes[i] = $Type.getType(paramTypeClasses[i]);
+                    paramTypes[i] = Type.getType(paramTypeClasses[i]);
                 }
-                String methodDesc = $Type.getMethodDescriptor(returnType, paramTypes);
+                String methodDesc = Type.getMethodDescriptor(returnType, paramTypes);
 
                 // Figure out what kind of accessor Object is used here (Converted or not)
                 Class<?> templateElement;
@@ -233,8 +233,8 @@ public class TemplateHandleBuilder<H> {
                 String templateElementDesc;
                 try {
                     templateElement = templateClassType.getField(methodName).getType();
-                    templateElementName = $Type.getInternalName(templateElement);
-                    templateElementDesc = $Type.getDescriptor(templateElement);
+                    templateElementName = Type.getInternalName(templateElement);
+                    templateElementDesc = Type.getDescriptor(templateElement);
                 } catch (Throwable t) {
                     throw MountiplexUtil.uncheckedRethrow(t);
                 }

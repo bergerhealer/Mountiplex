@@ -1,8 +1,8 @@
 package com.bergerkiller.mountiplex;
 
-import net.sf.cglib.asm.$MethodVisitor;
-import net.sf.cglib.asm.$Type;
-import static net.sf.cglib.asm.$Opcodes.*;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
+import static org.objectweb.asm.Opcodes.*;
 import static org.junit.Assert.*;
 
 import java.lang.reflect.Constructor;
@@ -134,19 +134,19 @@ public class TemplateSpeedTest {
         final SpeedTestObjectHandle handle = SpeedTestObjectHandle.createHandle(object);
         final IntSetter setter = new IntSetter();
 
-        final String fieldType = $Type.getDescriptor(int.class);
-        final String className = $Type.getInternalName(SpeedTestObject.class);
+        final String fieldType = Type.getDescriptor(int.class);
+        final String className = Type.getInternalName(SpeedTestObject.class);
         final String propertyName = "i";
 
         ExtendedClassWriter<GenSetter> cw = new ExtendedClassWriter<GenSetter>(0, GenSetter.class);
 
-        $MethodVisitor mv;
+        MethodVisitor mv;
 
         mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/lang/reflect/Field;)V", null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 1);
-        mv.visitMethodInsn(INVOKESPECIAL, $Type.getInternalName(GenSetter.class), "<init>", "(" + $Type.getDescriptor(java.lang.reflect.Field.class) + ")V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(GenSetter.class), "<init>", "(" + Type.getDescriptor(java.lang.reflect.Field.class) + ")V", false);
         mv.visitInsn(RETURN);
         mv.visitMaxs(2, 2);
         mv.visitEnd();

@@ -24,17 +24,14 @@ public class EnumConversion {
 
                 // Used down below
                 final EnumStringCache cache = new EnumStringCache(outputType.type);
-                if (cache.constants == null) {
-                    return;
-                }
 
                 // Parsing an Enumeration from a Number (by ordinal)
                 converters.add(new Converter<Number, Enum>(TypeDeclaration.fromClass(Number.class), outputType) {
                     @Override
                     public Enum convertInput(Number value) {
                         int idx = value.intValue();
-                        if (idx >= 0 && idx < cache.constants.length) {
-                            return cache.constants[idx];
+                        if (idx >= 0 && idx < cache.getConstants().length) {
+                            return cache.getConstants()[idx];
                         } else {
                             return null;
                         }
@@ -64,24 +61,34 @@ public class EnumConversion {
     // fixes a detected performance issue with the very slow parseArray method
     private static class EnumStringCache {
         private final Map<String, Enum> values = new HashMap<String, Enum>();
-        public final Enum<?>[] constants;
+        private final Class<?> _type;
+        private Enum<?>[] _constants;
 
         public EnumStringCache(Class<?> type) {
-            this.constants = (Enum<?>[]) type.getEnumConstants();
-            if (this.constants != null) {
-                for (Enum<?> constant : this.constants) {
+            this._type = type;
+            this._constants = null;
+        }
+
+        public Enum<?>[] getConstants() {
+            if (this._constants == null) {
+                this._constants = (Enum<?>[]) this._type.getEnumConstants();
+                if (this._constants == null) {
+                    this._constants = (Enum<?>[]) MountiplexUtil.createArray(this._type, 0);
+                }
+                for (Enum<?> constant : this._constants) {
                     String name = constant.name();
                     values.put(name.toLowerCase(Locale.ENGLISH), constant);
                     values.put(name.toUpperCase(Locale.ENGLISH), constant);
                     values.put(name, constant);
                 }
             }
+            return this._constants;
         }
 
         public Enum get(String key) {
             Enum result = this.values.get(key);
             if (result == null) {
-                result = MountiplexUtil.parseArray(this.constants, key, null);
+                result = MountiplexUtil.parseArray(this.getConstants(), key, null);
                 if (result != null) {
                     this.values.put(key, result);
                 }

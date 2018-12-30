@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
-import static net.sf.cglib.asm.$Opcodes.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -8,9 +8,9 @@ import java.lang.reflect.Modifier;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
-import net.sf.cglib.asm.$ClassWriter;
-import net.sf.cglib.asm.$MethodVisitor;
-import net.sf.cglib.asm.$Type;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
 
@@ -21,24 +21,24 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static <T> GeneratedAccessor<T> create(java.lang.reflect.Field field) {
         // Optimize field access be generating the code to do it (its a public member)
-        String selfName = $Type.getInternalName(GeneratedAccessor.class);
-        ExtendedClassWriter<GeneratedAccessor<T>> cw = new ExtendedClassWriter<GeneratedAccessor<T>>($ClassWriter.COMPUTE_MAXS, (Class) GeneratedAccessor.class);
-        $MethodVisitor mv;
+        String selfName = Type.getInternalName(GeneratedAccessor.class);
+        ExtendedClassWriter<GeneratedAccessor<T>> cw = new ExtendedClassWriter<GeneratedAccessor<T>>(ClassWriter.COMPUTE_MAXS, (Class) GeneratedAccessor.class);
+        MethodVisitor mv;
 
         // Constructor that calls the super constructor with the Field
         mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/lang/reflect/Field;)V", null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 1);
-        mv.visitMethodInsn(INVOKESPECIAL, selfName, "<init>", "(" + $Type.getDescriptor(java.lang.reflect.Field.class) + ")V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, selfName, "<init>", "(" + Type.getDescriptor(java.lang.reflect.Field.class) + ")V", false);
         mv.visitInsn(RETURN);
         mv.visitMaxs(2, 2);
         mv.visitEnd();
 
         // Getter/setter makeup
         int mod = field.getModifiers();
-        String className = $Type.getInternalName(field.getDeclaringClass());
-        $Type fieldType = $Type.getType(field.getType());
+        String className = Type.getInternalName(field.getDeclaringClass());
+        Type fieldType = Type.getType(field.getType());
         String fieldTypeName = fieldType.getDescriptor();
         String fieldName = field.getName();
         String accessorName = null;
@@ -51,7 +51,7 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
 
         if (Modifier.isPublic(mod) && !Modifier.isStatic(mod)) {
             if (accessorName == null) {
-                String fieldTypeInternalName = $Type.getInternalName(field.getType());
+                String fieldTypeInternalName = Type.getInternalName(field.getType());
 
                 // Get the Object field
                 mv = cw.visitMethod(ACC_PUBLIC, "get", "(Ljava/lang/Object;)Ljava/lang/Object;", null, null);

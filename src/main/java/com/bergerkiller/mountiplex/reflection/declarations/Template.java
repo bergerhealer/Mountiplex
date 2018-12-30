@@ -158,7 +158,7 @@ public class Template {
 
                 // Resolve class declaration
                 if (classDecResolver != null) {
-                    this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
+                    this.classDec = classDecResolver.resolveClassDeclaration(this.classPath, classType);
                 } else {
                     this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
                 }
@@ -168,7 +168,9 @@ public class Template {
                 }
 
                 // Execute bootstrap code
-                this.classDec.getResolver().runBootstrap();
+                if (this.classDec != null) {
+                    this.classDec.getResolver().runBootstrap();
+                }
             }
 
             // Initialize all declared fields

@@ -2,13 +2,13 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.Modifier;
 
-import net.sf.cglib.asm.$ClassWriter;
-import net.sf.cglib.asm.$Label;
-import net.sf.cglib.asm.$MethodVisitor;
-import net.sf.cglib.asm.$Opcodes;
-import net.sf.cglib.asm.$Type;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
-import static net.sf.cglib.asm.$Opcodes.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
@@ -65,10 +65,10 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
     }
 
     public static GeneratedInvoker create(java.lang.reflect.Method method) {
-        ExtendedClassWriter<GeneratedInvoker> cw = new ExtendedClassWriter<GeneratedInvoker>($ClassWriter.COMPUTE_MAXS, GeneratedInvoker.class);
-        $MethodVisitor mv;
+        ExtendedClassWriter<GeneratedInvoker> cw = new ExtendedClassWriter<GeneratedInvoker>(ClassWriter.COMPUTE_MAXS, GeneratedInvoker.class);
+        MethodVisitor mv;
         Class<?> instanceType = method.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
-        String instanceName = $Type.getInternalName(instanceType);
+        String instanceName = Type.getInternalName(instanceType);
         Class<?>[] paramTypes = method.getParameterTypes();
         Class<?> returnType = method.getReturnType();
         boolean isStatic = Modifier.isStatic(method.getModifiers());
@@ -105,7 +105,7 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 2);
             mv.visitInsn(ARRAYLENGTH);
-            $Label l_validArgs = new $Label();
+            Label l_validArgs = new Label();
             if (paramTypes.length > 0) {
                 mv.visitInsn(ICONST_0 + paramTypes.length);
                 mv.visitJumpInsn(IF_ICMPEQ, l_validArgs);
@@ -117,13 +117,13 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 2);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, $Type.getInternalName(GeneratedInvoker.class), "failArgs", "(I)Ljava/lang/RuntimeException;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedInvoker.class), "failArgs", "(I)Ljava/lang/RuntimeException;", false);
                 mv.visitInsn(ATHROW);
             }
 
             // Valid number of arguments; call the appropriate method with the array elements
             mv.visitLabel(l_validArgs);
-            mv.visitFrame($Opcodes.F_SAME, 0, null, 0, null);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
             if (!isStatic) {
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitTypeInsn(CHECKCAST, instanceName);

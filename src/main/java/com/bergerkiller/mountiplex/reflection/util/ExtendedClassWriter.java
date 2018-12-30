@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
-import static net.sf.cglib.asm.$Opcodes.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -8,16 +8,16 @@ import java.util.WeakHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
-import net.sf.cglib.asm.$ClassWriter;
-import net.sf.cglib.asm.$MethodVisitor;
-import net.sf.cglib.asm.$Type;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 /**
  * A class writer with the sole aim of extending a class and re-implementing certain methods in it
  * 
  * @param <T> type of base class
  */
-public class ExtendedClassWriter<T> extends $ClassWriter {
+public class ExtendedClassWriter<T> extends ClassWriter {
     private static WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
     private static int generatedClassCtr = 1;
     private final String name;
@@ -80,7 +80,7 @@ public class ExtendedClassWriter<T> extends $ClassWriter {
                 }
             }
 
-            String baseName = $Type.getInternalName(baseClass);
+            String baseName = Type.getInternalName(baseClass);
             this.name = baseClass.getName() + postfix;
             this.internalName = baseName + postfix;
             this.visit(V1_6, ACC_PUBLIC, baseName + postfix, null, baseName, null);
@@ -131,14 +131,14 @@ public class ExtendedClassWriter<T> extends $ClassWriter {
      * @param mv method visitor
      * @param primType primitive type to box (int -> Integer)
      */
-    public static void visitBoxVariable($MethodVisitor mv, java.lang.Class<?> primType) {
+    public static void visitBoxVariable(MethodVisitor mv, java.lang.Class<?> primType) {
         if (primType == void.class) {
             mv.visitInsn(ACONST_NULL);
         } else if (primType.isPrimitive()) {
             Class<?> boxedType = BoxedType.getBoxedType(primType);
             if (boxedType != null) {
-                mv.visitMethodInsn(INVOKESTATIC, $Type.getInternalName(boxedType),
-                        "valueOf", "(" + $Type.getDescriptor(primType) + ")" + $Type.getDescriptor(boxedType), false);
+                mv.visitMethodInsn(INVOKESTATIC, Type.getInternalName(boxedType),
+                        "valueOf", "(" + Type.getDescriptor(primType) + ")" + Type.getDescriptor(boxedType), false);
             }
         }
     }
@@ -150,18 +150,18 @@ public class ExtendedClassWriter<T> extends $ClassWriter {
      * @param mv method visitor
      * @param outType type to unbox or cast to
      */
-    public static void visitUnboxVariable($MethodVisitor mv, java.lang.Class<?> outType) {
+    public static void visitUnboxVariable(MethodVisitor mv, java.lang.Class<?> outType) {
         if (outType.isPrimitive()) {
             Class<?> boxedType = BoxedType.getBoxedType(outType);
             if (boxedType != null) {
-                mv.visitTypeInsn(CHECKCAST, $Type.getInternalName(boxedType));
-                mv.visitMethodInsn(INVOKEVIRTUAL, $Type.getInternalName(boxedType),
-                        outType.getName() + "Value", "()" + $Type.getDescriptor(outType), false);
+                mv.visitTypeInsn(CHECKCAST, Type.getInternalName(boxedType));
+                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(boxedType),
+                        outType.getName() + "Value", "()" + Type.getDescriptor(outType), false);
             }
         } else if (outType.isArray()) {
-            mv.visitTypeInsn(CHECKCAST, $Type.getDescriptor(outType));
+            mv.visitTypeInsn(CHECKCAST, Type.getDescriptor(outType));
         } else if (!Object.class.equals(outType)) {
-            mv.visitTypeInsn(CHECKCAST, $Type.getInternalName(outType));
+            mv.visitTypeInsn(CHECKCAST, Type.getInternalName(outType));
         }
     }
 
@@ -173,15 +173,15 @@ public class ExtendedClassWriter<T> extends $ClassWriter {
      * @param instanceType the method should be invoked on
      * @param method to be invoked
      */
-    public static void visitInvoke($MethodVisitor mv, Class<?> instanceType, Method method) {
-        final String instanceName = $Type.getInternalName(instanceType);
+    public static void visitInvoke(MethodVisitor mv, Class<?> instanceType, Method method) {
+        final String instanceName = Type.getInternalName(instanceType);
         final boolean isInterface = instanceType.isInterface();
         if (Modifier.isStatic(method.getModifiers())) {
-            mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), $Type.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), Type.getMethodDescriptor(method), isInterface);
         } else if (instanceType.isInterface()) {
-            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), $Type.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), Type.getMethodDescriptor(method), isInterface);
         } else {
-            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), $Type.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method), isInterface);
         }
     }
 
@@ -192,9 +192,9 @@ public class ExtendedClassWriter<T> extends $ClassWriter {
      * @param instanceType type to construct, can not be an interface
      * @param constructor to be invoked
      */
-    public static void visitInit($MethodVisitor mv, Class<?> instanceType, java.lang.reflect.Constructor<?> constructor) {
-        final String instanceName = $Type.getInternalName(instanceType);
-        mv.visitMethodInsn(INVOKESPECIAL, instanceName, "<init>", $Type.getConstructorDescriptor(constructor), false);
+    public static void visitInit(MethodVisitor mv, Class<?> instanceType, java.lang.reflect.Constructor<?> constructor) {
+        final String instanceName = Type.getInternalName(instanceType);
+        mv.visitMethodInsn(INVOKESPECIAL, instanceName, "<init>", Type.getConstructorDescriptor(constructor), false);
     }
 
     private static final class GeneratorClassLoader extends ClassLoader {

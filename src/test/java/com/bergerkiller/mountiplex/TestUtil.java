@@ -2,9 +2,9 @@ package com.bergerkiller.mountiplex;
 
 import java.io.PrintWriter;
 
-import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.util.ASMifierClassVisitor;
+import org.objectweb.asm.util.ASMifier;
+import org.objectweb.asm.util.TraceClassVisitor;
 
 public class TestUtil {
 
@@ -12,7 +12,8 @@ public class TestUtil {
         ClassReader localClassReader;
         try {
             localClassReader = new ClassReader(type.getName());
-            localClassReader.accept(new ASMifierClassVisitor(new PrintWriter(System.out)), new Attribute[0], 2);
+            localClassReader.accept(new TraceClassVisitor(null, new ASMifier(), 
+                    new PrintWriter(System.out)), ClassReader.SKIP_DEBUG);
         } catch (Throwable t) {
             t.printStackTrace();
         }

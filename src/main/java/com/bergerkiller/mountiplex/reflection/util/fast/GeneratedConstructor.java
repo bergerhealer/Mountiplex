@@ -1,14 +1,14 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
-import static net.sf.cglib.asm.$Opcodes.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 
-import net.sf.cglib.asm.$ClassWriter;
-import net.sf.cglib.asm.$Label;
-import net.sf.cglib.asm.$MethodVisitor;
-import net.sf.cglib.asm.$Opcodes;
-import net.sf.cglib.asm.$Type;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 public abstract class GeneratedConstructor implements Constructor<Object> {
     private final java.lang.reflect.Constructor<Object> c;
@@ -64,10 +64,10 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
     }
 
     public static GeneratedConstructor create(java.lang.reflect.Constructor<?> constructor) {
-        ExtendedClassWriter<GeneratedConstructor> cw = new ExtendedClassWriter<GeneratedConstructor>($ClassWriter.COMPUTE_MAXS, GeneratedConstructor.class);
-        $MethodVisitor mv;
+        ExtendedClassWriter<GeneratedConstructor> cw = new ExtendedClassWriter<GeneratedConstructor>(ClassWriter.COMPUTE_MAXS, GeneratedConstructor.class);
+        MethodVisitor mv;
         Class<?> instanceType = constructor.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
-        String instanceName = $Type.getInternalName(instanceType);
+        String instanceName = Type.getInternalName(instanceType);
         Class<?>[] paramTypes = constructor.getParameterTypes();
         if (paramTypes.length > 5) {
             throw new IllegalArgumentException("Constructor has too many parameters to be optimizable");
@@ -102,7 +102,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 1);
             mv.visitInsn(ARRAYLENGTH);
-            $Label l_validArgs = new $Label();
+            Label l_validArgs = new Label();
             if (paramTypes.length > 0) {
                 mv.visitInsn(ICONST_0 + paramTypes.length);
                 mv.visitJumpInsn(IF_ICMPEQ, l_validArgs);
@@ -114,13 +114,13 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, $Type.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Ljava/lang/RuntimeException;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Ljava/lang/RuntimeException;", false);
                 mv.visitInsn(ATHROW);
             }
 
             // Valid number of arguments; call the appropriate method with the array elements
             mv.visitLabel(l_validArgs);
-            mv.visitFrame($Opcodes.F_SAME, 0, null, 0, null);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
             mv.visitTypeInsn(NEW, instanceName);
             mv.visitInsn(DUP);
             for (int i = 0; i < paramTypes.length; i++) {

@@ -33,4 +33,8 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
     public static int h(int a, int b) {
         return (a * b);
     }
+
+    public String returnsConstant() {
+        return "SomeConstant";
+    }
 }

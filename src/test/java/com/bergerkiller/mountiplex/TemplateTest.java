@@ -11,6 +11,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
 import com.bergerkiller.mountiplex.types.BootstrapState;
 import com.bergerkiller.mountiplex.types.PrivateTestObjectHandle;
 import com.bergerkiller.mountiplex.types.TestObject;
@@ -159,5 +160,16 @@ public class TemplateTest {
         ClassDeclaration cdec = SourceDeclaration.parse(resolver, template).classes[0];
         assertEquals(1, cdec.fields.length);
         assertNull(cdec.fields[0].field);
+    }
+
+    @Test
+    public void testFindConstantFromMethod() {
+        java.lang.reflect.Method m;
+        try {
+            m = TestObject.class.getDeclaredMethod("returnsConstant");
+        } catch (Throwable t) {
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
+        assertEquals("SomeConstant", ASMUtil.findStringConstantReturnedByMethod(m));
     }
 }
