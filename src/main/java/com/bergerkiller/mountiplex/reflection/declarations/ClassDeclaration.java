@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
  * Declares the full contents of a Class
@@ -64,7 +65,12 @@ public class ClassDeclaration extends Declaration {
         this.subclasses = classes.toArray(new ClassDeclaration[classes.size()]);
     }
 
+    @Deprecated
     public ClassDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    public ClassDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver.clone(), declaration);
 
         // Modifiers, stop when invalid
@@ -72,7 +78,7 @@ public class ClassDeclaration extends Declaration {
         if (!this.isValid()) {
             this.code = "";
             this.base = null;
-            this.type = nextType();
+            this.type = null;
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
@@ -82,11 +88,11 @@ public class ClassDeclaration extends Declaration {
         }
 
         // Class or interface? Then parse class/interface type
-        String postfix = this.getPostfix();
+        StringBuffer postfix = this.getPostfix();
         this.is_interface = postfix.startsWith("interface ");
         if (!this.is_interface && !postfix.startsWith("class ")) {
             this.base = null;
-            this.type = nextType();
+            this.type = null;
             this.code = "";
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
@@ -161,7 +167,7 @@ public class ClassDeclaration extends Declaration {
             if (postfix.startsWith("<code>")) {
                 int endIdx = postfix.indexOf("</code>", 6);
                 if (endIdx != -1) {
-                    codeStr.append(SourceDeclaration.trimIndentation(postfix.substring(6, endIdx)));
+                    codeStr.append(SourceDeclaration.trimIndentation(postfix.substringToString(6, endIdx)));
                     setPostfix(postfix.substring(endIdx + 7));
                     trimLine();
                     continue;

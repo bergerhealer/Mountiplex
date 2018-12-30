@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Type;
 
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
 /**
  * A single named parameter in a parameter list for a method or constructor.
  * Matching only matches the parameter type, not the name, as that is unimportant.
@@ -16,7 +18,12 @@ public class ParameterDeclaration extends Declaration {
         this.name = new NameDeclaration(resolver, name, null);
     }
 
+    @Deprecated
     public ParameterDeclaration(ClassResolver resolver, String declaration, int paramIdx) {
+        this(resolver, StringBuffer.of(declaration), paramIdx);
+    }
+
+    public ParameterDeclaration(ClassResolver resolver, StringBuffer declaration, int paramIdx) {
         super(resolver, declaration);
         this.type = nextType();
         this.name = nextName(paramIdx);

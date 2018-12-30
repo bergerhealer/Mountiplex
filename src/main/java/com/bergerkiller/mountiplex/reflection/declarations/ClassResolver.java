@@ -22,7 +22,7 @@ public class ClassResolver {
 
     private final ArrayList<String> imports;
     private final ArrayList<String> manualImports;
-    private final HashMap<String, String> variables = new HashMap<String, String>();
+    private VariablesMap variables;
     private String classDeclarationResolverName;
     private String packagePath;
     private Class<?> declaredClass;
@@ -31,6 +31,7 @@ public class ClassResolver {
 
     private ClassResolver(ClassResolver src) {
         this.classDeclarationResolverName = src.classDeclarationResolverName;
+        this.variables = src.variables;
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.packagePath = src.packagePath;
@@ -41,6 +42,7 @@ public class ClassResolver {
 
     public ClassResolver() {
         this.classDeclarationResolverName = "null";
+        this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>(default_imports);
         this.packagePath = "";
@@ -52,6 +54,7 @@ public class ClassResolver {
 
     public ClassResolver(String packagePath) {
         this.classDeclarationResolverName = "null";
+        this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
         this.packagePath = "";
@@ -229,11 +232,7 @@ public class ClassResolver {
      * @return variables declaration
      */
     public String saveDeclaration() {
-        StringBuilder result = new StringBuilder();
-        for (Map.Entry<String, String> entry : variables.entrySet()) {
-            result.append("#set ").append(entry.getKey()).append(' ').append(entry.getValue()).append('\n');
-        }
-        return result.toString();
+        return this.variables.getDeclaration();
     }
 
     /**
@@ -243,7 +242,7 @@ public class ClassResolver {
      * @param value variable value
      */
     public void setVariable(String name, String value) {
-        variables.put(name, value);
+        this.variables = this.variables.put(name, value);
     }
 
     /**
@@ -378,8 +377,8 @@ public class ClassResolver {
 
         Class<?> fieldType = Resolver.loadClass(name, false);
 
-        String dotName = "." + name;
         if (fieldType == null) {
+            String dotName = "." + name;
             for (String imp : this.imports) {
                 if (imp.endsWith(".*")) {
                     fieldType = Resolver.loadClass(imp.substring(0, imp.length() - 1) + name, false);
@@ -536,5 +535,43 @@ public class ClassResolver {
         public BootstrapException(Runnable runnable, Throwable cause) {
             super("Failed to bootstrap " + runnable, cause);
         }
+    }
+
+    private static class VariablesMap {
+        private final Map<String, String> _map;
+        private String _decl;
+        public static final VariablesMap EMPTY = new VariablesMap();
+
+        private VariablesMap() {
+            this._map = Collections.emptyMap();
+            this._decl = "";
+        }
+
+        public VariablesMap(Map<String, String> map) {
+            this._map = map;
+            this._decl = null;
+        }
+
+        public String get(String key) {
+            return this._map.get(key);
+        }
+
+        public VariablesMap put(String key, String value) {
+            Map<String, String> new_map = new HashMap<String, String>(this._map);
+            new_map.put(key, value);
+            return new VariablesMap(new_map);
+        }
+
+        public String getDeclaration() {
+            if (this._decl == null) {
+                StringBuilder result = new StringBuilder();
+                for (Map.Entry<String, String> entry : this._map.entrySet()) {
+                    result.append("#set ").append(entry.getKey()).append(' ').append(entry.getValue()).append('\n');
+                }
+                this._decl = result.toString();
+            }
+            return this._decl;
+        }
+
     }
 }

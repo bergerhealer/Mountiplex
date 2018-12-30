@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Constructor;
 
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
 public class ConstructorDeclaration extends Declaration {
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration type;
@@ -16,7 +18,12 @@ public class ConstructorDeclaration extends Declaration {
         this.parameters = new ParameterListDeclaration(resolver, constructor.getGenericParameterTypes());
     }
 
+    @Deprecated
     public ConstructorDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    public ConstructorDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
         this.constructor = null;
         this.modifiers = nextModifier();

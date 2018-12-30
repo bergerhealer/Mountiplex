@@ -3,6 +3,8 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
 public class FieldDeclaration extends Declaration {
     public final ModifierDeclaration modifiers;
     public final NameDeclaration name;
@@ -28,12 +30,17 @@ public class FieldDeclaration extends Declaration {
         this.name = new NameDeclaration(resolver, field.getName(), null);
     }
 
+    @Deprecated
     public FieldDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    public FieldDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
         this.trimWhitespace(0);
         if (this.getPostfix().startsWith("enum ")) {
             this.trimWhitespace(5);
-            this.setPostfix("public static final " + this.getPostfix());
+            this.setPostfix(this.getPostfix().prepend("public static final "));
             this.isEnum = true;
             this.modifiers = nextModifier();
             this.type = nextType();

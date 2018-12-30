@@ -3,6 +3,8 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Type;
 import java.util.LinkedList;
 
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
 /**
  * Declares a list of parameters, surrounded by ()
  */
@@ -21,7 +23,12 @@ public class ParameterListDeclaration extends Declaration {
         this(resolver, previous.getPostfix());
     }
 
+    @Deprecated
     public ParameterListDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    public ParameterListDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver);
 
         // Invalid declarations are forced by passing null
@@ -67,7 +74,7 @@ public class ParameterListDeclaration extends Declaration {
         }
 
         LinkedList<ParameterDeclaration> params = new LinkedList<ParameterDeclaration>();
-        String postfix = getPostfix();
+        StringBuffer postfix = getPostfix();
         do {
             // Skip first character, will be either ( or ,
             this.setPostfix(postfix.substring(1));

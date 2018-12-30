@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Method;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 public class MethodDeclaration extends Declaration {
     public Method method;
@@ -23,13 +24,17 @@ public class MethodDeclaration extends Declaration {
     }
 
     public MethodDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    public MethodDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
         this.method = null;
         this.modifiers = nextModifier();
 
         // Skip type variables, they may exist. For now do a simple replace between < > portions
         //TODO: Make this better? It makes it overly complicated.
-        String postfix = getPostfix();
+        StringBuffer postfix = getPostfix();
         if (postfix != null && postfix.length() > 0 && postfix.charAt(0) == '<') {
             boolean foundEnd = false;
             for (int cidx = 1; cidx < postfix.length(); cidx++) {
@@ -53,7 +58,7 @@ public class MethodDeclaration extends Declaration {
         postfix = this.getPostfix();
         if (postfix != null && postfix.startsWith("{")) {
             // Collect the entire body until the amount of { and } evens out
-            this.setPostfix("");
+            this.setPostfix(StringBuffer.EMPTY);
             StringBuilder bodyBuilder = new StringBuilder();
             int curlyBrackets = 0;
             boolean inString = false;
@@ -97,7 +102,7 @@ public class MethodDeclaration extends Declaration {
         // Make sure to put a newline after the post data
         this.trimWhitespace(0);
         if (this.getPostfix() != null) {
-            this.setPostfix("\n" + this.getPostfix());
+            this.setPostfix(this.getPostfix().prepend("\n"));
         }
     }
 

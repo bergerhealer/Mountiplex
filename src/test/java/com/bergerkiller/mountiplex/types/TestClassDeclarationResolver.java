@@ -65,7 +65,10 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver {
                 "    public void setLocation(double x, double y, double z, float yaw, float pitch);\n" +
                 "    public int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
                 "}\n";
+        long t1 = System.nanoTime();
         this.source = SourceDeclaration.parse(template);
+        long t2 = System.nanoTime();
+        System.out.println("Parse duration: " + ((double) (t2-t1)/1000000) + " ms");
     }
 
     @Override

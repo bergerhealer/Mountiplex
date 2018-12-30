@@ -12,6 +12,7 @@ import java.util.LinkedList;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
  * Represents a (generic) Type declaration and allows for type matching.
@@ -117,7 +118,7 @@ public class TypeDeclaration extends Declaration {
         }
     }
 
-    private TypeDeclaration(ClassResolver resolver, String declaration) {
+    private TypeDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
 
         // Invalid declarations are forced by passing null
@@ -138,7 +139,7 @@ public class TypeDeclaration extends Declaration {
         // We also allow types like List <String>, where a space preceeds the <
         String rawType = null;
         String typeVarName = null;
-        String postfix = "";
+        StringBuffer postfix = StringBuffer.EMPTY;
         int startIdx = -1;
         boolean anyType = false;
         boolean foundExtends = false;
@@ -165,14 +166,20 @@ public class TypeDeclaration extends Declaration {
             // Verify the first character of the name is valid, and set it
             if (startIdx == -1) {
                 if (c == '(') {
+                    // Find the very next matching ) for closing the cast
+                    int cast_end = declaration.indexOf(')', cidx + 1);
+                    if (cast_end == -1) {
+                        break; // invalid
+                    }
+
                     // Type cast is declared; parse this type now
-                    castType = new TypeDeclaration(resolver, declaration.substring(cidx + 1));
+                    castType = new TypeDeclaration(resolver, declaration.substring(cidx + 1, cast_end));
                     if (!castType.isValid()) {
                         break; // invalid
                     }
 
                     // Continue onwards from past the declared type
-                    declaration = declaration.substring(0, cidx) + castType.getPostfix();
+                    cidx = cast_end;
                     continue;
                 } else if (validNameChar) {
                     startIdx = cidx; 
@@ -184,7 +191,7 @@ public class TypeDeclaration extends Declaration {
 
             // The first invalid character finishes the raw type declaration
             if (!validNameChar && rawType == null) {
-                rawType = declaration.substring(startIdx, cidx);
+                rawType = declaration.substringToString(startIdx, cidx);
                 if (anyType && !foundExtends) {
                     startIdx = -1;
                     if (rawType.equals("extends")) {
@@ -245,8 +252,8 @@ public class TypeDeclaration extends Declaration {
 
         // No contents after raw type?
         if (rawType == null) {
-            rawType = declaration.substring(startIdx);
-            postfix = "";
+            rawType = declaration.substringToString(startIdx);
+            postfix = StringBuffer.EMPTY;
         }
 
         // enum - invalid
@@ -323,7 +330,7 @@ public class TypeDeclaration extends Declaration {
             }
         }
         if (arrayEnd == -1) {
-            this.setPostfix("");
+            this.setPostfix(StringBuffer.EMPTY);
         } else {
             this.setPostfix(postfix.substring(arrayEnd));
         }
@@ -904,7 +911,7 @@ public class TypeDeclaration extends Declaration {
      * @param declaration to parse
      * @return Type Declaration
      */
-    public static TypeDeclaration parse(String declaration) {
+    public static TypeDeclaration parse(StringBuffer declaration) {
         return new TypeDeclaration(ClassResolver.DEFAULT, declaration);
     }
 
@@ -915,7 +922,28 @@ public class TypeDeclaration extends Declaration {
      * @param declaration to parse
      * @return Type Declaration
      */
-    public static TypeDeclaration parse(ClassResolver classResolver, String declaration) {
+    public static TypeDeclaration parse(ClassResolver classResolver, StringBuffer declaration) {
         return new TypeDeclaration(classResolver, declaration);
+    }
+
+    /**
+     * Parses a Type Declaration using the default Class Resolver
+     * 
+     * @param declaration to parse
+     * @return Type Declaration
+     */
+    public static TypeDeclaration parse(String declaration) {
+        return new TypeDeclaration(ClassResolver.DEFAULT, StringBuffer.of(declaration));
+    }
+
+    /**
+     * Parses a Type Declaration using a Class Resolver
+     * 
+     * @param classResolver to use
+     * @param declaration to parse
+     * @return Type Declaration
+     */
+    public static TypeDeclaration parse(ClassResolver classResolver, String declaration) {
+        return new TypeDeclaration(classResolver, StringBuffer.of(declaration));
     }
 }

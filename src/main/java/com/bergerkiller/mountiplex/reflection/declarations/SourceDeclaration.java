@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -8,8 +9,10 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
  * A list of package paths and imports, combined with class definitions
@@ -17,13 +20,13 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 public class SourceDeclaration extends Declaration {
     public final ClassDeclaration[] classes;
 
-    private SourceDeclaration(ClassResolver resolver, ClassLoader classLoader, File sourceDirectory, String declaration) {
+    private SourceDeclaration(ClassResolver resolver, ClassLoader classLoader, File sourceDirectory, StringBuffer declaration) {
         super(resolver, preprocess(declaration));
 
         trimWhitespace(0);
 
         // Parse all segments
-        String postfix;
+        StringBuffer postfix;
         String templatefile = "";
         LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
         while ((postfix = this.getPostfix()) != null && postfix.length() > 0) {
@@ -58,22 +61,22 @@ public class SourceDeclaration extends Declaration {
                 postfix = this.getPostfix();
                 int nameEndIdx = postfix.indexOf(' ');
                 if (nameEndIdx == -1) {
-                    setPostfix("");
+                    setPostfix(StringBuffer.EMPTY);
                     break;
                 }
-                String varName = postfix.substring(0, nameEndIdx);
+                String varName = postfix.substringToString(0, nameEndIdx);
                 String varValue = "";
                 trimWhitespace(nameEndIdx + 1);
                 postfix = this.getPostfix();
                 for (int cidx = 0; cidx < postfix.length(); cidx++) {
                     char c = postfix.charAt(cidx);
                     if (MountiplexUtil.containsChar(c, invalid_name_chars)) {
-                        varValue = postfix.substring(0, cidx);
+                        varValue = postfix.substringToString(0, cidx);
                         break;
                     }
                 }
                 if (varValue == null) {
-                    varValue = postfix;
+                    varValue = postfix.toString();
                 }
                 this.trimLine();
                 this.getResolver().setVariable(varName, varValue);
@@ -84,12 +87,12 @@ public class SourceDeclaration extends Declaration {
                 for (int cidx = 0; cidx < postfix.length(); cidx++) {
                     char c = postfix.charAt(cidx);
                     if (MountiplexUtil.containsChar(c, invalid_name_chars)) {
-                        name = postfix.substring(0, cidx);
+                        name = postfix.substringToString(0, cidx);
                         break;
                     }
                 }
                 if (name == null) {
-                    name = postfix;
+                    name = postfix.toString();
                 }
 
                 this.trimLine();
@@ -145,18 +148,30 @@ public class SourceDeclaration extends Declaration {
                         MountiplexUtil.LOGGER.warning("Could not resolve include while parsing template: " + name);
                         MountiplexUtil.LOGGER.warning("Template file: " + templatefile);
                     } else {
-                        java.util.Scanner s = new java.util.Scanner(is);
-                        s.useDelimiter("\\A");
-                        String inclSourceStr = (s.hasNext() ? s.next() : "");
-                        s.close();
+                        String inclSourceStr;
+                        try {
+                            try (ByteArrayOutputStream result = new ByteArrayOutputStream()) {
+                                int length;
+                                byte[] buffer = new byte[1024];
+                                while ((length = is.read(buffer)) != -1) {
+                                    result.write(buffer, 0, length);
+                                }
+                                inclSourceStr = result.toString("UTF-8");
+                            }
+                        } catch (Throwable t) {
+                            MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to load template " + name, t);
+                            inclSourceStr = "";
+                        }
 
                         if (!inclSourceStr.isEmpty()) {
                             // Load this source file
-                            String subSource = "";
-                            subSource += getResolver().saveDeclaration() + "\n";
-                            subSource += "#setpath " + name +  "\n";
-                            subSource += inclSourceStr;
-                            SourceDeclaration inclSource = new SourceDeclaration(this.getResolver(), classLoader, sourceDirectory, subSource);
+                            StringBuilder subSource = new StringBuilder();
+                            subSource.append(getResolver().saveDeclaration()).append("\n");
+                            subSource.append("#setpath ").append(name).append("\n");
+                            subSource.append(inclSourceStr);
+
+                            SourceDeclaration inclSource = new SourceDeclaration(this.getResolver(), classLoader, sourceDirectory, StringBuffer.of(subSource));
+
                             classes.addAll(Arrays.asList(inclSource.classes));
                         }
                     }
@@ -179,6 +194,10 @@ public class SourceDeclaration extends Declaration {
             }
         }
         this.classes = classes.toArray(new ClassDeclaration[classes.size()]);
+    }
+
+    public static StringBuffer preprocess(StringBuffer declaration) {
+        return StringBuffer.of(preprocess(declaration.toString()));
     }
 
     /// pre-processes the source file, keeping the parts that pass variable evaluation
@@ -359,7 +378,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parse(ClassResolver resolver, String source) {
-        return new SourceDeclaration(resolver, null, null, source);
+        return new SourceDeclaration(resolver, null, null, StringBuffer.of(source));
     }
 
     /**
@@ -369,7 +388,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parse(String source) {
-        return new SourceDeclaration(new ClassResolver(), null, null, source);
+        return new SourceDeclaration(new ClassResolver(), null, null, StringBuffer.of(source));
     }
 
     private static String saveVars(Map<String, String> variables) {
@@ -392,7 +411,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parseFromResources(ClassLoader classLoader, String sourceInclude, Map<String, String> variables) {
-        return new SourceDeclaration(new ClassResolver(), classLoader, null, saveVars(variables) + "\n" + "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), classLoader, null, StringBuffer.of(saveVars(variables) + "\n" + "#include " + sourceInclude));
     }
 
     /**
@@ -404,7 +423,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude, Map<String, String> variables) {
-        return new SourceDeclaration(new ClassResolver(), null, sourceDirectory, saveVars(variables) + "\n" + "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), null, sourceDirectory, StringBuffer.of(saveVars(variables) + "\n" + "#include " + sourceInclude));
     }
 
     /**
@@ -415,7 +434,7 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration parseFromResources(ClassLoader classLoader, String sourceInclude) {
-        return new SourceDeclaration(new ClassResolver(), classLoader, null, "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), classLoader, null, StringBuffer.of("#include " + sourceInclude));
     }
 
     /**
@@ -426,6 +445,6 @@ public class SourceDeclaration extends Declaration {
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude) {
-        return new SourceDeclaration(new ClassResolver(), null, sourceDirectory, "#include " + sourceInclude);
+        return new SourceDeclaration(new ClassResolver(), null, sourceDirectory, StringBuffer.of("#include " + sourceInclude));
     }
 }

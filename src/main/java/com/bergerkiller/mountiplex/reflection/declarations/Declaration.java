@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
  * Base class for Declaration implementations
@@ -12,9 +13,9 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 public abstract class Declaration {
     protected static final char[] invalid_name_chars;
     protected static final char[] space_chars;
-    private String _postfix;
+    private StringBuffer _postfix;
     private String _longDeclare = null;
-    protected final String _initialDeclaration;
+    protected final StringBuffer _initialDeclaration;
     private final ClassResolver _resolver;
 
     static {
@@ -28,11 +29,15 @@ public abstract class Declaration {
 
     public Declaration(ClassResolver resolver) {
         this._resolver = resolver;
-        this._initialDeclaration = "";
-        this._postfix = "";
+        this._initialDeclaration = StringBuffer.EMPTY;
+        this._postfix = StringBuffer.EMPTY;
     }
 
     public Declaration(ClassResolver resolver, String initialDeclaration) {
+        this(resolver, StringBuffer.of(initialDeclaration));
+    }
+
+    public Declaration(ClassResolver resolver, StringBuffer initialDeclaration) {
         this._resolver = resolver;
         this._initialDeclaration = initialDeclaration;
         this._postfix = initialDeclaration;
@@ -92,7 +97,7 @@ public abstract class Declaration {
             this.trimWhitespace(11);
 
             // Add code
-            String postfix = this.getPostfix();
+            StringBuffer postfix = this.getPostfix();
             int code_end_index;
             if (postfix.startsWith("{")) {
                 // Code block. Find matching }, keep embedded { into account
@@ -114,7 +119,7 @@ public abstract class Declaration {
             if (code_end_index == -1) {
                 setPostfix("");
             } else {
-                String code = postfix.substring(0, code_end_index);
+                String code = postfix.substringToString(0, code_end_index);
                 this._resolver.addBootstrap(code);
                 this.trimWhitespace(code_end_index);
             }
@@ -129,7 +134,7 @@ public abstract class Declaration {
             if (endOfLine == -1) {
                 setPostfix("");
             } else {
-                String name = this._postfix.substring(0, endOfLine);
+                String name = this._postfix.substringToString(0, endOfLine);
                 this._resolver.setClassDeclarationResolverName(name);
                 this.trimWhitespace(endOfLine);
             }
@@ -156,7 +161,7 @@ public abstract class Declaration {
      * 
      * @return declaration postfix
      */
-    public final String getPostfix() {
+    public final StringBuffer getPostfix() {
         return _postfix;
     }
 
@@ -176,7 +181,19 @@ public abstract class Declaration {
      * 
      * @param postfix to set to
      */
+    @Deprecated
     protected final void setPostfix(String postfix) {
+        this.setPostfix(StringBuffer.of(postfix));
+    }
+
+    /**
+     * Sets the text that exists after this declaration.
+     * To mark this declaration as invalid, pass a null postfix.
+     * Implementation use only.
+     * 
+     * @param postfix to set to
+     */
+    protected final void setPostfix(StringBuffer postfix) {
         this._postfix = postfix;
     }
 
@@ -204,7 +221,7 @@ public abstract class Declaration {
             this._postfix = this._postfix.substring(cidx);
             return;
         }
-        this._postfix = "";
+        this._postfix = StringBuffer.EMPTY;
     }
 
     /**
@@ -226,7 +243,7 @@ public abstract class Declaration {
                 return;
             }
         }
-        this._postfix = "";
+        this._postfix = StringBuffer.EMPTY;
     }
 
     /**

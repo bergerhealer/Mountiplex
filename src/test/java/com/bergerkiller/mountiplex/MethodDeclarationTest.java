@@ -56,7 +56,7 @@ public class MethodDeclarationTest {
                 "}\n",
                 dec.body);
 
-        assertEquals(dec.getPostfix(), "\nThis should not be omitted");
+        assertEquals(dec.getPostfix().toString(), "\nThis should not be omitted");
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
  * Declaration for a method or field name
@@ -15,11 +16,21 @@ public class NameDeclaration extends Declaration {
         this._alias = alias;
     }
 
+    @Deprecated
     public NameDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    @Deprecated
+    public NameDeclaration(ClassResolver resolver, String declaration, int optionalIdx) {
+        this(resolver, StringBuffer.of(declaration), optionalIdx);
+    }
+
+    public NameDeclaration(ClassResolver resolver, StringBuffer declaration) {
         this(resolver, declaration, -1);
     }
 
-    public NameDeclaration(ClassResolver resolver, String declaration, int optionalIdx) {
+    public NameDeclaration(ClassResolver resolver, StringBuffer declaration, int optionalIdx) {
         super(resolver, declaration);
 
         // Invalid declarations are forced by passing null
@@ -32,8 +43,8 @@ public class NameDeclaration extends Declaration {
 
         // Locate the name
         int startIdx = -1;
-        String name = null;
-        String alias = null;
+        StringBuffer name = null;
+        StringBuffer alias = null;
         for (int cidx = 0; cidx < declaration.length(); cidx++) {
             char c = declaration.charAt(cidx);
 
@@ -82,7 +93,7 @@ public class NameDeclaration extends Declaration {
         // Fallback if no end delimiter found
         if (name == null) {
             name = declaration.substring(startIdx);
-            this.setPostfix("");
+            this.setPostfix(StringBuffer.EMPTY);
         }
 
         // Check for alias (:)
@@ -92,8 +103,8 @@ public class NameDeclaration extends Declaration {
             name = name.substring(alias_idx + 1);
         }
 
-        this._name = name;
-        this._alias = alias;
+        this._name = (name == null) ? null : name.toString();
+        this._alias = (alias == null) ? null : alias.toString();
     }
 
     /**

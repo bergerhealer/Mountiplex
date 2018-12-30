@@ -3,11 +3,13 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
 /**
  * The declaration of number of Field or Method modifiers.
  */
 public class ModifierDeclaration extends Declaration {
-    private static final HashMap<String, Integer> _tokens = new HashMap<String, Integer>();
+    private static final HashMap<StringBuffer, Integer> _tokens = new HashMap<StringBuffer, Integer>();
     private static final int _token_mask = (Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.STATIC | Modifier.VOLATILE | Modifier.TRANSIENT);
     private final int _modifiers;
     private final String _modifiersStr;
@@ -24,7 +26,7 @@ public class ModifierDeclaration extends Declaration {
                 Modifier.STRICT, Modifier.SYNCHRONIZED, Modifier.TRANSIENT, Modifier.VOLATILE
         };
         for (int modifier : modifiers) {
-            _tokens.put(Modifier.toString(modifier), modifier);
+            _tokens.put(StringBuffer.of(Modifier.toString(modifier)), modifier);
         }
     }
 
@@ -39,7 +41,12 @@ public class ModifierDeclaration extends Declaration {
         this._readonly = false;
     }
 
+    @Deprecated
     public ModifierDeclaration(ClassResolver resolver, String declaration) {
+        this(resolver, StringBuffer.of(declaration));
+    }
+
+    public ModifierDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
 
         // Invalid declarations are forced by passing null
@@ -61,7 +68,7 @@ public class ModifierDeclaration extends Declaration {
         boolean isRawtype = false;
         int modifiers = 0;
         String modifiersStr = "";
-        String postfix = declaration;
+        StringBuffer postfix = declaration;
         while (true) {
             // Trim spaces from start of String
             int startIdx = 0;
@@ -72,7 +79,7 @@ public class ModifierDeclaration extends Declaration {
             // Find the first space from the current position
             int spaceIdx = postfix.indexOf(' ', startIdx);
             if (spaceIdx != -1) {
-                String token = postfix.substring(startIdx, spaceIdx);
+                StringBuffer token = postfix.substring(startIdx, spaceIdx);
                 Integer m = _tokens.get(token);
                 boolean validToken = false;
                 if (m != null) {
@@ -107,6 +114,7 @@ public class ModifierDeclaration extends Declaration {
             postfix = postfix.substring(startIdx);
             break;
         }
+
         this._final = Modifier.isFinal(modifiers);
         this._modifiers = modifiers;
         this._modifiersStr = modifiersStr;
