@@ -122,10 +122,22 @@ public class MethodDeclaration extends Declaration {
     public boolean match(Declaration declaration) {
         if (declaration instanceof MethodDeclaration) {
             MethodDeclaration method = (MethodDeclaration) declaration;
-            return modifiers.match(method.modifiers) &&
-                    returnType.match(method.returnType) &&
-                    name.match(method.name) &&
-                    parameters.match(method.parameters);
+            if (!( name.match(method.name) &&
+                   returnType.match(method.returnType) &&
+                   parameters.match(method.parameters) ))
+            {
+                return false;
+            }
+
+            // For modifiers, both must be static or non-static
+            if (this.modifiers.isStatic() != method.modifiers.isStatic()) {
+                return false;
+            }
+
+            // Note: we do not check modifiers here
+            // When modifiers differ, we log a warning elsewhere
+            // modifiers.match(method.modifiers);
+            return true;
         }
         return false;
     }

@@ -292,6 +292,13 @@ public class ClassDeclaration extends Declaration {
             boolean found = false;
             for (int j = 0; j < realMethods.length; j++) {
                 if (realMethods[j].match(method)) {
+
+                    // Log a warning when modifiers differ, but do not fail the matching
+                    if (!realMethods[j].modifiers.match(method.modifiers)) {
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " + method.toString() +
+                                " do not match (" + realMethods[j].modifiers + " expected)");
+                    }
+
                     method.method = realMethods[j].method;
                     found = true;
                     break;

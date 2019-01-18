@@ -230,7 +230,7 @@ public class ModifierDeclaration extends Declaration {
     		return (double) numberMatched / (double) numberTotal;
     	}
     }
-    
+
     @Override
     public final boolean match(Declaration modifier) {
         if (!(modifier instanceof ModifierDeclaration)) {
