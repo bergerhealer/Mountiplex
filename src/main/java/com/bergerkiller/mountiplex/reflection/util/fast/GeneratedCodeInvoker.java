@@ -140,61 +140,97 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             pool.appendClassPath(new ClassClassPath(GeneratedCodeInvoker.class));
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class);
 
-            // Generate the variable arguments invoke method that delegates to the real method
-            String invokeVAArgs = "";
-            for (int i = 0; i < argCount; i++) {
-                invokeVAArgs += ", args[" + i + "]";
-            }
-            CtMethod m = makeMethodAndLog(
-                         "public Object invokeVA(Object instance, Object[] args) {" +
-                         "    if (args.length != " + argCount + ") {" +
-                         "        throw failArgs(args.length);" +
-                         "    }" +
-                         "    return invoke(instance" + invokeVAArgs + ");" +
-                         "}",
-                         invoker );
-            invoker.addMethod(m);
-
-            // Generate the standard invoke method header
-            StringBuilder proxyInvokeBody = new StringBuilder();
+            CtMethod m;
             StringBuilder invokeBody = new StringBuilder();
-            invokeBody.append("public Object invoke(");
-            invokeBody.append("Object instance_raw");
-            for (ParameterDeclaration param : declaration.parameters.parameters) {
-                invokeBody.append(", Object ").append(param.name.real() + "_raw");
-            }
-            invokeBody.append(") {");
+            StringBuilder proxyInvokeBody = new StringBuilder();
 
-            Class<?> boxedReturnType = BoxedType.getBoxedType(declaration.returnType.type);
-            if (boxedReturnType != null) {
-                // Generate a proxy method that calls the actual method, and boxes the return value
-                // For void methods, we append a return null; to satisfy the method
-                proxyInvokeBody = invokeBody;
-                if (declaration.returnType.type != void.class) {
-                    proxyInvokeBody.append("return ").append(boxedReturnType.getSimpleName());
-                    proxyInvokeBody.append(".valueOf(");
-                }
-                proxyInvokeBody.append("invoke_ub(instance_raw");
-                for (ParameterDeclaration param : declaration.parameters.parameters) {
-                    proxyInvokeBody.append(", ").append(param.name.real() + "_raw");
-                }
-                proxyInvokeBody.append(")");
-                if (declaration.returnType.type == void.class) {
-                    proxyInvokeBody.append("; return null;");
-                } else {
-                    proxyInvokeBody.append(");");
-                }
-                proxyInvokeBody.append("}");
+            // Special code when > 5 arguments, as none of the invoke methods work here
+            // Implement all code under invokeVA directly
+            if (argCount > 5) {
+                // Main invoke body is invokeVA
+                invokeBody.append("public Object invokeVA(Object instance_raw, Object[] args_raw) {");
 
-                // Reset and use a different invoke method, that has an unboxed return type
-                invokeBody = new StringBuilder();
-                invokeBody.append("private final ").append(declaration.returnType.type.getName());
-                invokeBody.append(" invoke_ub(");
+                // Arg count check
+                invokeBody.append("if (args_raw.length != ").append(argCount).append(")");
+                invokeBody.append("{ throw failArgs(args_raw.length); }");
+
+                Class<?> boxedReturnType = BoxedType.getBoxedType(declaration.returnType.type);
+                if (boxedReturnType != null) {
+                    // Generate a proxy method that calls the actual method, and boxes the return value
+                    // For void methods, we append a return null; to satisfy the method
+                    proxyInvokeBody = invokeBody;
+                    if (declaration.returnType.type != void.class) {
+                        proxyInvokeBody.append("return ").append(boxedReturnType.getSimpleName());
+                        proxyInvokeBody.append(".valueOf(");
+                    }
+                    proxyInvokeBody.append("invoke_ub(instance_raw, args_raw)");
+                    if (declaration.returnType.type == void.class) {
+                        proxyInvokeBody.append("; return null;");
+                    } else {
+                        proxyInvokeBody.append(");");
+                    }
+                    proxyInvokeBody.append("}");
+
+                    // Reset and use a different invoke method, that has an unboxed return type
+                    invokeBody = new StringBuilder();
+                    invokeBody.append("private final ").append(declaration.returnType.type.getName());
+                    invokeBody.append(" invoke_ub(Object instance_raw, Object[] args_raw) {");
+                }
+            } else {
+                // Generate the variable arguments invoke method that delegates to the real method
+                String invokeVAArgs = "";
+                for (int i = 0; i < argCount; i++) {
+                    invokeVAArgs += ", args[" + i + "]";
+                }
+                m = makeMethodAndLog(
+                             "public Object invokeVA(Object instance, Object[] args) {" +
+                             "    if (args.length != " + argCount + ") {" +
+                             "        throw failArgs(args.length);" +
+                             "    }" +
+                             "    return invoke(instance" + invokeVAArgs + ");" +
+                             "}",
+                             invoker );
+                invoker.addMethod(m);
+
+                // Generate the standard invoke method header
+                invokeBody.append("public Object invoke(");
                 invokeBody.append("Object instance_raw");
                 for (ParameterDeclaration param : declaration.parameters.parameters) {
                     invokeBody.append(", Object ").append(param.name.real() + "_raw");
                 }
                 invokeBody.append(") {");
+
+                Class<?> boxedReturnType = BoxedType.getBoxedType(declaration.returnType.type);
+                if (boxedReturnType != null) {
+                    // Generate a proxy method that calls the actual method, and boxes the return value
+                    // For void methods, we append a return null; to satisfy the method
+                    proxyInvokeBody = invokeBody;
+                    if (declaration.returnType.type != void.class) {
+                        proxyInvokeBody.append("return ").append(boxedReturnType.getSimpleName());
+                        proxyInvokeBody.append(".valueOf(");
+                    }
+                    proxyInvokeBody.append("invoke_ub(instance_raw");
+                    for (ParameterDeclaration param : declaration.parameters.parameters) {
+                        proxyInvokeBody.append(", ").append(param.name.real() + "_raw");
+                    }
+                    proxyInvokeBody.append(")");
+                    if (declaration.returnType.type == void.class) {
+                        proxyInvokeBody.append("; return null;");
+                    } else {
+                        proxyInvokeBody.append(");");
+                    }
+                    proxyInvokeBody.append("}");
+
+                    // Reset and use a different invoke method, that has an unboxed return type
+                    invokeBody = new StringBuilder();
+                    invokeBody.append("private final ").append(declaration.returnType.type.getName());
+                    invokeBody.append(" invoke_ub(");
+                    invokeBody.append("Object instance_raw");
+                    for (ParameterDeclaration param : declaration.parameters.parameters) {
+                        invokeBody.append(", Object ").append(param.name.real() + "_raw");
+                    }
+                    invokeBody.append(") {");
+                }
             }
 
             // Cast the instance type to the correct type (if available)
@@ -209,19 +245,28 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             }
 
             // Generate a section that casts all parameters to the correct type
-            for (ParameterDeclaration param : declaration.parameters.parameters) {
+            // When args > 5, use args[index] instead of the real parameter names
+            for (int param_idx = 0; param_idx < declaration.parameters.parameters.length; param_idx++) {
+                ParameterDeclaration param = declaration.parameters.parameters[param_idx];
+                String raw_name;
+                if (argCount > 5) {
+                    raw_name = "args_raw[" + param_idx + "]";
+                } else {
+                    raw_name = param.name.real() + "_raw";
+                }
+
                 invokeBody.append(param.type.type.getName()).append(' ').append(param.name.real());
                 invokeBody.append("=");
                 Class<?> boxedType = BoxedType.getBoxedType(param.type.type);
                 if (boxedType != null) {
                     // Need to use '((Integer) arg_raw).intValue();' to get the unboxed type
                     invokeBody.append("((").append(boxedType.getSimpleName()).append(") ");
-                    invokeBody.append(param.name.real()).append("_raw).");
+                    invokeBody.append(raw_name).append(").");
                     invokeBody.append(param.type.type.getSimpleName()).append("Value();");
                 } else {
                     // Simple cast
                     invokeBody.append("(").append(param.type.type.getName()).append(") ");
-                    invokeBody.append(param.name.real()).append("_raw;");
+                    invokeBody.append(raw_name).append(";");
                 }
             }
 

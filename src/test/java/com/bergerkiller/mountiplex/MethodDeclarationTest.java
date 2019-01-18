@@ -73,4 +73,21 @@ public class MethodDeclarationTest {
         obj.i = 5;
         assertEquals(Integer.valueOf(27), method.invoke(obj, 22));
     }
+
+    @Test
+    public void testMethodBodyExecutionManyArgs() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public static String complex(String a, String b, String c, int d, int e, int f) {\n" +
+                "  StringBuilder builder = new StringBuilder();\n" +
+                "  builder.append(a).append(b).append(c).append(d+e+f);\n" +
+                "  return builder.toString();\n" +
+                "}");
+
+        FastMethod<String> method = new FastMethod<String>();
+        method.init(dec);
+
+        assertEquals("aaabbbccc15", method.invokeVA(null, "aaa", "bbb", "ccc", 3, 5, 7));
+    }
 }
