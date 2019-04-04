@@ -12,17 +12,9 @@ import java.util.ListIterator;
 import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
+import com.bergerkiller.mountiplex.reflection.util.DisableFinalModifierHelper;
 
 public class ReflectionUtil {
-    private static final java.lang.reflect.Field MODIFIERS_FIELD;
-
-    static {
-        Field f = null;
-        try {
-            f = Field.class.getDeclaredField("modifiers");
-        } catch (Throwable t) {}
-        MODIFIERS_FIELD = f;
-    }
 
     /// removes generics from a field/method declaration
     /// example: Map<String, String> stuff -> Map stuff
@@ -337,8 +329,6 @@ public class ReflectionUtil {
      * @throws IllegalAccessException
      */
     public static void removeFinalModifier(java.lang.reflect.Field field) throws IllegalAccessException {
-        MODIFIERS_FIELD.setAccessible(true);
-        MODIFIERS_FIELD.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        MODIFIERS_FIELD.setAccessible(false);
+        DisableFinalModifierHelper.removeFinalModifier(field);
     }
 }

@@ -122,15 +122,15 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
         return this.field != null ? Modifier.isStatic(this.field.getModifiers()) : false;
     }
 
-    private void makeAccessible() {
+    private void makeAccessible(boolean write) {
         // Setting a static final field requires hacking away the final modifier in the field
         // Otherwise an illegalAccessException occurs when attempting to set it
         int mod = field.getModifiers();
-        if (Modifier.isFinal(mod) && Modifier.isStatic(mod)) {
+        if (write && Modifier.isFinal(mod) && Modifier.isStatic(mod)) {
             try {
                 ReflectionUtil.removeFinalModifier(field);
-            } catch (Throwable t) {
-                throw new RuntimeException("Failed to make final field " + field.getName() + " accessible");
+            } catch (IllegalAccessException ex) {
+                throw new RuntimeException("Failed to make final field " + field.getName() + " accessible: " + ex.getMessage());
             }
         }
 
@@ -212,7 +212,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                     if (reader == this) {
                         checkInit();
                         if (!Resolver.isPublic(field)) {
-                            makeAccessible();
+                            makeAccessible(false);
                         }
                         reader = access();
                     }
@@ -228,7 +228,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                         checkInit();
                         int mod = field.getModifiers();
                         if (!Resolver.isPublic(field) || Modifier.isFinal(mod)) {
-                            makeAccessible();
+                            makeAccessible(true);
                         }
                         writer = access();
                     }
@@ -249,7 +249,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                         }
 
                         if (!Resolver.isPublic(field) || Modifier.isFinal(mod)) {
-                            makeAccessible();
+                            makeAccessible(true);
                         }
 
                         copier = access();
