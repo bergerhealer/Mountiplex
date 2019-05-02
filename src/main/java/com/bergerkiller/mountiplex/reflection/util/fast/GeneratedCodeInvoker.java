@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 import java.net.URL;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.Declaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -139,6 +140,11 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             }
             pool.appendClassPath(new ClassClassPath(GeneratedCodeInvoker.class));
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class);
+
+            // Add all the requirements to the class
+            for (Declaration bDec : declaration.bodyRequirements) {
+                bDec.addAsRequirement(invoker);
+            }
 
             CtMethod m;
             StringBuilder invokeBody = new StringBuilder();
@@ -295,7 +301,8 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             }
 
             try {
-                GeneratedCodeInvoker<T> result = (GeneratedCodeInvoker<T>) invoker.toClass(GeneratedCodeInvoker.class.getClassLoader(), null).newInstance();
+                Class<?> invokerClass = invoker.toClass(GeneratedCodeInvoker.class.getClassLoader(), null);
+                GeneratedCodeInvoker<T> result = (GeneratedCodeInvoker<T>) invokerClass.newInstance();
                 result.argCount = argCount;
                 return result;
             } catch (java.lang.VerifyError ex) {

@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
+
 /**
  * Attempts to find the longest common sequence from two
  * sequences of field declarations
@@ -120,6 +122,54 @@ public class FieldLCSResolver {
         }
 
         return pairs;
+    }
+
+    public static <T extends Declaration> void logAlternatives(String category, T[] alternatives, T declaration) {
+        if (!declaration.getResolver().getLogErrors()) {
+            return;
+        }
+        MountiplexUtil.LOGGER.warning("A class member of " + declaration.getResolver().getDeclaredClass().getName() + " was not found!");
+        if (alternatives.length == 0) {
+            MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " (No alternatives)");
+        } else {
+            ArrayList<T> sorted = new ArrayList<T>(Arrays.asList(alternatives));
+            Declaration.sortSimilarity(declaration, sorted);
+            MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " - Alternatives:");
+            int limit = 8;
+            for (T alter : sorted) {
+                MountiplexUtil.LOGGER.warning("  - " + alter);
+                if (--limit == 0) {
+                    break;
+                }
+            }
+        }
+    }
+
+    public static void resolve(FieldDeclaration[] inputFields, FieldDeclaration[] realFields) {
+        // Match
+        List<Pair> pairs = lcs(inputFields, realFields);
+
+        // Register all successful pairs
+        Iterator<FieldLCSResolver.Pair> succIter = pairs.iterator();
+        while (succIter.hasNext()) {
+            FieldLCSResolver.Pair pair = succIter.next();
+            if (pair.a != null && pair.b != null) {
+                pair.a.setField(pair.b);
+                succIter.remove();
+            }
+        }
+
+        // Log all fields we could not find in our template
+        // The fields in the underlying Class are not important (yet)
+        for (FieldLCSResolver.Pair failPair : pairs) {
+            if (failPair.b == null && !failPair.a.modifiers.isOptional()) {
+                if (failPair.bb.length > 0) {
+                    logAlternatives("field", failPair.bb, failPair.a);
+                } else {
+                    logAlternatives("field", realFields, failPair.a);
+                }
+            }
+        }
     }
 
     public static class Pair {

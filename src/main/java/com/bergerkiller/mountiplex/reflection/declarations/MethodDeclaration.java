@@ -1,9 +1,24 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.LinkedHashSet;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.conversion.Conversion;
+import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
+import javassist.CannotCompileException;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtField;
+import javassist.CtMethod;
+import javassist.CtNewMethod;
+import javassist.NotFoundException;
 
 public class MethodDeclaration extends Declaration {
     public Method method;
@@ -12,6 +27,7 @@ public class MethodDeclaration extends Declaration {
     public final NameDeclaration name;
     public final ParameterListDeclaration parameters;
     public final String body;
+    public final Declaration[] bodyRequirements;
 
     public MethodDeclaration(ClassResolver resolver, Method method) {
         super(resolver);
@@ -21,6 +37,7 @@ public class MethodDeclaration extends Declaration {
         this.name = new NameDeclaration(resolver, method.getName(), null);
         this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
         this.body = null;
+        this.bodyRequirements = new Declaration[0];
     }
 
     public MethodDeclaration(ClassResolver resolver, String declaration) {
@@ -57,26 +74,53 @@ public class MethodDeclaration extends Declaration {
         this.trimWhitespace(0);
         postfix = this.getPostfix();
         if (postfix != null && postfix.startsWith("{")) {
-            // Collect the entire body until the amount of { and } evens out
-            this.setPostfix(StringBuffer.EMPTY);
+            // Go line by line processing the body
+            // This way we can still handle special macros
             StringBuilder bodyBuilder = new StringBuilder();
             int curlyBrackets = 0;
-            boolean inString = false;
-            for (int cIdx = 0; cIdx < postfix.length(); cIdx++) {
-                char c = postfix.charAt(cIdx);
-                bodyBuilder.append(c);
-                if (c == '\"') {
-                    inString = !inString;
-                } else if (inString) {
-                    continue;
-                } else if (c == '{') {
-                    curlyBrackets++;
-                } else if (c == '}') {
-                    curlyBrackets--;
-                    if (curlyBrackets == 0) {
-                        this.setPostfix(postfix.substring(cIdx + 1));
+            boolean done = false;
+            while (true) {
+                // Process current line up to the next newline
+                boolean inString = false;
+                int cIdx;
+                for (cIdx = 0; cIdx < postfix.length(); cIdx++) {
+                    char c = postfix.charAt(cIdx);
+                    bodyBuilder.append(c);
+                    if (c == '\n') {
+                        cIdx++;
+
+                        // Add all whitespaces to body
+                        while (cIdx < postfix.length() && postfix.charAt(cIdx) == ' ') {
+                            bodyBuilder.append(' ');
+                            cIdx++;
+                        }
                         break;
+                    } else if (c == '\"') {
+                        inString = !inString;
+                    } else if (inString) {
+                        continue;
+                    } else if (c == '{') {
+                        curlyBrackets++;
+                    } else if (c == '}') {
+                        curlyBrackets--;
+                        if (curlyBrackets == 0) {
+                            done = true;
+                            cIdx++;
+                            break;
+                        }
                     }
+                }
+
+                // Move current postfix to past what we have parsed so far
+                postfix = postfix.substring(cIdx);
+                this.setPostfix(postfix);
+                if (done || this.getPostfix().length() == 0) {
+                    break;
+                }
+
+                // Perform internal parsing of macros
+                while (this.nextInternal()) {
+                    postfix = this.getPostfix();
                 }
             }
 
@@ -90,10 +134,14 @@ public class MethodDeclaration extends Declaration {
                 }
             }
 
+            // Resolve requirements used in the body. This looks at # tokens in the body.
+            this.bodyRequirements = processRequirements(bodyBuilder);
+
             // Correct indentation of body and done
             this.body = SourceDeclaration.trimIndentation(bodyBuilder.toString());
         } else {
             this.body = null;
+            this.bodyRequirements = new Declaration[0];
             if (postfix != null && postfix.startsWith(";")) {
                 setPostfix(postfix.substring(1));
             }
@@ -190,5 +238,403 @@ public class MethodDeclaration extends Declaration {
         this.name.debugString(str, indent + "  ");
         this.parameters.debugString(str, indent + "  ");
         str.append(indent).append("}\n");
+    }
+
+    @Override
+    public void addAsRequirement(CtClass invokerClass) throws CannotCompileException, NotFoundException {
+        // Create a new method with the exposed parameter types and return type
+        StringBuilder methodBody = new StringBuilder();
+        methodBody.append("private final ");
+        methodBody.append(this.returnType.exposed().type.getName());
+        methodBody.append(' ').append(this.name.real()).append('(');
+        methodBody.append("Object instance");
+        for (int i = 0; i < this.parameters.parameters.length; i++) {
+            ParameterDeclaration param = this.parameters.parameters[i];
+
+            methodBody.append(", ");
+            methodBody.append(param.type.exposed().type.getName());
+            methodBody.append(' ').append(param.name.real());
+
+            // If converted or a primitive type, name the input parameter '_conv_input'
+            if (param.type.cast != null || param.type.isPrimitive()) {
+                methodBody.append("_conv_input");
+            }
+        }
+        methodBody.append(") {\n");
+
+        // Add fast method for the underlying method invoking
+        String methodFieldName = this.name.real() + "_method";
+        {
+            FastMethod<Object> method = new FastMethod<Object>();
+            method.init(this);
+
+            CtClass fastMethodClass = ClassPool.getDefault().get(FastMethod.class.getName());
+            CtField ctConverterField = new CtField(fastMethodClass, methodFieldName, invokerClass);
+            ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+            invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(method));
+        }
+
+        boolean isVarArgsInvoke = (this.parameters.parameters.length > 5);
+
+        // Add Object[] input array when varargs are used
+        if (isVarArgsInvoke) {
+            methodBody.append("  Object[] ").append(this.name.real()).append("_input_args");
+            methodBody.append(" = new Object[").append(this.parameters.parameters.length).append("];\n");
+        }
+        
+        for (int i = 0; i < this.parameters.parameters.length; i++) {
+            ParameterDeclaration param = this.parameters.parameters[i];
+
+            if (isVarArgsInvoke) {
+                // Assign to varargs element
+                methodBody.append("  ").append(this.name.real()).append("_input_args");
+                methodBody.append('[').append(i).append("] = ");
+            } else if (param.type.cast != null || param.type.isPrimitive()) {
+                // Is converted or boxed, assign to its own Object field
+                methodBody.append("  Object ").append(param.name.real());
+                methodBody.append(" = ");
+            }
+
+            if (param.type.cast == null) {
+                if (param.type.isPrimitive()) {
+                    // Box it before assigning
+                    methodBody.append(BoxedType.getBoxedType(param.type.type).getSimpleName());
+                    methodBody.append(".valueOf(");
+                    methodBody.append(param.name.real()).append("_conv_input);\n");
+                } else if (isVarArgsInvoke) {
+                    // Direct assigning, no need when varargs is not used (method parameter)
+                    methodBody.append(param.name.real()).append(";\n");
+                }
+                continue;
+            }
+
+
+            // Generate name for the converter field
+            String converterFieldName = this.name.real() + "_conv_" + param.name.real();
+
+            // Find converter
+            Converter<Object, Object> converter = Conversion.find(param.type.cast, param.type);
+            if (converter == null) {
+                throw new RuntimeException("Failed to find converter for parameter " + param.name.real() +
+                        " of method " + this.name.real() + " (" + param.type.cast.toString(true) +
+                        " -> " + param.type.toString(true) + ")");
+            }
+
+            // Add to class definition
+            {
+                CtClass converterClass = ClassPool.getDefault().get(Converter.class.getName());
+                CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
+                ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter));
+            }
+
+            methodBody.append("this.").append(converterFieldName);
+            methodBody.append(".convertInput(");
+            if (param.type.cast.isPrimitive()) {
+                methodBody.append(BoxedType.getBoxedType(param.type.cast.type).getSimpleName());
+                methodBody.append(".valueOf(");
+                methodBody.append(param.name.real()).append("_conv_input)");
+            } else {
+                methodBody.append(param.name.real()).append("_conv_input)");
+            }
+            methodBody.append(");\n");
+        }
+        
+        // If not void, store return type, with possible cast
+        // We can use Object when a converter is going to be used
+        if (!this.returnType.type.equals(void.class)) {
+            methodBody.append("  ");
+            if (this.returnType.cast != null) {
+                // Store as Object with _conv_input before conversion
+                methodBody.append("Object ").append(this.name.real()).append("_return_conv_input = ");
+            } else if (this.returnType.isPrimitive()) {
+                // Cast to boxed type
+                Class<?> boxedType = BoxedType.getBoxedType(this.returnType.type);
+                methodBody.append(boxedType.getSimpleName()).append(' ');
+                methodBody.append(this.name.real()).append("_return = ");
+                methodBody.append('(').append(boxedType.getSimpleName()).append(')');
+            } else {
+                // Cast to returned type
+                methodBody.append(this.returnType.type.getName()).append(' ');
+                methodBody.append(this.name.real()).append("_return = ");
+                methodBody.append('(').append(this.returnType.type.getName()).append(')');
+            }
+        }
+
+        // Invoke the method
+        methodBody.append("this.").append(methodFieldName);
+        if (isVarArgsInvoke) {
+            methodBody.append(".invokeVA(instance, ").append(this.name.real()).append("_input_args);\n");
+        } else {
+            methodBody.append(".invoke(instance");
+            for (int i = 0; i < this.parameters.parameters.length; i++) {
+                ParameterDeclaration param = this.parameters.parameters[i];
+                methodBody.append(", ").append(param.name.real());
+            }
+            methodBody.append(");\n");
+        }
+
+        // Converter
+        if (this.returnType.cast != null) {
+            // Generate name for the return type converter field
+            String converterFieldName = this.name.real() + "_conv_return";
+
+            // Find return type converter
+            Converter<Object, Object> converter = Conversion.find(this.returnType, this.returnType.cast);
+            if (converter == null) {
+                throw new RuntimeException("Failed to find converter for return value " +
+                        " of method " + this.name.real() + " (" + this.returnType.toString(true) +
+                        " -> " + this.returnType.cast.toString(true) + ")");
+            }
+
+            // Add to class definition
+            {
+                CtClass converterClass = ClassPool.getDefault().get(Converter.class.getName());
+                CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
+                ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter));
+            }
+
+            // Perform conversion in body
+            String rTypeName;
+            if (this.returnType.cast.isPrimitive()) {
+                rTypeName = BoxedType.getBoxedType(this.returnType.cast.type).getSimpleName();
+            } else {
+                rTypeName = this.returnType.cast.type.getName();
+            }
+ 
+            methodBody.append("  ").append(rTypeName);
+            methodBody.append(' ').append(this.name.real()).append("_return = ");
+            methodBody.append('(').append(rTypeName).append(")this.");
+            methodBody.append(converterFieldName).append(".convertInput(");
+            methodBody.append(this.name.real()).append("_return_conv_input);\n");
+        }
+
+        // Return the result from the method. Unbox it if required. Only if not void.
+        if (!this.returnType.type.equals(void.class)) {
+            methodBody.append("  return ");
+            methodBody.append(this.name.real()).append("_return");
+            if (this.returnType.exposed().isPrimitive()) {
+                methodBody.append('.').append(this.returnType.exposed().type.getSimpleName());
+                methodBody.append("Value()");
+            }
+            methodBody.append(";\n");
+        }
+
+        // Close body
+        methodBody.append("}");
+
+        // Create the method and add it to the class
+        CtMethod method = CtNewMethod.make(methodBody.toString(), invokerClass);
+        invokerClass.addMethod(method);
+    }
+
+    private Declaration[] processRequirements(StringBuilder body) {
+        LinkedHashSet<Declaration> result = new LinkedHashSet<Declaration>();
+
+        int seek = 1;
+        while (seek < body.length()) {
+            if (body.charAt(seek) != '#') {
+                seek++;
+                continue;
+            }
+
+            // Ignore ##
+            if (seek >= 1 && body.charAt(seek-1) == '#') {
+                seek++;
+                continue;
+            }
+            if ((seek+1) < body.length() && body.charAt(seek+1) == '#') {
+                seek++;
+                continue;
+            }
+
+            // Figure out whether this is a Field or Method
+            // Methods have an opening (, fields everything else
+            int nameEndIdx = -1;
+            boolean isMethod = false;
+            boolean isField = false;
+            for (int i = seek + 1; i < body.length(); i++) {
+                char c = body.charAt(i);
+                if (c == '(') {
+                    nameEndIdx = i;
+                    isMethod = true;
+                    break;
+                } else if (!Character.isLetterOrDigit(c)) {
+                    nameEndIdx = i;
+                    isField = true;
+                    break;
+                }
+            }
+            String name = body.substring(seek + 1, nameEndIdx);
+            Declaration foundDeclaration = null;
+
+            // Find the declaration matching this name
+            for (Declaration dec : this.getResolver().getRequirements()) {
+                if (isMethod && dec instanceof MethodDeclaration && ((MethodDeclaration) dec).name.real().equals(name)) {
+                    foundDeclaration = dec;
+                    break;
+                } else if (isField && dec instanceof FieldDeclaration && ((FieldDeclaration) dec).name.real().equals(name)) {
+                    foundDeclaration = dec;
+                    break;
+                }
+            }
+
+            // If not found, skip it
+            if (foundDeclaration == null) {
+                seek++;
+                continue;
+            }
+
+            // Add it so code invoker can include it in the code generation
+            result.add(foundDeclaration);
+
+            // Find the start of the contents before the #name
+            // This will be the input value object for the field
+            int instanceEndIdx = seek - 1;
+            while (instanceEndIdx > 0 && body.charAt(instanceEndIdx) == ' ') {
+                instanceEndIdx--;
+            }
+            int instanceStartIdx = instanceEndIdx;
+            instanceEndIdx++; // exclusive
+            {
+                int parenthesesCtr = 0;
+                for (; instanceStartIdx >= 0; instanceStartIdx--) {
+                    char c = body.charAt(instanceStartIdx);
+                    if (c == ')') {
+                        parenthesesCtr++;
+                    } else if (c == '(') {
+                        if (--parenthesesCtr < 0) {
+                            break;
+                        }
+                    } else if (!Character.isLetterOrDigit(c) && parenthesesCtr == 0) {
+                        break;
+                    }
+                }
+                instanceStartIdx++; // exclude delimiter
+            }
+            String instanceName = body.substring(instanceStartIdx, instanceEndIdx);
+
+            if (foundDeclaration instanceof FieldDeclaration) {
+                TypeDeclaration fieldType = ((FieldDeclaration) foundDeclaration).type;
+                if (fieldType.cast != null) {
+                    fieldType = fieldType.cast;
+                }
+
+                // If there is a = after the name (possible spaces), then the field is assigned
+                // In that case, wrap the entire statement in a set operation
+                // Beware of == as that is not an assignment operation
+                int setOperationValueStartIdx = -1;
+                for (int i = nameEndIdx; i < body.length(); i++) {
+                    char c = body.charAt(i);
+                    if (c == ' ') {
+                        continue;
+                    }
+                    if (c == '=') {
+                        if ((i+1) >= body.length() || body.charAt(i+1) != '=') {
+                            setOperationValueStartIdx = i + 1;
+                            while (setOperationValueStartIdx < body.length() &&
+                                   body.charAt(setOperationValueStartIdx) == ' ')
+                            {
+                                setOperationValueStartIdx++;
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                // When setting, find the end of the piece of 'value code'
+                // For example, this will find 'helper.counter + 5' in:
+                // object#field = helper.counter + 5;
+                if (setOperationValueStartIdx != -1) {
+                    int setOperationValueEndIdx = setOperationValueStartIdx;
+
+                    int parenthesesCtr = 0;
+                    for (; setOperationValueEndIdx < body.length(); setOperationValueEndIdx++) {
+                        char c = body.charAt(setOperationValueEndIdx);
+                        if (c == ';') {
+                            break;
+                        } else if (c == '(') {
+                            parenthesesCtr++;
+                        } else if (c == ')') {
+                            if (--parenthesesCtr < 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    String valueName = body.substring(setOperationValueStartIdx, setOperationValueEndIdx);
+
+                    // Modify the original body to use the field setter method instead
+                    StringBuilder replacement = new StringBuilder();
+                    replacement.append("this.").append(name).append(".set");
+                    if (fieldType.isPrimitive()) {
+                        replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
+                    }
+                    replacement.append('(');
+                    replacement.append(instanceName);
+                    replacement.append(", ");
+                    replacement.append(valueName);
+                    replacement.append(')');
+
+                    // Replace portion in body with replacement
+                    body.replace(instanceStartIdx, setOperationValueEndIdx, replacement.toString());
+                } else {
+                    // Modify the original body to use the field getter method instead
+                    StringBuilder replacement = new StringBuilder();
+                    if (fieldType.isPrimitive()) {
+                        // Primitive-specific getter method
+                        replacement.append("this.").append(name).append(".get");
+                        replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
+                    } else {
+                        // Get + cast
+                        replacement.append('(');
+                        replacement.append(fieldType.type.getName());
+                        replacement.append(')');
+                        replacement.append("this.").append(name).append(".get");
+                    }
+                    replacement.append('(');
+                    replacement.append(instanceName);
+                    replacement.append(')');
+
+                    // Replace portion in body with replacement
+                    body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
+                }
+            } // field handling end
+
+            if (foundDeclaration instanceof MethodDeclaration) {
+                // Find the first opening parenthesis after the name
+                int firstOpenIndex = nameEndIdx;
+                while (firstOpenIndex < body.length()) {
+                    char c = body.charAt(firstOpenIndex);
+                    if (c == ' ') {
+                        firstOpenIndex++;
+                    } else if (c == '(') {
+                        break;
+                    } else {
+                        // Invalid!
+                        firstOpenIndex = -1;
+                        break;
+                    }
+                }
+                if (firstOpenIndex == -1) {
+                    // Invalid! Not a method!
+                    if (this.getResolver().getLogErrors()) {
+                        MountiplexUtil.LOGGER.warning("Requirement refers to method but is used as field");
+                        MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + name);
+                    }
+                } else {
+                    // Replace instanceName#name ( with our invoker
+                    StringBuilder replacement = new StringBuilder();
+                    replacement.append("this.").append(name);
+                    replacement.append('(').append(instanceName).append(", ");
+                    body.replace(instanceStartIdx, firstOpenIndex+1, replacement.toString());
+                }
+            } // method handling end
+
+            seek++;
+        }
+
+        return result.toArray(new Declaration[result.size()]);
     }
 }

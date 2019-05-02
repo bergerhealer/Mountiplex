@@ -14,6 +14,11 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
     public String unusedField = "unused";
     public final OneWayConvertableType oneWay = new OneWayConvertableType();
 
+    private int h(int n) {
+        c += n;
+        return c;
+    }
+
     private int d(int k, int l) {
         return k + l;
     }

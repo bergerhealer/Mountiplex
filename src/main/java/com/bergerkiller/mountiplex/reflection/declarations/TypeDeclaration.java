@@ -434,7 +434,16 @@ public class TypeDeclaration extends Declaration {
         //TODO: Also support unresolved types
         return this.type != null && this.type.isPrimitive();
     }
-    
+
+    /**
+     * Gets the cast type if a cast is set, otherwise return this type.
+     * 
+     * @return exposed type
+     */
+    public TypeDeclaration exposed() {
+        return (cast == null) ? this : cast;
+    }
+
     /**
      * Gets the component type if this type is an array. Returns null if this is not an array type.
      * 

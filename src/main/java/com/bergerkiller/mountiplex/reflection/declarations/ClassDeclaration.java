@@ -1,11 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -181,28 +177,17 @@ public class ClassDeclaration extends Declaration {
                 trimWhitespace(0);
                 continue;
             }
-            MethodDeclaration mdec = new MethodDeclaration(getResolver(), postfix);
-            if (mdec.isValid()) {
-                methods.add(mdec);
-                setPostfix(mdec.getPostfix());
-                trimLine();
-                continue;
+
+            Declaration dec = this.nextDetectMemberDeclaration(getResolver());
+            if (dec instanceof MethodDeclaration) {
+                methods.add((MethodDeclaration) dec);
+            } else if (dec instanceof ConstructorDeclaration) {
+                constructors.add((ConstructorDeclaration) dec);
+            } else if (dec instanceof FieldDeclaration) {
+                fields.add((FieldDeclaration) dec);
+            } else {
+                break;
             }
-            ConstructorDeclaration cdec = new ConstructorDeclaration(getResolver(), postfix);
-            if (cdec.isValid()) {
-                constructors.add(cdec);
-                setPostfix(cdec.getPostfix());
-                trimLine();
-                continue;
-            }
-            FieldDeclaration fdec = new FieldDeclaration(getResolver(), postfix);
-            if (fdec.isValid()) {
-                fields.add(fdec);
-                setPostfix(fdec.getPostfix());
-                trimLine();
-                continue;
-            }
-            break;
         }
         this.code = codeStr.toString();
         this.subclasses = classes.toArray(new ClassDeclaration[classes.size()]);
@@ -238,76 +223,11 @@ public class ClassDeclaration extends Declaration {
                 }
             }
         }
-        List<FieldLCSResolver.Pair> pairs = FieldLCSResolver.lcs(this.fields, realFields);
-
-        // Register all successful pairs
-        Iterator<FieldLCSResolver.Pair> succIter = pairs.iterator();
-        while (succIter.hasNext()) {
-            FieldLCSResolver.Pair pair = succIter.next();
-            if (pair.a != null && pair.b != null) {
-                pair.a.setField(pair.b);
-                succIter.remove();
-            }
-        }
-
-        // Log all fields we could not find in our template
-        // The fields in the underlying Class are not important (yet)
-        for (FieldLCSResolver.Pair failPair : pairs) {
-            if (failPair.b == null && !failPair.a.modifiers.isOptional()) {
-                if (failPair.bb.length > 0) {
-                    logAlternatives("field", failPair.bb, failPair.a);
-                } else {
-                    logAlternatives("field", realFields, failPair.a);
-                }
-            }
-        }
+        FieldLCSResolver.resolve(this.fields, realFields);
     }
 
     private void resolveMethods() {
-        // Merge declared and public methods as one long list
-        // Skip declared methods that are public - they are already in the list
-        ArrayList<java.lang.reflect.Method> realRefMethods = new ArrayList<java.lang.reflect.Method>();
-        realRefMethods.addAll(Arrays.asList(this.type.type.getMethods()));
-        for (java.lang.reflect.Method decMethod : this.type.type.getDeclaredMethods()) {
-            if (Modifier.isPublic(decMethod.getModifiers())) {
-                continue;
-            }
-            realRefMethods.add(decMethod);
-        }
-
-        MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.size()];
-        for (int i = 0; i < realMethods.length; i++) {
-            try {
-                realMethods[i] = new MethodDeclaration(getResolver(), realRefMethods.get(i));
-            } catch (Throwable t) {
-                if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods.get(i), t);
-                }
-            }
-        }
-
-        // Connect the methods together
-        for (int i = 0; i < this.methods.length; i++) {
-            MethodDeclaration method = this.methods[i];
-            boolean found = false;
-            for (int j = 0; j < realMethods.length; j++) {
-                if (realMethods[j].match(method)) {
-
-                    // Log a warning when modifiers differ, but do not fail the matching
-                    if (!realMethods[j].modifiers.match(method.modifiers)) {
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " + method.toString() +
-                                " do not match (" + realMethods[j].modifiers + " expected)");
-                    }
-
-                    method.method = realMethods[j].method;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found && !method.modifiers.isOptional() && method.body == null) {
-                logAlternatives("method", realMethods, method);
-            }
-        }
+        MethodMatchResolver.match(this.type.type, this.getResolver(), this.methods);
     }
 
     private void resolveConstructors() {
@@ -335,32 +255,11 @@ public class ClassDeclaration extends Declaration {
                 }
             }
             if (!found && !constructor.modifiers.isOptional()) {
-                logAlternatives("constructor", realConstructors, constructor);
+                FieldLCSResolver.logAlternatives("constructor", realConstructors, constructor);
             }
         }
     }
 
-    private <T extends Declaration> void logAlternatives(String category, T[] alternatives, T declaration) {
-        if (!this.getResolver().getLogErrors()) {
-            return;
-        }
-        MountiplexUtil.LOGGER.warning("A class member of " + this.type.toString(true) + " was not found!");
-        if (alternatives.length == 0) {
-            MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " (No alternatives)");
-        } else {
-            ArrayList<T> sorted = new ArrayList<T>(Arrays.asList(alternatives));
-            Declaration.sortSimilarity(declaration, sorted);
-            MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " - Alternatives:");
-            int limit = 8;
-            for (T alter : sorted) {
-                MountiplexUtil.LOGGER.warning("  - " + alter);
-                if (--limit == 0) {
-                    break;
-                }
-            }
-        }
-    }
-    
     /**
      * Attempts to find the method matching the declaration in this Class
      * 
@@ -459,7 +358,11 @@ public class ClassDeclaration extends Declaration {
             str += " ";
         }
         str += this.is_interface ? "interface " : "class ";
-        str += this.type.toString(identity);
+        if (this.type == null) {
+            str += "<nulltype>";
+        } else {
+            str += this.type.toString(identity);
+        }
         if (this.base != null) {
             str += " extends " + this.base.toString(identity);
         }

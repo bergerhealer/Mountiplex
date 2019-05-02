@@ -9,7 +9,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 public class SourceDeclarationTest {
 
     @Test
-    public void testPreprocess() {
+    public void testPreprocessConditionals() {
         String sourceDec = "#set test 1.23.55\n" +
                            "#set dummy 12\n" +
                            "#if classexists this.class.does.not.exist\n" +
@@ -71,4 +71,5 @@ public class SourceDeclarationTest {
             fail("Source declaration was not correctly parsed");
         }
     }
+
 }

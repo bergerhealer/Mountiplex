@@ -3,7 +3,18 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.conversion.Conversion;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
+import com.bergerkiller.mountiplex.reflection.util.FastConvertedField;
+import com.bergerkiller.mountiplex.reflection.util.FastField;
+import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
+import javassist.CannotCompileException;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtField;
+import javassist.NotFoundException;
 
 public class FieldDeclaration extends Declaration {
     public final ModifierDeclaration modifiers;
@@ -131,4 +142,32 @@ public class FieldDeclaration extends Declaration {
         str.append(indent).append("}\n");
     }
 
+    @Override
+    public void addAsRequirement(CtClass invokerClass) throws CannotCompileException, NotFoundException {
+        if (this.type.cast != null) {
+            DuplexConverter<Object, Object> converter = Conversion.findDuplex(this.type, this.type.cast);
+            if (converter == null) {
+                throw new RuntimeException("Failed to find converter from " +
+                        this.type.toString(true) + " <> " + this.type.cast.toString(true));
+            }
+
+            FastField<?> f = new FastField<Object>();
+            f.init(this.field);
+            FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
+
+            CtClass fastFieldClass = ClassPool.getDefault().get(FastConvertedField.class.getName());
+            CtField ctField = new CtField(fastFieldClass, name.real(), invokerClass);
+            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
+        } else {
+            // No conversion, we can use a simple FastField
+            FastField<?> f = new FastField<Object>();
+            f.init(this.field);
+
+            CtClass fastFieldClass = ClassPool.getDefault().get(FastField.class.getName());
+            CtField ctField = new CtField(fastFieldClass, name.real(), invokerClass);
+            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
+        }
+    }
 }

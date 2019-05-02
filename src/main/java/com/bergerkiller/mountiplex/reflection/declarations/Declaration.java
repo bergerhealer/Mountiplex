@@ -3,9 +3,14 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+
+import javassist.CannotCompileException;
+import javassist.CtClass;
+import javassist.NotFoundException;
 
 /**
  * Base class for Declaration implementations
@@ -132,7 +137,7 @@ public abstract class Declaration {
 
             int endOfLine = this._postfix.indexOf('\n');
             if (endOfLine == -1) {
-                setPostfix("");
+                setPostfix(StringBuffer.EMPTY);
             } else {
                 String name = this._postfix.substringToString(0, endOfLine);
                 this._resolver.setClassDeclarationResolverName(name);
@@ -141,7 +146,154 @@ public abstract class Declaration {
             return true;
         }
 
+        // Store definitions in the class resolver, which will become available in code blocks
+        if (this._postfix.startsWith("#require ")) {
+            this.trimWhitespace(9);
+
+            // Get class name in which this is defined
+            int declaringClassEnd = this._postfix.indexOf(' ');
+            if (declaringClassEnd == -1) {
+                setPostfix(StringBuffer.EMPTY);
+                return true;
+            }
+
+            String declaringClassName = this._postfix.substringToString(0, declaringClassEnd);
+            Class<?> declaringClass = this.getResolver().resolveClass(declaringClassName);
+
+            // If class not found
+            if (declaringClass == null) {
+                // Trim to end of line
+                String remainder;
+                int endOfLine = this._postfix.indexOf('\n');
+                if (endOfLine == -1) {
+                    remainder = this._postfix.toString();
+                    setPostfix(StringBuffer.EMPTY);
+                } else {
+                    remainder = this._postfix.substringToString(0, endOfLine);
+                    this.trimWhitespace(endOfLine);
+                }
+
+                // Log this
+                if (this._resolver.getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for field not found: " + declaringClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + remainder);
+                }
+
+                return true;
+            }
+
+            // Trim class name from start of declaration
+            this.trimWhitespace(declaringClassEnd);
+
+            // What remains now is a declaration for a field, method or constructor
+            ClassResolver requireResolver = this.getResolver().clone();
+            requireResolver.setDeclaredClass(declaringClass);
+            Declaration dec = this.nextDetectMemberDeclaration(requireResolver);
+            if (dec == null) {
+                // Trim to end of line
+                String remainder;
+                int endOfLine = this._postfix.indexOf('\n');
+                if (endOfLine == -1) {
+                    remainder = this._postfix.toString();
+                    setPostfix(StringBuffer.EMPTY);
+                } else {
+                    remainder = this._postfix.substringToString(0, endOfLine);
+                    this.trimWhitespace(endOfLine);
+                }
+
+                // Log this
+                if (this._resolver.getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration invalid for: " + declaringClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + remainder);
+                }
+
+                return true;
+            }
+
+            // Check it was fully resolved too
+            if (!dec.isResolved()) {
+                // Log this
+                if (this._resolver.getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaringClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + dec.toString());
+                }
+
+                return true;
+            }
+
+            // Find the reflection Field for Field Declarations
+            if (dec instanceof FieldDeclaration) {
+                FieldDeclaration fieldDec = (FieldDeclaration) dec;
+                java.lang.reflect.Field javaField;
+                try {
+                    javaField = declaringClass.getDeclaredField(fieldDec.name.value());
+                    FieldDeclaration[] arrField = { fieldDec };
+                    FieldDeclaration[] arrRealField = { new FieldDeclaration(requireResolver, javaField) };
+                    FieldLCSResolver.resolve(arrField, arrRealField);
+                    if (fieldDec.field == null) {
+                        if (this._resolver.getLogErrors()) {
+                            MountiplexUtil.LOGGER.warning("Field declaration not matched in " + declaringClass.getName() + ":");
+                            MountiplexUtil.LOGGER.warning("Field: " + arrField[0].toString());
+                            MountiplexUtil.LOGGER.warning("Alternative: " + arrRealField[0].toString());
+                        }
+                        return true;
+                    }
+                } catch (NoSuchFieldException ex) {
+                    if (this._resolver.getLogErrors()) {
+                        MountiplexUtil.LOGGER.warning("Field declaration not found in " + declaringClass.getName() + ":");
+                        MountiplexUtil.LOGGER.warning("Field: " + fieldDec.toString());
+                    }
+                    return true;
+                } catch (Throwable t) {
+                    t.printStackTrace(); // wut
+                    return true;
+                }
+            }
+
+            // Find the reflection Method for Method Declaration
+            if (dec instanceof MethodDeclaration) {
+                MethodDeclaration[] methodDec = new MethodDeclaration[] { (MethodDeclaration) dec };
+                if (methodDec[0].body == null) {
+                    MethodMatchResolver.match(declaringClass, requireResolver, methodDec);
+                    if (methodDec[0].method == null) {
+                        if (this._resolver.getLogErrors()) {
+                            MountiplexUtil.LOGGER.warning("Method declaration not found in " + declaringClass.getName() + ":");
+                            MountiplexUtil.LOGGER.warning("Method: " + methodDec[0].toString());
+                        }
+                        return true;
+                    }
+                }
+            }
+
+            // Store it
+            this._resolver.storeRequirement(dec);
+            return true;
+        }
+
         return false;
+    }
+
+    protected Declaration nextDetectMemberDeclaration(ClassResolver resolver) {
+        StringBuffer postfix = getPostfix();
+        MethodDeclaration mdec = new MethodDeclaration(resolver, postfix);
+        if (mdec.isValid()) {
+            setPostfix(mdec.getPostfix());
+            trimLine();
+            return mdec;
+        }
+        ConstructorDeclaration cdec = new ConstructorDeclaration(resolver, postfix);
+        if (cdec.isValid()) {
+            setPostfix(cdec.getPostfix());
+            trimLine();
+            return cdec;
+        }
+        FieldDeclaration fdec = new FieldDeclaration(resolver, postfix);
+        if (fdec.isValid()) {
+            setPostfix(fdec.getPostfix());
+            trimLine();
+            return fdec;
+        }
+        return null;
     }
 
     /**
@@ -331,6 +483,17 @@ public abstract class Declaration {
             this._longDeclare = this.toString(true);
         }
         return this._longDeclare.hashCode();
+    }
+
+    /**
+     * Called by the code invoker as part of generating the class used to invoke a runtime-generated
+     * method. The declaration should take care to add all the details to the class required
+     * to work properly.
+     * 
+     * @param invokerClass
+     */
+    public void addAsRequirement(CtClass invokerClass) throws CannotCompileException, NotFoundException {
+        throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
     }
 
     /**

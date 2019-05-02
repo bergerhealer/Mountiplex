@@ -22,6 +22,7 @@ public class ClassResolver {
 
     private final ArrayList<String> imports;
     private final ArrayList<String> manualImports;
+    private final List<Declaration> requirements;
     private VariablesMap variables;
     private String classDeclarationResolverName;
     private String packagePath;
@@ -34,6 +35,7 @@ public class ClassResolver {
         this.variables = src.variables;
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
+        this.requirements = new ArrayList<Declaration>(src.requirements);
         this.packagePath = src.packagePath;
         this.declaredClass = src.declaredClass;
         this.logErrors = src.logErrors;
@@ -45,6 +47,7 @@ public class ClassResolver {
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>(default_imports);
+        this.requirements = new ArrayList<Declaration>();
         this.packagePath = "";
         this.declaredClass = null;
         this.logErrors = true;
@@ -57,6 +60,7 @@ public class ClassResolver {
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
+        this.requirements = new ArrayList<Declaration>();
         this.packagePath = "";
         this.bootstrap = default_bootstrap;
         this.setPackage(packagePath);
@@ -441,6 +445,25 @@ public class ClassResolver {
             }
         }
         return name;
+    }
+
+    /**
+     * Stores a requirement parsed from a #require statement.
+     * It can later be found again when resolving requirements in generated code.
+     * 
+     * @param declaration
+     */
+    public void storeRequirement(Declaration declaration) {
+        this.requirements.add(0, declaration);
+    }
+
+    /**
+     * Gets a list of requirements parsed from #require statements.
+     * 
+     * @return requirements
+     */
+    public List<Declaration> getRequirements() {
+        return this.requirements;
     }
 
     private void regenImports() {
