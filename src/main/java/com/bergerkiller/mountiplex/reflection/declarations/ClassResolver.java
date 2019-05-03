@@ -26,8 +26,10 @@ public class ClassResolver {
     private VariablesMap variables;
     private String classDeclarationResolverName;
     private String packagePath;
+    private String declaredClassName;
     private Class<?> declaredClass;
     private boolean logErrors;
+    private boolean isGenerating;
     private Runnable[] bootstrap;
 
     private ClassResolver(ClassResolver src) {
@@ -37,8 +39,10 @@ public class ClassResolver {
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.requirements = new ArrayList<Declaration>(src.requirements);
         this.packagePath = src.packagePath;
+        this.declaredClassName = src.declaredClassName;
         this.declaredClass = src.declaredClass;
         this.logErrors = src.logErrors;
+        this.isGenerating = src.isGenerating;
         this.bootstrap = src.bootstrap;
     }
 
@@ -49,8 +53,10 @@ public class ClassResolver {
         this.manualImports = new ArrayList<String>(default_imports);
         this.requirements = new ArrayList<Declaration>();
         this.packagePath = "";
+        this.declaredClassName = null;
         this.declaredClass = null;
         this.logErrors = true;
+        this.isGenerating = false;
         this.bootstrap = default_bootstrap;
         this.regenImports();
     }
@@ -62,7 +68,11 @@ public class ClassResolver {
         this.manualImports = new ArrayList<String>();
         this.requirements = new ArrayList<Declaration>();
         this.packagePath = "";
+        this.logErrors = true;
+        this.isGenerating = false;
         this.bootstrap = default_bootstrap;
+        this.declaredClassName = null;
+        this.declaredClass = null;
         this.setPackage(packagePath);
     }
 
@@ -85,6 +95,26 @@ public class ClassResolver {
     }
 
     /**
+     * Gets whether this resolver is used while generating the template source code.
+     * In that case, certain parsing operations can be skipped.
+     * 
+     * @return generating
+     */
+    public boolean isGenerating() {
+        return this.isGenerating;
+    }
+
+    /**
+     * Sets whether this resolver is used while generating the template source code.
+     * In that case, certain parsing operations can be skipped.
+     * 
+     * @param generating
+     */
+    public void setGenerating(boolean generating) {
+        this.isGenerating = generating;
+    }
+
+    /**
      * Clones this ClassResolver so that independent Class imports can be included
      */
     @Override
@@ -97,6 +127,11 @@ public class ClassResolver {
      */
     public ClassResolver immutable() {
         return new ImmutableClassResolver(this);
+    }
+
+    public void setDeclaredClassName(String typeName) {
+        this.declaredClassName = typeName;
+        this.setDeclaredClass(this.resolveClass(typeName));
     }
 
     /**
@@ -113,6 +148,7 @@ public class ClassResolver {
             this.packagePath = pkg.getName();
         }
         this.declaredClass = type;
+        this.declaredClassName = type.getName();
         this.regenImports();
     }
 
@@ -126,6 +162,16 @@ public class ClassResolver {
     }
 
     /**
+     * Gets the declared class name. If the class does not exist,
+     * and it was set using setDeclaredClassName, it still returns then name.
+     * 
+     * @return declared class name
+     */
+    public String getDeclaredClassName() {
+        return this.declaredClassName;
+    }
+
+    /**
      * Adds a package path, making all Classes within visible
      * 
      * @param path to the package to add
@@ -133,6 +179,7 @@ public class ClassResolver {
     public void setPackage(String path) {
         this.packagePath = path;
         this.declaredClass = null;
+        this.declaredClassName = null;
         this.manualImports.clear();
         this.manualImports.addAll(default_imports);
         this.regenImports();
@@ -469,8 +516,8 @@ public class ClassResolver {
     private void regenImports() {
         this.imports.clear();
         this.imports.addAll(this.manualImports);
-        if (this.declaredClass != null) {
-            this.imports.add(this.declaredClass.getName() + ".*");
+        if (this.declaredClassName != null) {
+            this.imports.add(this.declaredClassName + ".*");
         }
         if (this.packagePath != null && this.packagePath.length() > 0) {
             this.imports.add(this.packagePath + ".*");

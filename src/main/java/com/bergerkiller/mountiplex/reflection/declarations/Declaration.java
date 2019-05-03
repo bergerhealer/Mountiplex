@@ -158,36 +158,13 @@ public abstract class Declaration {
             }
 
             String declaringClassName = this._postfix.substringToString(0, declaringClassEnd);
-            Class<?> declaringClass = this.getResolver().resolveClass(declaringClassName);
-
-            // If class not found
-            if (declaringClass == null) {
-                // Trim to end of line
-                String remainder;
-                int endOfLine = this._postfix.indexOf('\n');
-                if (endOfLine == -1) {
-                    remainder = this._postfix.toString();
-                    setPostfix(StringBuffer.EMPTY);
-                } else {
-                    remainder = this._postfix.substringToString(0, endOfLine);
-                    this.trimWhitespace(endOfLine);
-                }
-
-                // Log this
-                if (this._resolver.getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for field not found: " + declaringClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + remainder);
-                }
-
-                return true;
-            }
 
             // Trim class name from start of declaration
             this.trimWhitespace(declaringClassEnd);
 
             // What remains now is a declaration for a field, method or constructor
             ClassResolver requireResolver = this.getResolver().clone();
-            requireResolver.setDeclaredClass(declaringClass);
+            requireResolver.setDeclaredClassName(declaringClassName);
             Declaration dec = this.nextDetectMemberDeclaration(requireResolver);
             if (dec == null) {
                 // Trim to end of line
@@ -208,61 +185,6 @@ public abstract class Declaration {
                 }
 
                 return true;
-            }
-
-            // Check it was fully resolved too
-            if (!dec.isResolved()) {
-                // Log this
-                if (this._resolver.getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaringClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + dec.toString());
-                }
-
-                return true;
-            }
-
-            // Find the reflection Field for Field Declarations
-            if (dec instanceof FieldDeclaration) {
-                FieldDeclaration fieldDec = (FieldDeclaration) dec;
-                java.lang.reflect.Field javaField;
-                try {
-                    javaField = declaringClass.getDeclaredField(fieldDec.name.value());
-                    FieldDeclaration[] arrField = { fieldDec };
-                    FieldDeclaration[] arrRealField = { new FieldDeclaration(requireResolver, javaField) };
-                    FieldLCSResolver.resolve(arrField, arrRealField);
-                    if (fieldDec.field == null) {
-                        if (this._resolver.getLogErrors()) {
-                            MountiplexUtil.LOGGER.warning("Field declaration not matched in " + declaringClass.getName() + ":");
-                            MountiplexUtil.LOGGER.warning("Field: " + arrField[0].toString());
-                            MountiplexUtil.LOGGER.warning("Alternative: " + arrRealField[0].toString());
-                        }
-                        return true;
-                    }
-                } catch (NoSuchFieldException ex) {
-                    if (this._resolver.getLogErrors()) {
-                        MountiplexUtil.LOGGER.warning("Field declaration not found in " + declaringClass.getName() + ":");
-                        MountiplexUtil.LOGGER.warning("Field: " + fieldDec.toString());
-                    }
-                    return true;
-                } catch (Throwable t) {
-                    t.printStackTrace(); // wut
-                    return true;
-                }
-            }
-
-            // Find the reflection Method for Method Declaration
-            if (dec instanceof MethodDeclaration) {
-                MethodDeclaration[] methodDec = new MethodDeclaration[] { (MethodDeclaration) dec };
-                if (methodDec[0].body == null) {
-                    MethodMatchResolver.match(declaringClass, requireResolver, methodDec);
-                    if (methodDec[0].method == null) {
-                        if (this._resolver.getLogErrors()) {
-                            MountiplexUtil.LOGGER.warning("Method declaration not found in " + declaringClass.getName() + ":");
-                            MountiplexUtil.LOGGER.warning("Method: " + methodDec[0].toString());
-                        }
-                        return true;
-                    }
-                }
             }
 
             // Store it

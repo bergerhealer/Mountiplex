@@ -30,6 +30,45 @@ public class ReflectionUtil {
         return filterGenerics(input.substring(0, genStart) + input.substring(genEnd + 1));
     }
 
+    /**
+     * Gets the String expression of a type. Shortens builtin type names
+     * and properly resolves array types.
+     * 
+     * @param type
+     * @return type name
+     */
+    public static String getTypeName(Class<?> type) {
+        String name;
+        int numArrays = 0;
+        while (type.isArray()) {
+            type = type.getComponentType();
+            numArrays++;
+        }
+        if (type.isPrimitive() || BoxedType.getUnboxedType(type) != null) {
+            name = type.getSimpleName();
+        } else {
+            name = type.getName();
+        }
+        for (int i = 0; i < numArrays; i++) {
+            name += "[]";
+        }
+        return name;
+    }
+
+    /**
+     * Gets a cast String expression, for example (String)
+     * 
+     * @param type
+     * @return cast expression
+     */
+    public static String getCastString(Class<?> type) {
+        StringBuilder body = new StringBuilder();
+        body.append('(');
+        body.append(getTypeName(type));
+        body.append(')');
+        return body.toString();
+    }
+
     /// parses method/field modifier lists
     public static int parseModifiers(String[] parts, int count) {
         // Read modifiers

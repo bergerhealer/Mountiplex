@@ -3,10 +3,12 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashSet;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
@@ -135,7 +137,12 @@ public class MethodDeclaration extends Declaration {
             }
 
             // Resolve requirements used in the body. This looks at # tokens in the body.
-            this.bodyRequirements = processRequirements(bodyBuilder);
+            // Only do this when resolver is not in a mode of generating the templates (then we don't care)
+            if (!this.getResolver().isGenerating()) {
+                this.bodyRequirements = processRequirements(bodyBuilder);
+            } else {
+                this.bodyRequirements = new Declaration[0];
+            }
 
             // Correct indentation of body and done
             this.body = SourceDeclaration.trimIndentation(bodyBuilder.toString());
@@ -352,12 +359,12 @@ public class MethodDeclaration extends Declaration {
                 Class<?> boxedType = BoxedType.getBoxedType(this.returnType.type);
                 methodBody.append(boxedType.getSimpleName()).append(' ');
                 methodBody.append(this.name.real()).append("_return = ");
-                methodBody.append('(').append(boxedType.getSimpleName()).append(')');
+                methodBody.append(ReflectionUtil.getCastString(boxedType));
             } else {
                 // Cast to returned type
                 methodBody.append(this.returnType.type.getName()).append(' ');
                 methodBody.append(this.name.real()).append("_return = ");
-                methodBody.append('(').append(this.returnType.type.getName()).append(')');
+                methodBody.append(ReflectionUtil.getCastString(this.returnType.type));
             }
         }
 
@@ -396,16 +403,16 @@ public class MethodDeclaration extends Declaration {
             }
 
             // Perform conversion in body
-            String rTypeName;
+            Class<?> rType;
             if (this.returnType.cast.isPrimitive()) {
-                rTypeName = BoxedType.getBoxedType(this.returnType.cast.type).getSimpleName();
+                rType = BoxedType.getBoxedType(this.returnType.cast.type);
             } else {
-                rTypeName = this.returnType.cast.type.getName();
+                rType = this.returnType.cast.type;
             }
  
-            methodBody.append("  ").append(rTypeName);
+            methodBody.append("  ").append(ReflectionUtil.getTypeName(rType));
             methodBody.append(' ').append(this.name.real()).append("_return = ");
-            methodBody.append('(').append(rTypeName).append(")this.");
+            methodBody.append(ReflectionUtil.getCastString(rType)).append("this.");
             methodBody.append(converterFieldName).append(".convertInput(");
             methodBody.append(this.name.real()).append("_return_conv_input);\n");
         }
@@ -432,20 +439,16 @@ public class MethodDeclaration extends Declaration {
     private Declaration[] processRequirements(StringBuilder body) {
         LinkedHashSet<Declaration> result = new LinkedHashSet<Declaration>();
 
-        int seek = 1;
-        while (seek < body.length()) {
+        for (int seek = 1; seek < body.length(); seek++) {
             if (body.charAt(seek) != '#') {
-                seek++;
                 continue;
             }
 
             // Ignore ##
             if (seek >= 1 && body.charAt(seek-1) == '#') {
-                seek++;
                 continue;
             }
             if ((seek+1) < body.length() && body.charAt(seek+1) == '#') {
-                seek++;
                 continue;
             }
 
@@ -460,7 +463,7 @@ public class MethodDeclaration extends Declaration {
                     nameEndIdx = i;
                     isMethod = true;
                     break;
-                } else if (!Character.isLetterOrDigit(c)) {
+                } else if (!Character.isLetterOrDigit(c) && c != '_') {
                     nameEndIdx = i;
                     isField = true;
                     break;
@@ -482,10 +485,76 @@ public class MethodDeclaration extends Declaration {
 
             // If not found, skip it
             if (foundDeclaration == null) {
-                seek++;
                 continue;
             }
 
+            // Further resolve the declaration if required
+
+            // If class not found
+            String declaredClassName = foundDeclaration.getResolver().getDeclaredClassName();
+            if (foundDeclaration.getResolver().getDeclaredClass() == null) {
+                // Log this
+                if (this.getResolver().getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for field not found: " + declaredClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + foundDeclaration);
+                }
+                continue;
+            }
+
+            // Check it was fully resolved too
+            if (!foundDeclaration.isResolved()) {
+                // Log this
+                if (this.getResolver().getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaredClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + foundDeclaration.toString());
+                }
+                continue;
+            }
+
+            // Find the reflection Field for Field Declarations
+            if (foundDeclaration instanceof FieldDeclaration) {
+                FieldDeclaration fieldDec = (FieldDeclaration) foundDeclaration;
+                java.lang.reflect.Field javaField;
+                try {
+                    javaField = foundDeclaration.getResolver().getDeclaredClass().getDeclaredField(fieldDec.name.value());
+                    FieldDeclaration[] arrField = { fieldDec };
+                    FieldDeclaration[] arrRealField = { new FieldDeclaration(foundDeclaration.getResolver(), javaField) };
+                    FieldLCSResolver.resolve(arrField, arrRealField);
+                    if (fieldDec.field == null) {
+                        if (this.getResolver().getLogErrors()) {
+                            MountiplexUtil.LOGGER.warning("Field declaration not matched in " + declaredClassName + ":");
+                            MountiplexUtil.LOGGER.warning("Field: " + arrField[0].toString());
+                            MountiplexUtil.LOGGER.warning("Alternative: " + arrRealField[0].toString());
+                        }
+                        continue;
+                    }
+                } catch (NoSuchFieldException ex) {
+                    if (this.getResolver().getLogErrors()) {
+                        MountiplexUtil.LOGGER.warning("Field declaration not found in " + declaredClassName + ":");
+                        MountiplexUtil.LOGGER.warning("Field: " + fieldDec.toString());
+                    }
+                    continue;
+                } catch (Throwable t) {
+                    t.printStackTrace(); // wut
+                    continue;
+                }
+            }
+
+            // Find the reflection Method for Method Declaration
+            if (foundDeclaration instanceof MethodDeclaration) {
+                MethodDeclaration[] methodDec = new MethodDeclaration[] { (MethodDeclaration) foundDeclaration };
+                if (methodDec[0].body == null) {
+                    MethodMatchResolver.match(foundDeclaration.getResolver().getDeclaredClass(), foundDeclaration.getResolver(), methodDec);
+                    if (methodDec[0].method == null) {
+                        if (this.getResolver().getLogErrors()) {
+                            MountiplexUtil.LOGGER.warning("Method declaration not found in " + declaredClassName + ":");
+                            MountiplexUtil.LOGGER.warning("Method: " + methodDec[0].toString());
+                        }
+                        continue;
+                    }
+                }
+            }
+            
             // Add it so code invoker can include it in the code generation
             result.add(foundDeclaration);
 
@@ -588,9 +657,7 @@ public class MethodDeclaration extends Declaration {
                         replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
                     } else {
                         // Get + cast
-                        replacement.append('(');
-                        replacement.append(fieldType.type.getName());
-                        replacement.append(')');
+                        replacement.append(ReflectionUtil.getCastString(fieldType.type));
                         replacement.append("this.").append(name).append(".get");
                     }
                     replacement.append('(');
@@ -627,12 +694,21 @@ public class MethodDeclaration extends Declaration {
                     // Replace instanceName#name ( with our invoker
                     StringBuilder replacement = new StringBuilder();
                     replacement.append("this.").append(name);
-                    replacement.append('(').append(instanceName).append(", ");
+                    replacement.append('(').append(instanceName);
+
+                    // Add a comma if there is something inside the ()
+                    for (int i = firstOpenIndex + 1; i < body.length(); i++) {
+                        char c = body.charAt(i);
+                        if (c == ' ') continue;
+                        if (c == ')') break;
+
+                        replacement.append(", ");
+                        break;
+                    }
+
                     body.replace(instanceStartIdx, firstOpenIndex+1, replacement.toString());
                 }
             } // method handling end
-
-            seek++;
         }
 
         return result.toArray(new Declaration[result.size()]);

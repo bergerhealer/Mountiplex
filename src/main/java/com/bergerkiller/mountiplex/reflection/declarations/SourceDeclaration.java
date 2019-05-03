@@ -420,6 +420,21 @@ public class SourceDeclaration extends Declaration {
      * @param sourceDirectory relative to which included files are resolved
      * @param sourceInclude relative file path to load
      * @param variables to use while loading the source files
+     * @param isGenerating sets the class resolver 'isGenerating' option
+     * @return Source Declaration
+     */
+    public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude, Map<String, String> variables, boolean isGenerating) {
+        ClassResolver resolver = new ClassResolver();
+        resolver.setGenerating(isGenerating);
+        return new SourceDeclaration(resolver, null, sourceDirectory, StringBuffer.of(saveVars(variables) + "\n" + "#include " + sourceInclude));
+    }
+
+    /**
+     * Parses the full source contents by reading from files on disk
+     * 
+     * @param sourceDirectory relative to which included files are resolved
+     * @param sourceInclude relative file path to load
+     * @param variables to use while loading the source files
      * @return Source Declaration
      */
     public static SourceDeclaration loadFromDisk(File sourceDirectory, String sourceInclude, Map<String, String> variables) {
