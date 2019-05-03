@@ -242,7 +242,7 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             // Cast the instance type to the correct type (if available)
             // Does not apply when the method is static, and instance will always be null
             if (!declaration.modifiers.isStatic()) {
-                if (instanceType == null) {
+                if (instanceType == null || !Resolver.isPublic(instanceType)) {
                     invokeBody.append("Object instance = instance_raw;");
                 } else {
                     invokeBody.append(instanceType.getName()).append(" instance = ");

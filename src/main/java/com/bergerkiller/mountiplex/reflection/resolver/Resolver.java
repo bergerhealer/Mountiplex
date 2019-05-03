@@ -46,7 +46,7 @@ public class Resolver {
      * @return True if the field is public
      */
     public static boolean isPublic(java.lang.reflect.Field field) {
-        return Modifier.isPublic(field.getModifiers()) && getMeta(field.getDeclaringClass()).isPublic;
+        return Modifier.isPublic(field.getModifiers()) && isPublic(field.getDeclaringClass());
     }
 
     /**
@@ -58,7 +58,7 @@ public class Resolver {
      * @return True if the method is public
      */
     public static boolean isPublic(java.lang.reflect.Method method) {
-        return Modifier.isPublic(method.getModifiers()) && getMeta(method.getDeclaringClass()).isPublic;
+        return Modifier.isPublic(method.getModifiers()) && isPublic(method.getDeclaringClass());
     }
 
     /**
@@ -70,7 +70,17 @@ public class Resolver {
      * @return True if the constructor is public
      */
     public static boolean isPublic(java.lang.reflect.Constructor<?> constructor) {
-        return Modifier.isPublic(constructor.getModifiers()) && getMeta(constructor.getDeclaringClass()).isPublic;
+        return Modifier.isPublic(constructor.getModifiers()) && isPublic(constructor.getDeclaringClass());
+    }
+
+    /**
+     * Gets whether a Class a publicly accessible and will not cause illegal access errors when used.
+     * 
+     * @param type
+     * @return True if public
+     */
+    public static boolean isPublic(Class<?> type) {
+        return getMeta(type).isPublic;
     }
 
     /**
