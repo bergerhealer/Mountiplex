@@ -252,14 +252,14 @@ public class MethodDeclaration extends Declaration {
         // Create a new method with the exposed parameter types and return type
         StringBuilder methodBody = new StringBuilder();
         methodBody.append("private final ");
-        methodBody.append(this.returnType.exposed().type.getName());
+        methodBody.append(ReflectionUtil.getTypeName(this.returnType.exposed().type));
         methodBody.append(' ').append(this.name.real()).append('(');
         methodBody.append("Object instance");
         for (int i = 0; i < this.parameters.parameters.length; i++) {
             ParameterDeclaration param = this.parameters.parameters[i];
 
             methodBody.append(", ");
-            methodBody.append(param.type.exposed().type.getName());
+            methodBody.append(ReflectionUtil.getTypeName(param.type.exposed().type));
             methodBody.append(' ').append(param.name.real());
 
             // If converted or a primitive type, name the input parameter '_conv_input'
@@ -357,12 +357,12 @@ public class MethodDeclaration extends Declaration {
             } else if (this.returnType.isPrimitive()) {
                 // Cast to boxed type
                 Class<?> boxedType = BoxedType.getBoxedType(this.returnType.type);
-                methodBody.append(boxedType.getSimpleName()).append(' ');
+                methodBody.append(ReflectionUtil.getTypeName(boxedType)).append(' ');
                 methodBody.append(this.name.real()).append("_return = ");
                 methodBody.append(ReflectionUtil.getCastString(boxedType));
             } else {
                 // Cast to returned type
-                methodBody.append(this.returnType.type.getName()).append(' ');
+                methodBody.append(ReflectionUtil.getTypeName(this.returnType.type)).append(' ');
                 methodBody.append(this.name.real()).append("_return = ");
                 methodBody.append(ReflectionUtil.getCastString(this.returnType.type));
             }
@@ -576,7 +576,7 @@ public class MethodDeclaration extends Declaration {
                         if (--parenthesesCtr < 0) {
                             break;
                         }
-                    } else if (!Character.isLetterOrDigit(c) && parenthesesCtr == 0) {
+                    } else if (!Character.isLetterOrDigit(c) && c != '.' && parenthesesCtr == 0) {
                         break;
                     }
                 }

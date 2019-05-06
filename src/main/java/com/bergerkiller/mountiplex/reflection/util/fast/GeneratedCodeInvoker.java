@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 import java.net.URL;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.Declaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
@@ -261,17 +262,17 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
                     raw_name = param.name.real() + "_raw";
                 }
 
-                invokeBody.append(param.type.type.getName()).append(' ').append(param.name.real());
+                invokeBody.append(ReflectionUtil.getTypeName(param.type.type)).append(' ').append(param.name.real());
                 invokeBody.append("=");
                 Class<?> boxedType = BoxedType.getBoxedType(param.type.type);
                 if (boxedType != null) {
                     // Need to use '((Integer) arg_raw).intValue();' to get the unboxed type
-                    invokeBody.append("((").append(boxedType.getSimpleName()).append(") ");
+                    invokeBody.append('(').append(ReflectionUtil.getCastString(boxedType)).append(' ');
                     invokeBody.append(raw_name).append(").");
                     invokeBody.append(param.type.type.getSimpleName()).append("Value();");
                 } else {
                     // Simple cast
-                    invokeBody.append("(").append(param.type.type.getName()).append(") ");
+                    invokeBody.append(ReflectionUtil.getCastString(param.type.type)).append(' ');
                     invokeBody.append(raw_name).append(";");
                 }
             }

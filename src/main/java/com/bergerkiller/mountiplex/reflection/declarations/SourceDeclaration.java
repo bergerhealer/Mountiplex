@@ -202,6 +202,11 @@ public class SourceDeclaration extends Declaration {
 
     /// pre-processes the source file, keeping the parts that pass variable evaluation
     public static String preprocess(String declaration) {
+        return preprocess(declaration, new ClassResolver());
+    }
+
+    /// pre-processes the source file, keeping the parts that pass variable evaluation
+    public static String preprocess(String declaration, ClassResolver resolver) {
         // Trim block comments from the declaration text
         while (true) {
             int startIndex = declaration.lastIndexOf("/*");
@@ -217,7 +222,6 @@ public class SourceDeclaration extends Declaration {
         }
 
         // Resolve variables and #if - preprocessor declarations
-        ClassResolver resolver = new ClassResolver();
         StringBuilder result = new StringBuilder();
         int disabledIfLevel = 0;
         boolean disabledIfExpression = false;
