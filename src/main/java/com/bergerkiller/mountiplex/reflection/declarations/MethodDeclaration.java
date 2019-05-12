@@ -9,6 +9,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
@@ -436,6 +437,82 @@ public class MethodDeclaration extends Declaration {
         invokerClass.addMethod(method);
     }
 
+    @Override
+    public MethodDeclaration discover() {
+        if (!this.isValid() || !this.isResolved()) {
+            return null;
+        }
+
+        // Always exists when a body is specified
+        if (this.body != null) {
+            return this;
+        }
+
+        // Resolve the Class Declaration of the Class where this method is declared
+        // Then try to find the method in there
+        {
+            ClassDeclaration cDec = Resolver.resolveClassDeclaration(
+                    this.getResolver().getDeclaredClassName(),
+                    this.getResolver().getDeclaredClass());
+            if (cDec != null) {
+                MethodDeclaration result = cDec.findMethod(this);
+                if (result != null) {
+                    return result;
+                }
+            }
+        }
+
+        // Check the superclasses of the declaring class as well
+        TypeDeclaration typeDec = TypeDeclaration.parse(this.getResolver().getDeclaredClassName());
+        if (typeDec != null) {
+            for (TypeDeclaration superType : typeDec.getSuperTypes()) {
+                ClassDeclaration cDec = Resolver.resolveClassDeclaration(superType.typePath, superType.type);
+                if (cDec != null) {
+                    MethodDeclaration result = cDec.findMethod(this);
+                    if (result != null) {
+                        return result;
+                    }
+                }
+            }
+        }
+
+        // First try to find the method in a quick way
+        try {
+            java.lang.reflect.Method method;
+            method = this.getResolver().getDeclaredClass().getDeclaredMethod(this.name.value(), this.parameters.toParamArray());
+            MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
+            if (result.match(this)) {
+                this.method = method;
+                return this;
+            }
+        } catch (NoSuchMethodException | SecurityException e) {
+            // Ignored
+        }
+
+        // Try looking through the class itself by using a ClassDeclaration to preprocess it
+        {
+            ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, this.getResolver().getDeclaredClass());
+            MethodDeclaration result = cDec.findMethod(this);
+            if (result != null) {
+                this.method = result.method;
+                return this;
+            }
+        }
+
+        // Check the superclasses of the declaring class as well
+        for (TypeDeclaration superType : typeDec.getSuperTypes()) {
+            ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, superType.type);
+            MethodDeclaration result = cDec.findMethod(this);
+            if (result != null) {
+                this.method = result.method;
+                return this;
+            }
+        }
+
+        // Not found
+        return null;
+    }
+
     private Declaration[] processRequirements(StringBuilder body) {
         LinkedHashSet<Declaration> result = new LinkedHashSet<Declaration>();
 
@@ -470,91 +547,57 @@ public class MethodDeclaration extends Declaration {
                 }
             }
             String name = body.substring(seek + 1, nameEndIdx);
-            Declaration foundDeclaration = null;
+            Declaration parsedDeclaration = null;
 
             // Find the declaration matching this name
             for (Declaration dec : this.getResolver().getRequirements()) {
                 if (isMethod && dec instanceof MethodDeclaration && ((MethodDeclaration) dec).name.real().equals(name)) {
-                    foundDeclaration = dec;
+                    parsedDeclaration = dec;
                     break;
                 } else if (isField && dec instanceof FieldDeclaration && ((FieldDeclaration) dec).name.real().equals(name)) {
-                    foundDeclaration = dec;
+                    parsedDeclaration = dec;
                     break;
                 }
             }
 
             // If not found, skip it
-            if (foundDeclaration == null) {
+            if (parsedDeclaration == null) {
                 continue;
             }
 
             // Further resolve the declaration if required
 
             // If class not found
-            String declaredClassName = foundDeclaration.getResolver().getDeclaredClassName();
-            if (foundDeclaration.getResolver().getDeclaredClass() == null) {
+            String declaredClassName = parsedDeclaration.getResolver().getDeclaredClassName();
+            if (parsedDeclaration.getResolver().getDeclaredClass() == null) {
                 // Log this
                 if (this.getResolver().getLogErrors()) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for field not found: " + declaredClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + foundDeclaration);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
                 }
                 continue;
             }
 
             // Check it was fully resolved too
-            if (!foundDeclaration.isResolved()) {
+            if (!parsedDeclaration.isResolved()) {
                 // Log this
                 if (this.getResolver().getLogErrors()) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaredClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + foundDeclaration.toString());
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
                 }
                 continue;
             }
 
-            // Find the reflection Field for Field Declarations
-            if (foundDeclaration instanceof FieldDeclaration) {
-                FieldDeclaration fieldDec = (FieldDeclaration) foundDeclaration;
-                java.lang.reflect.Field javaField;
-                try {
-                    javaField = foundDeclaration.getResolver().getDeclaredClass().getDeclaredField(fieldDec.name.value());
-                    FieldDeclaration[] arrField = { fieldDec };
-                    FieldDeclaration[] arrRealField = { new FieldDeclaration(foundDeclaration.getResolver(), javaField) };
-                    FieldLCSResolver.resolve(arrField, arrRealField);
-                    if (fieldDec.field == null) {
-                        if (this.getResolver().getLogErrors()) {
-                            MountiplexUtil.LOGGER.warning("Field declaration not matched in " + declaredClassName + ":");
-                            MountiplexUtil.LOGGER.warning("Field: " + arrField[0].toString());
-                            MountiplexUtil.LOGGER.warning("Alternative: " + arrRealField[0].toString());
-                        }
-                        continue;
-                    }
-                } catch (NoSuchFieldException ex) {
-                    if (this.getResolver().getLogErrors()) {
-                        MountiplexUtil.LOGGER.warning("Field declaration not found in " + declaredClassName + ":");
-                        MountiplexUtil.LOGGER.warning("Field: " + fieldDec.toString());
-                    }
-                    continue;
-                } catch (Throwable t) {
-                    t.printStackTrace(); // wut
-                    continue;
+            // Find the Declaration object
+            Declaration foundDeclaration = parsedDeclaration.discover();
+            if (foundDeclaration == null) {
+                if (this.getResolver().getLogErrors()) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: " + declaredClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
                 }
+                continue; // Not found!
             }
 
-            // Find the reflection Method for Method Declaration
-            if (foundDeclaration instanceof MethodDeclaration) {
-                MethodDeclaration[] methodDec = new MethodDeclaration[] { (MethodDeclaration) foundDeclaration };
-                if (methodDec[0].body == null) {
-                    MethodMatchResolver.match(foundDeclaration.getResolver().getDeclaredClass(), foundDeclaration.getResolver(), methodDec);
-                    if (methodDec[0].method == null) {
-                        if (this.getResolver().getLogErrors()) {
-                            MountiplexUtil.LOGGER.warning("Method declaration not found in " + declaredClassName + ":");
-                            MountiplexUtil.LOGGER.warning("Method: " + methodDec[0].toString());
-                        }
-                        continue;
-                    }
-                }
-            }
-            
             // Add it so code invoker can include it in the code generation
             result.add(foundDeclaration);
 

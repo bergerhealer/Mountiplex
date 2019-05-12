@@ -318,32 +318,54 @@ public class ClassResolver {
             varName = expression;
             expression = "";
         }
-        if (varName.equals("classexists")) {
-            return Resolver.loadClass(expression, false) != null;
-        } else if (varName.equals("methodexists") || varName.equals("fieldexists")) {
-            int decClassEnd = expression.indexOf(' ');
-            if (decClassEnd == -1) {
-                return false; // Class not declared
+        if (varName.equals("classexists") || // legacy
+            varName.equals("methodexists") || // legacy
+            varName.equals("fieldexists") || // legacy
+            varName.equals("exists"))
+        {
+            int signatureStart = expression.indexOf(' ');
+            String classPath;
+            if (signatureStart == -1) {
+                classPath = expression;
+                signatureStart = expression.length();
+            } else {
+                classPath = expression.substring(0, signatureStart);
+                signatureStart++;
             }
 
-            // Class the method/field should be found in
-            String classPath = expression.substring(0, decClassEnd);
+            // Find class that the object is declared in
             Class<?> declaredClass = Resolver.loadClass(classPath, false);
             if (declaredClass == null) {
                 return false; // Class not available
             }
 
             // Rest is method/field signature
-            String signatureStr = expression.substring(decClassEnd + 1).trim();
-
-            if (varName.equals("methodexists")) {
-                // Attempt to find the method by this declaration inside the Class
-                return Resolver.findMethod(declaredClass, signatureStr) != null;
-            } else {
-                // Attempt to find the field by this declaration inside the Class
-                return Resolver.findField(declaredClass, signatureStr) != null;
+            String signatureStr = expression.substring(signatureStart).trim();
+            if (signatureStr.isEmpty()) {
+                return true; // Only Class is asked
             }
+
+            // Parse the signature
+            ClassResolver resolver = new ClassResolver(this);
+            resolver.setDeclaredClass(declaredClass);
+            resolver.setLogErrors(false);
+            Declaration declaration = Declaration.parseDeclaration(resolver, signatureStr);
+            if (declaration == null) {
+                if (this.getLogErrors()) {
+                    MountiplexUtil.LOGGER.warning("Failed to parse declaration to check existance: " + signatureStr);
+                    return false;
+                }
+            }
+
+            // If signature itself could not be resolved, it simply doesn't exist
+            if (!declaration.isResolved()) {
+                return false;
+            }
+
+            // Find the declaration's actual method/field/constructor to check it exists
+            return declaration.discover() != null;
         }
+
         String value1 = this.variables.get(varName);
         if (value1 == null) {
             // Edge cases: true/false constants

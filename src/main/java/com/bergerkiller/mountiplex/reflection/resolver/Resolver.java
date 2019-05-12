@@ -326,18 +326,9 @@ public class Resolver {
     public static FieldDeclaration findField(Class<?> type, String declaration) {
         ClassResolver resolver = new ClassResolver();
         resolver.setDeclaredClass(type);
+        resolver.setLogErrors(true);
         FieldDeclaration fDec = new FieldDeclaration(resolver, declaration);
-
-        // Attempt finding the field in the class
-        try {
-            fDec.field = type.getDeclaredField(fDec.name.real());
-            if (!fDec.field.getType().equals(fDec.type.type)) {
-                fDec = null;
-            }
-        } catch (Throwable t) {
-            fDec = null;
-        }
-        return fDec;
+        return fDec.discover();
     }
 
     /**
@@ -351,63 +342,20 @@ public class Resolver {
     public static MethodDeclaration findMethod(Class<?> type, String declaration) {
         ClassResolver resolver = new ClassResolver();
         resolver.setDeclaredClass(type);
+        resolver.setLogErrors(true);
         MethodDeclaration mDec = new MethodDeclaration(resolver, declaration);
-        return findMethod(type, mDec);
+        return mDec.discover();
     }
 
     /**
      * Attempts to find the resolved Method Declaration from a given declaration.
      * First template declarations are queried. If that fails, the class itself is inspected.
      * 
-     * @param type class to start looking for the method
      * @param declaration to find
      * @return found method declaration, <i>null</i> on failure
      */
-    public static MethodDeclaration findMethod(Class<?> type, MethodDeclaration declaration) {
-        if (!declaration.isResolved()) {
-            return null;
-        }
-
-        TypeDeclaration typeDec = TypeDeclaration.fromClass(type);
-        MethodDeclaration result;
-
-        // First attempt to find it in the templates we have defined
-        // Also check for interfaces or base classes that may have the declaration we need
-        result = findInTemplates(typeDec, declaration);
-        if (result != null) {
-            return result;
-        }
-        for (TypeDeclaration superType : typeDec.getSuperTypes()) {
-            result = findInTemplates(superType, declaration);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        // No templates. Try looking through the class itself
-        result = findInClass(typeDec, declaration);
-        if (result != null) {
-            return result;
-        }
-        for (TypeDeclaration superType : typeDec.getSuperTypes()) {
-            result = findInClass(superType, declaration);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        // Not found
-        return null;
-    }
-
-    private static MethodDeclaration findInTemplates(TypeDeclaration type, MethodDeclaration declaration) {
-        ClassDeclaration cDec = resolveClassDeclaration(type.type);
-        return (cDec == null) ? null : cDec.findMethod(declaration);
-    }
-
-    private static MethodDeclaration findInClass(TypeDeclaration type, MethodDeclaration declaration) {
-        ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, type.type);
-        return cDec.findMethod(declaration);
+    public static MethodDeclaration findMethod(MethodDeclaration declaration) {
+        return declaration.discover();
     }
 
     public static final class ClassMeta {

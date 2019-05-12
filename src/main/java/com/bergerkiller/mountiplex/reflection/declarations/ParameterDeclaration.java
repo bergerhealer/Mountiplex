@@ -67,5 +67,4 @@ public class ParameterDeclaration extends Declaration {
         this.type.debugString(str, indent + "  ");
         str.append(indent).append("}\n");
     }
-
 }

@@ -197,23 +197,11 @@ public abstract class Declaration {
 
     protected Declaration nextDetectMemberDeclaration(ClassResolver resolver) {
         StringBuffer postfix = getPostfix();
-        MethodDeclaration mdec = new MethodDeclaration(resolver, postfix);
-        if (mdec.isValid()) {
-            setPostfix(mdec.getPostfix());
-            trimLine();
-            return mdec;
-        }
-        ConstructorDeclaration cdec = new ConstructorDeclaration(resolver, postfix);
-        if (cdec.isValid()) {
-            setPostfix(cdec.getPostfix());
-            trimLine();
-            return cdec;
-        }
-        FieldDeclaration fdec = new FieldDeclaration(resolver, postfix);
-        if (fdec.isValid()) {
-            setPostfix(fdec.getPostfix());
-            trimLine();
-            return fdec;
+        Declaration dec = parseDeclaration(resolver, postfix);
+        if (dec != null) {
+            this.setPostfix(dec.getPostfix());
+            this.trimLine();
+            return dec;
         }
         return null;
     }
@@ -382,6 +370,19 @@ public abstract class Declaration {
      */
     public abstract double similarity(Declaration other);
 
+    /**
+     * Attempts to discover the actual declaration object this declaration references by
+     * looking it up in the internal registry.
+     * 
+     * @return found matching declaration, null if one does not exist
+     */
+    public Declaration discover() {
+        if (!this.isValid() || !this.isResolved()) {
+            return null;
+        }
+        return this;
+    }
+
     @Override
     public final boolean equals(Object other) {
         if (this == other) {
@@ -440,5 +441,41 @@ public abstract class Declaration {
 				}
 			}
     	});
+    }
+
+    /**
+     * Parses a declaration from a String Buffer into the matching declaration type.
+     * This method supports methods, constructors and fields.
+     * 
+     * @param resolver
+     * @param declaration
+     * @return parsed declaration, null if none could be found
+     */
+    public static Declaration parseDeclaration(ClassResolver resolver, String declaration) {
+        return parseDeclaration(resolver, StringBuffer.of(declaration));
+    }
+
+    /**
+     * Parses a declaration from a String Buffer into the matching declaration type.
+     * This method supports methods, constructors and fields.
+     * 
+     * @param resolver
+     * @param declaration
+     * @return parsed declaration, null if none could be found
+     */
+    public static Declaration parseDeclaration(ClassResolver resolver, StringBuffer declaration) {
+        MethodDeclaration mdec = new MethodDeclaration(resolver, declaration);
+        if (mdec.isValid()) {
+            return mdec;
+        }
+        ConstructorDeclaration cdec = new ConstructorDeclaration(resolver, declaration);
+        if (cdec.isValid()) {
+            return cdec;
+        }
+        FieldDeclaration fdec = new FieldDeclaration(resolver, declaration);
+        if (fdec.isValid()) {
+            return fdec;
+        }
+        return null;
     }
 }

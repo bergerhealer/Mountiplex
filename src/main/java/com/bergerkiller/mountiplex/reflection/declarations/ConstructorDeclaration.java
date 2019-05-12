@@ -91,4 +91,25 @@ public class ConstructorDeclaration extends Declaration {
         this.parameters.debugString(str, indent + "  ");
         str.append(indent).append("}\n");
     }
+
+    @Override
+    public ConstructorDeclaration discover() {
+        if (!this.isValid() || !this.isResolved()) {
+            return null;
+        }
+
+        // TODO: Use class declaration or other tricks?
+
+        try {
+            java.lang.reflect.Constructor<?> constructor;
+            constructor = this.getResolver().getDeclaredClass().getDeclaredConstructor(this.parameters.toParamArray());
+            if (constructor != null) {
+                this.constructor = constructor;
+                return this;
+            }
+        } catch (NoSuchMethodException | SecurityException e) {
+            // Not found
+        }
+        return null;
+    }
 }

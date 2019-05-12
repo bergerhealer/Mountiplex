@@ -170,4 +170,28 @@ public class FieldDeclaration extends Declaration {
             invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
         }
     }
+
+    @Override
+    public FieldDeclaration discover() {
+        if (!this.isValid() || !this.isResolved()) {
+            return null;
+        }
+
+        java.lang.reflect.Field javaField;
+        try {
+            javaField = this.getResolver().getDeclaredClass().getDeclaredField(this.name.value());
+            FieldDeclaration[] arrField = { this };
+            FieldDeclaration[] arrRealField = { new FieldDeclaration(this.getResolver(), javaField) };
+            FieldLCSResolver.resolve(arrField, arrRealField);
+            if (this.field == null) {
+                return null;
+            }
+            return this;
+        } catch (NoSuchFieldException ex) {
+            // Not found
+        } catch (Throwable t) {
+            t.printStackTrace(); // wut
+        }
+        return null;
+    }
 }

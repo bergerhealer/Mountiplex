@@ -177,4 +177,17 @@ public class ParameterListDeclaration extends Declaration {
         }
         str.append(indent).append("}\n");
     }
+
+    /**
+     * Gets an array of Class types for all the parameters in this list
+     * 
+     * @return parameter list types array
+     */
+    public Class<?>[] toParamArray() {
+        Class<?>[] params = new Class<?>[this.parameters.length];
+        for (int i = 0; i < params.length; i++) {
+            params[i] = this.parameters[i].type.type;
+        }
+        return params;
+    }
 }
