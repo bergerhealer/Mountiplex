@@ -103,12 +103,12 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
 
         @Override
         public URL find(String classname) {
-            return super.find(Resolver.resolveClassPath(classname));
+            return super.find(resolveClassName(classname));
         }
 
         @Override
         public CtClass get(String classname) throws NotFoundException {
-            return super.get(Resolver.resolveClassPath(classname));
+            return super.get(resolveClassName(classname));
         }
 
         @Override
@@ -118,14 +118,29 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             }
             String[] names = classnames.clone();
             for (int i = 0; i < names.length; i++) {
-                names[i] = Resolver.resolveClassPath(names[i]);
+                names[i] = resolveClassName(names[i]);
             }
             return super.get(names);
         }
 
         @Override
         public CtClass getCtClass(String classname) throws NotFoundException {
-            return super.getCtClass(Resolver.resolveClassPath(classname));
+            return super.getCtClass(resolveClassName(classname));
+        }
+
+        private String resolveClassName(String classname) {
+            if (classname == null) {
+                return null;
+            }
+
+            // First try to use Class.forName to prevent double-resolving of generated code
+            // If the class exists, skip resolveClassPath
+            try {
+                Class.forName(classname);
+                return classname;
+            } catch (ClassNotFoundException ex) {
+                return Resolver.resolveClassPath(classname);
+            }
         }
     }
 

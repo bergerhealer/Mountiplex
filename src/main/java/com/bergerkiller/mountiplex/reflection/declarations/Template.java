@@ -5,9 +5,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
-import org.objenesis.ObjenesisHelper;
-import org.objenesis.instantiator.ObjectInstantiator;
-
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
@@ -28,6 +25,7 @@ import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
+import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
 
@@ -39,7 +37,7 @@ public class Template {
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
         private TemplateHandleBuilder<H> handleBuilder = null;
-        private ObjectInstantiator<Object> instantiator = null;
+        private NullInstantiator<Object> instantiator = null;
         private String classPath = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
         private FastField<?>[] fields = null;
@@ -104,26 +102,11 @@ public class Template {
          * 
          * @return Uninitialized object of this Class Type
          */
-        @SuppressWarnings("unchecked")
         public final Object newInstanceNull() {
             if (this.classType == null) {
                 throw new IllegalStateException("Class " + classPath + " is not available");
             }
-            if (this.instantiator == null) {
-                synchronized (this) {
-                    if (this.instantiator == null) {
-                        this.instantiator = (ObjectInstantiator<Object>) ObjenesisHelper.getInstantiatorOf(this.classType);
-                        if (this.instantiator == null) {
-                            throw new IllegalStateException("Class of type " + this.classType.getName() + " could not be instantiated");
-                        }
-                    }
-                }
-            }
-            try {
-                return this.instantiator.newInstance();
-            } catch (Throwable t) {
-                throw MountiplexUtil.uncheckedRethrow(t);
-            }
+            return this.instantiator.create();
         }
 
         @Override
@@ -139,6 +122,7 @@ public class Template {
 
         private final void init(java.lang.Class<?> classType, ClassDeclarationResolver classDecResolver) {
             this.classType = classType;
+            this.instantiator = new NullInstantiator<Object>(classType);
             this.valid = (classType != null);
 
             // Create duplex converter between handle type and instance type

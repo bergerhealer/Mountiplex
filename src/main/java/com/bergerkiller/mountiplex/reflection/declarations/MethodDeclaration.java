@@ -572,7 +572,7 @@ public class MethodDeclaration extends Declaration {
             if (parsedDeclaration.getResolver().getDeclaredClass() == null) {
                 // Log this
                 if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for field not found: " + declaredClassName);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for requirement not found: " + declaredClassName);
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
                 }
                 continue;

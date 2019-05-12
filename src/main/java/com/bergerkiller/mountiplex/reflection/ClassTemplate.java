@@ -3,15 +3,13 @@ package com.bergerkiller.mountiplex.reflection;
 import org.objectweb.asm.Type;
 import net.sf.cglib.core.Signature;
 
-import org.objenesis.ObjenesisHelper;
-import org.objenesis.instantiator.ObjectInstantiator;
-
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -30,7 +28,7 @@ import java.util.Queue;
 public class ClassTemplate<T> {
     private Class<T> type;
     private List<SafeField<?>> fields;
-    private ObjectInstantiator<T> instantiator;
+    private NullInstantiator<T> instantiator;
     private List<FieldDeclaration> typeFields;
     private LinkedList<MethodDeclaration> typeMethods;
     private Queue<FieldDeclaration> nextFieldQueue;
@@ -53,8 +51,8 @@ public class ClassTemplate<T> {
      */
     protected ClassTemplate<T> setClass(Class<T> type) {
         this.type = type;
+        this.instantiator = new NullInstantiator<T>(type);
         this.fields = null;
-        this.instantiator = null;
         this.typeFields = null;
         this.resolver = new ClassResolver();
         this.resolver.setDeclaredClass(type);
@@ -168,18 +166,7 @@ public class ClassTemplate<T> {
         if (this.type == null) {
             throw new IllegalStateException("Class was not found or is not set");
         }
-        if (this.instantiator == null) {
-            this.instantiator = ObjenesisHelper.getInstantiatorOf(type);
-            if (this.instantiator == null) {
-                throw new IllegalStateException("Class could not be instantiated");
-            }
-        }
-        try {
-            return this.instantiator.newInstance();
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return null;
+        return this.instantiator.create();
     }
 
     /**
