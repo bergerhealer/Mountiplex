@@ -187,8 +187,16 @@ public abstract class Declaration {
                 return true;
             }
 
+            // Resolve name
+            String name = "unknown";
+            if (dec instanceof MethodDeclaration) {
+                name = ((MethodDeclaration) dec).name.real();
+            } else if (dec instanceof FieldDeclaration) {
+                name = ((FieldDeclaration) dec).name.real();
+            }
+
             // Store it
-            this._resolver.storeRequirement(dec);
+            this._resolver.storeRequirement(new Requirement(name, dec));
             return true;
         }
 
@@ -414,8 +422,9 @@ public abstract class Declaration {
      * to work properly.
      * 
      * @param invokerClass
+     * @param name of the declaration
      */
-    public void addAsRequirement(CtClass invokerClass) throws CannotCompileException, NotFoundException {
+    public void addAsRequirement(CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
         throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
     }
 

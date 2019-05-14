@@ -2,7 +2,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -30,7 +30,7 @@ public class MethodDeclaration extends Declaration {
     public final NameDeclaration name;
     public final ParameterListDeclaration parameters;
     public final String body;
-    public final Declaration[] bodyRequirements;
+    public final Requirement[] bodyRequirements;
 
     public MethodDeclaration(ClassResolver resolver, Method method) {
         super(resolver);
@@ -40,7 +40,7 @@ public class MethodDeclaration extends Declaration {
         this.name = new NameDeclaration(resolver, method.getName(), null);
         this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
         this.body = null;
-        this.bodyRequirements = new Declaration[0];
+        this.bodyRequirements = new Requirement[0];
     }
 
     public MethodDeclaration(ClassResolver resolver, String declaration) {
@@ -142,14 +142,14 @@ public class MethodDeclaration extends Declaration {
             if (!this.getResolver().isGenerating()) {
                 this.bodyRequirements = processRequirements(bodyBuilder);
             } else {
-                this.bodyRequirements = new Declaration[0];
+                this.bodyRequirements = new Requirement[0];
             }
 
             // Correct indentation of body and done
             this.body = SourceDeclaration.trimIndentation(bodyBuilder.toString());
         } else {
             this.body = null;
-            this.bodyRequirements = new Declaration[0];
+            this.bodyRequirements = new Requirement[0];
             if (postfix != null && postfix.startsWith(";")) {
                 setPostfix(postfix.substring(1));
             }
@@ -249,12 +249,12 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
-    public void addAsRequirement(CtClass invokerClass) throws CannotCompileException, NotFoundException {
+    public void addAsRequirement(CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
         // Create a new method with the exposed parameter types and return type
         StringBuilder methodBody = new StringBuilder();
         methodBody.append("private final ");
         methodBody.append(ReflectionUtil.getTypeName(this.returnType.exposed().type));
-        methodBody.append(' ').append(this.name.real()).append('(');
+        methodBody.append(' ').append(name).append('(');
         methodBody.append("Object instance");
         for (int i = 0; i < this.parameters.parameters.length; i++) {
             ParameterDeclaration param = this.parameters.parameters[i];
@@ -271,7 +271,7 @@ public class MethodDeclaration extends Declaration {
         methodBody.append(") {\n");
 
         // Add fast method for the underlying method invoking
-        String methodFieldName = this.name.real() + "_method";
+        String methodFieldName = name + "_method";
         {
             FastMethod<Object> method = new FastMethod<Object>();
             method.init(this);
@@ -286,7 +286,7 @@ public class MethodDeclaration extends Declaration {
 
         // Add Object[] input array when varargs are used
         if (isVarArgsInvoke) {
-            methodBody.append("  Object[] ").append(this.name.real()).append("_input_args");
+            methodBody.append("  Object[] ").append(name).append("_input_args");
             methodBody.append(" = new Object[").append(this.parameters.parameters.length).append("];\n");
         }
         
@@ -295,7 +295,7 @@ public class MethodDeclaration extends Declaration {
 
             if (isVarArgsInvoke) {
                 // Assign to varargs element
-                methodBody.append("  ").append(this.name.real()).append("_input_args");
+                methodBody.append("  ").append(name).append("_input_args");
                 methodBody.append('[').append(i).append("] = ");
             } else if (param.type.cast != null || param.type.isPrimitive()) {
                 // Is converted or boxed, assign to its own Object field
@@ -318,13 +318,13 @@ public class MethodDeclaration extends Declaration {
 
 
             // Generate name for the converter field
-            String converterFieldName = this.name.real() + "_conv_" + param.name.real();
+            String converterFieldName = name + "_conv_" + param.name.real();
 
             // Find converter
             Converter<Object, Object> converter = Conversion.find(param.type.cast, param.type);
             if (converter == null) {
                 throw new RuntimeException("Failed to find converter for parameter " + param.name.real() +
-                        " of method " + this.name.real() + " (" + param.type.cast.toString(true) +
+                        " of method " + name + " (" + param.type.cast.toString(true) +
                         " -> " + param.type.toString(true) + ")");
             }
 
@@ -354,17 +354,17 @@ public class MethodDeclaration extends Declaration {
             methodBody.append("  ");
             if (this.returnType.cast != null) {
                 // Store as Object with _conv_input before conversion
-                methodBody.append("Object ").append(this.name.real()).append("_return_conv_input = ");
+                methodBody.append("Object ").append(name).append("_return_conv_input = ");
             } else if (this.returnType.isPrimitive()) {
                 // Cast to boxed type
                 Class<?> boxedType = BoxedType.getBoxedType(this.returnType.type);
                 methodBody.append(ReflectionUtil.getTypeName(boxedType)).append(' ');
-                methodBody.append(this.name.real()).append("_return = ");
+                methodBody.append(name).append("_return = ");
                 methodBody.append(ReflectionUtil.getCastString(boxedType));
             } else {
                 // Cast to returned type
                 methodBody.append(ReflectionUtil.getTypeName(this.returnType.type)).append(' ');
-                methodBody.append(this.name.real()).append("_return = ");
+                methodBody.append(name).append("_return = ");
                 methodBody.append(ReflectionUtil.getCastString(this.returnType.type));
             }
         }
@@ -372,7 +372,7 @@ public class MethodDeclaration extends Declaration {
         // Invoke the method
         methodBody.append("this.").append(methodFieldName);
         if (isVarArgsInvoke) {
-            methodBody.append(".invokeVA(instance, ").append(this.name.real()).append("_input_args);\n");
+            methodBody.append(".invokeVA(instance, ").append(name).append("_input_args);\n");
         } else {
             methodBody.append(".invoke(instance");
             for (int i = 0; i < this.parameters.parameters.length; i++) {
@@ -385,13 +385,13 @@ public class MethodDeclaration extends Declaration {
         // Converter
         if (this.returnType.cast != null) {
             // Generate name for the return type converter field
-            String converterFieldName = this.name.real() + "_conv_return";
+            String converterFieldName = name + "_conv_return";
 
             // Find return type converter
             Converter<Object, Object> converter = Conversion.find(this.returnType, this.returnType.cast);
             if (converter == null) {
                 throw new RuntimeException("Failed to find converter for return value " +
-                        " of method " + this.name.real() + " (" + this.returnType.toString(true) +
+                        " of method " + name + " (" + this.returnType.toString(true) +
                         " -> " + this.returnType.cast.toString(true) + ")");
             }
 
@@ -412,16 +412,16 @@ public class MethodDeclaration extends Declaration {
             }
  
             methodBody.append("  ").append(ReflectionUtil.getTypeName(rType));
-            methodBody.append(' ').append(this.name.real()).append("_return = ");
+            methodBody.append(' ').append(name).append("_return = ");
             methodBody.append(ReflectionUtil.getCastString(rType)).append("this.");
             methodBody.append(converterFieldName).append(".convertInput(");
-            methodBody.append(this.name.real()).append("_return_conv_input);\n");
+            methodBody.append(name).append("_return_conv_input);\n");
         }
 
         // Return the result from the method. Unbox it if required. Only if not void.
         if (!this.returnType.type.equals(void.class)) {
             methodBody.append("  return ");
-            methodBody.append(this.name.real()).append("_return");
+            methodBody.append(name).append("_return");
             if (this.returnType.exposed().isPrimitive()) {
                 methodBody.append('.').append(this.returnType.exposed().type.getSimpleName());
                 methodBody.append("Value()");
@@ -513,8 +513,8 @@ public class MethodDeclaration extends Declaration {
         return null;
     }
 
-    private Declaration[] processRequirements(StringBuilder body) {
-        LinkedHashSet<Declaration> result = new LinkedHashSet<Declaration>();
+    private Requirement[] processRequirements(StringBuilder body) {
+        ArrayList<Requirement> result = new ArrayList<Requirement>();
 
         for (int seek = 1; seek < body.length(); seek++) {
             if (body.charAt(seek) != '#') {
@@ -547,59 +547,75 @@ public class MethodDeclaration extends Declaration {
                 }
             }
             String name = body.substring(seek + 1, nameEndIdx);
-            Declaration parsedDeclaration = null;
+            Declaration foundDeclaration = null;
 
-            // Find the declaration matching this name
-            for (Declaration dec : this.getResolver().getRequirements()) {
-                if (isMethod && dec instanceof MethodDeclaration && ((MethodDeclaration) dec).name.real().equals(name)) {
-                    parsedDeclaration = dec;
-                    break;
-                } else if (isField && dec instanceof FieldDeclaration && ((FieldDeclaration) dec).name.real().equals(name)) {
-                    parsedDeclaration = dec;
+            // Check name not already resolved
+            for (Requirement req : result) {
+                if (req.name.equals(name)) {
+                    foundDeclaration = req.declaration;
                     break;
                 }
             }
 
-            // If not found, skip it
-            if (parsedDeclaration == null) {
-                continue;
-            }
-
-            // Further resolve the declaration if required
-
-            // If class not found
-            String declaredClassName = parsedDeclaration.getResolver().getDeclaredClassName();
-            if (parsedDeclaration.getResolver().getDeclaredClass() == null) {
-                // Log this
-                if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for requirement not found: " + declaredClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
-                }
-                continue;
-            }
-
-            // Check it was fully resolved too
-            if (!parsedDeclaration.isResolved()) {
-                // Log this
-                if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaredClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
-                }
-                continue;
-            }
-
-            // Find the Declaration object
-            Declaration foundDeclaration = parsedDeclaration.discover();
+            // Find it by name
             if (foundDeclaration == null) {
-                if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: " + declaredClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
-                }
-                continue; // Not found!
-            }
+                Declaration parsedDeclaration = null;
 
-            // Add it so code invoker can include it in the code generation
-            result.add(foundDeclaration);
+                // Find the declaration matching this name
+                for (Requirement req : this.getResolver().getRequirements()) {
+                    if (!req.name.equals(name)) {
+                        continue;
+                    }
+                    if (isMethod && req.declaration instanceof MethodDeclaration) {
+                        parsedDeclaration = req.declaration;
+                        break;
+                    } else if (isField && req.declaration instanceof FieldDeclaration) {
+                        parsedDeclaration = req.declaration;
+                        break;
+                    }
+                }
+
+                // If not found, skip it
+                if (parsedDeclaration == null) {
+                    continue;
+                }
+
+                // Further resolve the declaration if required
+
+                // If class not found
+                String declaredClassName = parsedDeclaration.getResolver().getDeclaredClassName();
+                if (parsedDeclaration.getResolver().getDeclaredClass() == null) {
+                    // Log this
+                    if (this.getResolver().getLogErrors()) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for requirement not found: " + declaredClassName);
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
+                    }
+                    continue;
+                }
+
+                // Check it was fully resolved too
+                if (!parsedDeclaration.isResolved()) {
+                    // Log this
+                    if (this.getResolver().getLogErrors()) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaredClassName);
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
+                    }
+                    continue;
+                }
+
+                // Find the Declaration object
+                foundDeclaration = parsedDeclaration.discover();
+                if (foundDeclaration == null) {
+                    if (this.getResolver().getLogErrors()) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: " + declaredClassName);
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
+                    }
+                    continue; // Not found!
+                }
+
+                // Add it so code invoker can include it in the code generation
+                result.add(new Requirement(name, foundDeclaration));
+            }
 
             // Find the start of the contents before the #name
             // This will be the input value object for the field
@@ -754,6 +770,6 @@ public class MethodDeclaration extends Declaration {
             } // method handling end
         }
 
-        return result.toArray(new Declaration[result.size()]);
+        return result.toArray(new Requirement[result.size()]);
     }
 }

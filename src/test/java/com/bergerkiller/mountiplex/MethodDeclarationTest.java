@@ -112,7 +112,7 @@ public class MethodDeclarationTest {
                 "}\n",
                 dec.body);
         assertEquals(1, dec.bodyRequirements.length);
-        assertEquals("private int special:c;", dec.bodyRequirements[0].toString());
+        assertEquals("private int special:c;", dec.bodyRequirements[0].declaration.toString());
 
         // Method declaration is OK from this point. Try to invoke it.
         FastMethod<Integer> method = new FastMethod<Integer>();
@@ -156,8 +156,8 @@ public class MethodDeclarationTest {
                 dec.body);
 
         assertEquals(2, dec.bodyRequirements.length);
-        assertEquals("private (String) int special:c;", dec.bodyRequirements[0].toString());
-        assertEquals("private (int) String something:b;", dec.bodyRequirements[1].toString());
+        assertEquals("private (String) int special:c;", dec.bodyRequirements[0].declaration.toString());
+        assertEquals("private (int) String something:b;", dec.bodyRequirements[1].declaration.toString());
 
         // Method declaration is OK from this point. Try to invoke it.
         FastMethod<String> method = new FastMethod<String>();
@@ -187,7 +187,7 @@ public class MethodDeclarationTest {
                 "}\n",
                 dec.body);
         assertEquals(1, dec.bodyRequirements.length);
-        assertEquals("private int addToSpecial:h(int n);", dec.bodyRequirements[0].toString());
+        assertEquals("private int addToSpecial:h(int n);", dec.bodyRequirements[0].declaration.toString());
 
         // Method declaration is OK from this point. Try to invoke it.
         FastMethod<Integer> method = new FastMethod<Integer>();
@@ -216,7 +216,7 @@ public class MethodDeclarationTest {
                 "}\n",
                 dec.body);
         assertEquals(1, dec.bodyRequirements.length);
-        assertEquals("public int test:lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);", dec.bodyRequirements[0].toString());
+        assertEquals("public int test:lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);", dec.bodyRequirements[0].declaration.toString());
 
         // Method declaration is OK from this point. Try to invoke it.
         FastMethod<Integer> method = new FastMethod<Integer>();

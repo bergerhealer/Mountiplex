@@ -22,7 +22,7 @@ public class ClassResolver {
 
     private final ArrayList<String> imports;
     private final ArrayList<String> manualImports;
-    private final List<Declaration> requirements;
+    private final List<Requirement> requirements;
     private VariablesMap variables;
     private String classDeclarationResolverName;
     private String packagePath;
@@ -37,7 +37,7 @@ public class ClassResolver {
         this.variables = src.variables;
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
-        this.requirements = new ArrayList<Declaration>(src.requirements);
+        this.requirements = new ArrayList<Requirement>(src.requirements);
         this.packagePath = src.packagePath;
         this.declaredClassName = src.declaredClassName;
         this.declaredClass = src.declaredClass;
@@ -51,7 +51,7 @@ public class ClassResolver {
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>(default_imports);
-        this.requirements = new ArrayList<Declaration>();
+        this.requirements = new ArrayList<Requirement>();
         this.packagePath = "";
         this.declaredClassName = null;
         this.declaredClass = null;
@@ -66,7 +66,7 @@ public class ClassResolver {
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
-        this.requirements = new ArrayList<Declaration>();
+        this.requirements = new ArrayList<Requirement>();
         this.packagePath = "";
         this.logErrors = true;
         this.isGenerating = false;
@@ -522,7 +522,7 @@ public class ClassResolver {
      * 
      * @param declaration
      */
-    public void storeRequirement(Declaration declaration) {
+    public void storeRequirement(Requirement declaration) {
         this.requirements.add(0, declaration);
     }
 
@@ -531,7 +531,7 @@ public class ClassResolver {
      * 
      * @return requirements
      */
-    public List<Declaration> getRequirements() {
+    public List<Requirement> getRequirements() {
         return this.requirements;
     }
 

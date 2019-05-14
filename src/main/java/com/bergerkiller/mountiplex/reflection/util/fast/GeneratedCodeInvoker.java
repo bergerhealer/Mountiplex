@@ -7,6 +7,7 @@ import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.Declaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
@@ -158,8 +159,8 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class);
 
             // Add all the requirements to the class
-            for (Declaration bDec : declaration.bodyRequirements) {
-                bDec.addAsRequirement(invoker);
+            for (Requirement req : declaration.bodyRequirements) {
+                req.declaration.addAsRequirement(invoker, req.name);
             }
 
             CtMethod m;

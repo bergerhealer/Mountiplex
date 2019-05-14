@@ -143,7 +143,7 @@ public class FieldDeclaration extends Declaration {
     }
 
     @Override
-    public void addAsRequirement(CtClass invokerClass) throws CannotCompileException, NotFoundException {
+    public void addAsRequirement(CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
         if (this.type.cast != null) {
             DuplexConverter<Object, Object> converter = Conversion.findDuplex(this.type, this.type.cast);
             if (converter == null) {
@@ -156,7 +156,7 @@ public class FieldDeclaration extends Declaration {
             FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
 
             CtClass fastFieldClass = ClassPool.getDefault().get(FastConvertedField.class.getName());
-            CtField ctField = new CtField(fastFieldClass, name.real(), invokerClass);
+            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
             ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
             invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
         } else {
@@ -165,7 +165,7 @@ public class FieldDeclaration extends Declaration {
             f.init(this.field);
 
             CtClass fastFieldClass = ClassPool.getDefault().get(FastField.class.getName());
-            CtField ctField = new CtField(fastFieldClass, name.real(), invokerClass);
+            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
             ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
             invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
         }
