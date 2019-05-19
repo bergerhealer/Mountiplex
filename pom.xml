@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.mountiplex</groupId>
     <artifactId>Mountiplex</artifactId>
-    <version>1.68</version>
+    <version>1.69</version>
     <packaging>maven-plugin</packaging>
     <name>mountiplex</name>
 

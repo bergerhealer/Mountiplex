@@ -671,6 +671,11 @@ public class MethodDeclaration extends Declaration {
                     break;
                 }
 
+                // For static fields, use null instanceName
+                if (((FieldDeclaration) foundDeclaration).modifiers.isStatic()) {
+                    instanceName = "null";
+                }
+
                 // When setting, find the end of the piece of 'value code'
                 // For example, this will find 'helper.counter + 5' in:
                 // object#field = helper.counter + 5;
@@ -750,6 +755,11 @@ public class MethodDeclaration extends Declaration {
                         MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + name);
                     }
                 } else {
+                    // For static methods, use null instanceName
+                    if (((MethodDeclaration) foundDeclaration).modifiers.isStatic()) {
+                        instanceName = "null";
+                    }
+
                     // Replace instanceName#name ( with our invoker
                     StringBuilder replacement = new StringBuilder();
                     replacement.append("this.").append(name);
