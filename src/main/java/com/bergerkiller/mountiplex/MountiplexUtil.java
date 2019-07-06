@@ -477,8 +477,8 @@ public class MountiplexUtil {
     // Example implementation of the Levenshtein Edit Distance
     // See http://rosettacode.org/wiki/Levenshtein_distance#Java
     public static int editDistance(String s1, String s2) {
-      s1 = s1.toLowerCase();
-      s2 = s2.toLowerCase();
+      s1 = s1.toLowerCase(Locale.ENGLISH);
+      s2 = s2.toLowerCase(Locale.ENGLISH);
 
       int[] costs = new int[s2.length() + 1];
       for (int i = 0; i <= s1.length(); i++) {

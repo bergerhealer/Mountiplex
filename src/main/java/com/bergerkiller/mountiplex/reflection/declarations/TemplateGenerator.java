@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -442,7 +443,7 @@ public class TemplateGenerator {
 
         // IsProperty is retained without adding 'get' in front of it
         if (fName.length() > 2 && fName.startsWith("Is") && Character.isUpperCase(fName.charAt(2))) {
-            return fName.substring(0, 1).toLowerCase() + fName.substring(1);
+            return fName.substring(0, 1).toLowerCase(Locale.ENGLISH) + fName.substring(1);
         }
 
         // If field type is boolean, use 'is' instead of 'get'
@@ -645,7 +646,7 @@ public class TemplateGenerator {
         if (name.isEmpty()) {
             return "UNKNOWN";
         } else {
-            return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+            return name.substring(0, 1).toUpperCase(Locale.ENGLISH) + name.substring(1);
         }
     }
 
