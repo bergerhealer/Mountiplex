@@ -19,7 +19,7 @@ import org.objectweb.asm.Type;
  */
 public class ExtendedClassWriter<T> extends ClassWriter {
     private static WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
-    private static int generatedClassCtr = 1;
+    private static final UniqueHash generatedClassCtr = new UniqueHash();
     private final String name;
     private final String internalName;
     private final GeneratorClassLoader loader;
@@ -121,7 +121,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * @return unique class name postfix
      */
     public static String getNextPostfix() {
-        return "$mplgen" + Integer.toHexString(hash(++generatedClassCtr));
+        return "$mplgen" + generatedClassCtr.nextHex();
     }
 
     /**
@@ -207,13 +207,4 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         }
     }
 
-    // turns a sequential integer into an unique hash number
-    private static int hash(int x) {
-        final int prime = 2147483647;
-        int hash = x ^ 0x5bf03635;
-        if (hash >= prime)
-            return hash;
-        int residue = (int) (((long) hash * hash) % prime);
-        return ((hash <= prime / 2) ? residue : prime - residue);
-    }
 }
