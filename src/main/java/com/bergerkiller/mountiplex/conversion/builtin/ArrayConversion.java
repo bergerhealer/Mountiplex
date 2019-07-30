@@ -10,8 +10,10 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
+import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.conversion.type.RawConverter;
+import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
@@ -59,6 +61,24 @@ public class ArrayConversion {
                                 return null;
                             }
 
+                            // Arrays like Object[] can be interfaced using Arrays.asList, so use that
+                            // This can only be done for non-primitive elements and when a reverse converter is available
+                            if (!inputElementType.isPrimitive()) {
+                                Converter<Object, Object> reverseConverter = Conversion.find(outputElementType, inputElementType);
+                                if (reverseConverter != null) {
+                                    final DuplexConverter<Object, Object> duplexConverter = DuplexConverter.pair(elementConverter, reverseConverter);
+                                    return new Converter<Object, List<?>>(input, this.output) {
+                                        @Override
+                                        public List<?> convertInput(Object value) {
+                                            return new ConvertingList<Object>(Arrays.asList((Object[]) value), duplexConverter);
+                                        }
+                                    };
+                                }
+                            }
+
+                            // Arrays like int[] or that lack a reverse converter can't easily be put into Arrays.asList
+                            // Instead convert each element individually
+                            // TODO: Perhaps a custom List type that can handle this?
                             return new Converter<Object, List<?>>(input, this.output) {
                                 @Override
                                 public List<?> convertInput(Object value) {
