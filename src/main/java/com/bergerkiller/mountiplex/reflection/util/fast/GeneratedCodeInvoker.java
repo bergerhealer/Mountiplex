@@ -4,7 +4,6 @@ import java.net.URL;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
-import com.bergerkiller.mountiplex.reflection.declarations.Declaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
@@ -103,11 +102,6 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
         }
 
         @Override
-        public URL find(String classname) {
-            return super.find(resolveClassName(classname));
-        }
-
-        @Override
         public CtClass get(String classname) throws NotFoundException {
             return super.get(resolveClassName(classname));
         }
@@ -129,17 +123,28 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
             return super.getCtClass(resolveClassName(classname));
         }
 
-        private String resolveClassName(String classname) {
+        @Override
+        public URL find(String classname) {
+            // First try to find the classname without further resolving.
+            // If it exists, skip resolveClassPath
+            URL url;
             if (classname == null) {
                 return null;
+            } else if ((url = super.find(classname)) != null) {
+                return url;
+            } else {
+                return super.find(Resolver.resolveClassPath(classname));
             }
+        }
 
-            // First try to use Class.forName to prevent double-resolving of generated code
-            // If the class exists, skip resolveClassPath
-            try {
-                Class.forName(classname);
+        private String resolveClassName(String classname) {
+            // First try to find the classname without further resolving.
+            // If it exists, skip resolveClassPath
+            if (classname == null) {
+                return null;
+            } else if (super.find(classname) != null) {
                 return classname;
-            } catch (ClassNotFoundException ex) {
+            } else {
                 return Resolver.resolveClassPath(classname);
             }
         }
