@@ -25,7 +25,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         this.reverse = new ReverseDuplexConverter();
     }
 
-    private DuplexConverter(TypeDeclaration typeA, TypeDeclaration typeB, DuplexConverter<B, A> reverse) {
+    protected DuplexConverter(TypeDeclaration typeA, TypeDeclaration typeB, DuplexConverter<B, A> reverse) {
         super(typeA, typeB);
         this.reverse = reverse;
     }
@@ -54,8 +54,24 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
      * @param value to be converted (B)
      * @return converted value (A)
      */
+    @SuppressWarnings("unchecked")
     public final A convertReverse(Object value) {
-        return convertReverse(value, null);
+        A result = null;
+        if (value != null) {
+            Class<?> outputType = this.output.type;
+            if (this.output.isPrimitive) {
+                outputType = BoxedType.getBoxedType(outputType);
+            }
+            if (outputType.isAssignableFrom(value.getClass())) {
+                result = this.convertOutput((B) value);
+            }
+        } else if (this.acceptsNullOutput()) {
+            result = this.convertOutput(null);
+        }
+        if (result == null && this.input.isPrimitive) {
+            result = (A) BoxedType.getDefaultValue(this.input.type);
+        }
+        return result;
     }
 
     /**
@@ -70,7 +86,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         A result = null;
         if (value != null) {
             Class<?> outputType = this.output.type;
-            if (outputType.isPrimitive()) {
+            if (this.output.isPrimitive) {
                 outputType = BoxedType.getBoxedType(outputType);
             }
             if (outputType.isAssignableFrom(value.getClass())) {
@@ -82,7 +98,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         if (result == null) {
             result = defaultValue;
         }
-        if (result == null && this.input.type.isPrimitive()) {
+        if (result == null && this.input.isPrimitive) {
             result = (A) BoxedType.getDefaultValue(this.input.type);
         }
         return result;
@@ -214,39 +230,44 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     private static final class DuplexAdapter<A, B> extends DuplexConverter<A, B> {
-        private final Converter<A, B> converter;
-        private final Converter<B, A> reverse;
+        private final Converter<A, B> input_converter;
+        private final Converter<B, A> output_converter;
+
+        public DuplexAdapter(Converter<?, B> converter, Converter<?, A> reverse) {
+            this(converter, reverse, null);
+            this.reverse = new DuplexAdapter<B, A>(reverse, converter, this);
+        }
 
         @SuppressWarnings("unchecked")
-        public DuplexAdapter(Converter<?, B> converter, Converter<?, A> reverse) {
-            super(reverse.output, converter.output);
-            this.converter = (Converter<A, B>) converter;
-            this.reverse = (Converter<B, A>) reverse;
+        private DuplexAdapter(Converter<?, B> input_converter, Converter<?, A> output_converter, DuplexAdapter<B, A> reverseDuplex) {
+            super(output_converter.output, input_converter.output, reverseDuplex);
+            this.input_converter = (Converter<A, B>) input_converter;
+            this.output_converter = (Converter<B, A>) output_converter;
         }
 
         @Override
         public B convertInput(A value) {
-            return converter.convertInput(value);
+            return input_converter.convertInput(value);
         }
 
         @Override
         public A convertOutput(B value) {
-            return reverse.convertInput(value);
+            return output_converter.convertInput(value);
         }
 
         @Override
         public boolean acceptsNullInput() {
-            return this.converter.acceptsNullInput();
+            return this.input_converter.acceptsNullInput();
         }
 
         @Override
         public boolean acceptsNullOutput() {
-            return this.reverse.acceptsNullInput();
+            return this.output_converter.acceptsNullInput();
         }
 
         @Override
         public String toString() {
-            return "DuplexAdapter{" + this.reverse.output.toString() + " <> " + this.converter.output.toString() + "}";
+            return "DuplexAdapter{" + this.output_converter.output.toString() + " <> " + this.input_converter.output.toString() + "}";
         }
     }
 
@@ -368,7 +389,12 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         private final boolean reverseAcceptNull;
 
         public DuplexAnnotatedConverter(AnnotatedConverter converter, AnnotatedConverter reverse) {
-            super(reverse.output, converter.output);
+            this(converter, reverse, null);
+            this.reverse = new DuplexAnnotatedConverter<B, A>(reverse, converter, this);
+        }
+
+        public DuplexAnnotatedConverter(AnnotatedConverter converter, AnnotatedConverter reverse, DuplexAnnotatedConverter<B, A> reverseDupl) {
+            super(reverse.output, converter.output, reverseDupl);
             this.converterMethod = converter.method;
             this.reverseMethod = reverse.method;
             this.converterAcceptNull = converter.acceptsNullInput();
@@ -378,13 +404,13 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         @Override
         @SuppressWarnings("unchecked")
         public B convertInput(A value) {
-            return (B) this.converterMethod.invoke(null, value);
+            return (B) this.converterMethod.getInvoker().invoke(null, value);
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public A convertOutput(B value) {
-            return (A) this.reverseMethod.invoke(null, value);
+            return (A) this.reverseMethod.getInvoker().invoke(null, value);
         }
 
         @Override

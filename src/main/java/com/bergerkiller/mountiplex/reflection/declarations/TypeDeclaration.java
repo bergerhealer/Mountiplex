@@ -29,6 +29,7 @@ public class TypeDeclaration extends Declaration {
     public static final TypeDeclaration OBJECT = fromClass(Object.class);
     public static final TypeDeclaration ENUM = fromClass(Enum.class);
     public final boolean isWildcard;
+    public final boolean isPrimitive;
     public final String variableName;
     public final String typeName;
     public final String typePath;
@@ -58,6 +59,7 @@ public class TypeDeclaration extends Declaration {
             this.type = null;
             this.typeName = "NULL";
             this.typePath = "NULL";
+            this.isPrimitive = false;
             this.genericTypes = new TypeDeclaration[0];
             this.setInvalid();
             return;
@@ -84,6 +86,7 @@ public class TypeDeclaration extends Declaration {
             this.type = MountiplexUtil.getArrayType((Class<?>) ptype.getRawType(), arrayLevels);
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
+            this.isPrimitive = false;
             this.genericTypes = new TypeDeclaration[params.length];
             this.variableName = null;
             for (int i = 0; i < params.length; i++) {
@@ -94,6 +97,7 @@ public class TypeDeclaration extends Declaration {
             this.type = MountiplexUtil.getArrayType((Class<?>) type, arrayLevels);
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
+            this.isPrimitive = this.type.isPrimitive();
             this.genericTypes = new TypeDeclaration[0];
             this.variableName = null;
         } else if (type instanceof TypeVariable) {
@@ -104,6 +108,7 @@ public class TypeDeclaration extends Declaration {
             this.type = MountiplexUtil.getArrayType(bound, arrayLevels);
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
+            this.isPrimitive = false;
             this.genericTypes = new TypeDeclaration[0];
             this.variableName = vtype.getName();
         } else {
@@ -112,6 +117,7 @@ public class TypeDeclaration extends Declaration {
             this.type = null;
             this.typePath = "";
             this.typeName = "";
+            this.isPrimitive = false;
             this.genericTypes = new TypeDeclaration[0];
             this.variableName = null;
             this.setInvalid();
@@ -126,6 +132,7 @@ public class TypeDeclaration extends Declaration {
             this.typeName = "";
             this.typePath = "";
             this.type = null;
+            this.isPrimitive = false;
             this.genericTypes = new TypeDeclaration[0];
             this.isWildcard = false;
             this.variableName = null;
@@ -235,6 +242,7 @@ public class TypeDeclaration extends Declaration {
                 this.typeName = "";
                 this.typePath = "java.lang.Object";
                 this.type = Object.class;
+                this.isPrimitive = false;
                 this.variableName = typeVarName;
                 this.genericTypes = new TypeDeclaration[0];
                 this.cast = castType;
@@ -243,6 +251,7 @@ public class TypeDeclaration extends Declaration {
                 this.typeName = "";
                 this.typePath = "";
                 this.type = null;
+                this.isPrimitive = false;
                 this.variableName = typeVarName;
                 this.genericTypes = new TypeDeclaration[0];
                 this.cast = castType;
@@ -263,6 +272,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = "";
             this.type = null;
             this.variableName = typeVarName;
+            this.isPrimitive = false;
             this.genericTypes = new TypeDeclaration[0];
             this.cast = castType;
             return;
@@ -289,6 +299,7 @@ public class TypeDeclaration extends Declaration {
                     this.typeName = "";
                     this.typePath = "";
                     this.type = null;
+                    this.isPrimitive = false;
                     this.genericTypes = new TypeDeclaration[0];
                     this.cast = null;
                     return;
@@ -341,9 +352,11 @@ public class TypeDeclaration extends Declaration {
         if (this.type == null) {
             this.typePath = resolver.resolvePath(rawType);
             this.typeName = rawType;
+            this.isPrimitive = false;
         } else {
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = rawType;
+            this.isPrimitive = this.type.isPrimitive();
         }
     }
 
@@ -354,6 +367,7 @@ public class TypeDeclaration extends Declaration {
         this.typeName = mainType.typeName;
         this.typePath = mainType.typePath;
         this.type = mainType.type;
+        this.isPrimitive = mainType.isPrimitive;
         this.variableName = mainType.variableName;
         this.genericTypes = genericTypes;
     }
@@ -423,16 +437,6 @@ public class TypeDeclaration extends Declaration {
     public boolean isArray() {
         //TODO: Also support unresolved types
         return this.type != null && this.type.isArray();
-    }
-
-    /**
-     * Checks whether this type is a primitive type (int, byte, boolean, etc.)
-     * 
-     * @return True if this type is a primitive type
-     */
-    public boolean isPrimitive() {
-        //TODO: Also support unresolved types
-        return this.type != null && this.type.isPrimitive();
     }
 
     /**

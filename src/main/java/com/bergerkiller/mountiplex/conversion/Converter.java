@@ -33,8 +33,24 @@ public abstract class Converter<I, O> {
      * @param value to be converted
      * @return converted output value, null on failure
      */
+    @SuppressWarnings("unchecked")
     public final O convert(Object value) {
-        return convert(value, null);
+        O result = null;
+        if (value != null) {
+            Class<?> inputType = this.input.type;
+            if (inputType.isPrimitive()) {
+                inputType = BoxedType.getBoxedType(inputType);
+            }
+            if (inputType.isAssignableFrom(value.getClass())) {
+                result = this.convertInput((I) value);
+            }
+        } else if (this.acceptsNullInput()) {
+            result = this.convertInput(null);
+        }
+        if (result == null && this.output.isPrimitive) {
+            result = (O) BoxedType.getDefaultValue(this.output.type);
+        }
+        return result;
     }
 
     /**
@@ -62,9 +78,9 @@ public abstract class Converter<I, O> {
         }
         if (result == null) {
             result = defaultValue;
-        }
-        if (result == null && this.output.type.isPrimitive()) {
-            result = (O) BoxedType.getDefaultValue(this.output.type);
+            if (result == null && this.output.isPrimitive) {
+                result = (O) BoxedType.getDefaultValue(this.output.type);
+            }
         }
         return result;
     }

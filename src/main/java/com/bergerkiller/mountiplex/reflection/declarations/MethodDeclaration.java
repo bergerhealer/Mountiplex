@@ -264,7 +264,7 @@ public class MethodDeclaration extends Declaration {
             methodBody.append(' ').append(param.name.real());
 
             // If converted or a primitive type, name the input parameter '_conv_input'
-            if (param.type.cast != null || param.type.isPrimitive()) {
+            if (param.type.cast != null || param.type.isPrimitive) {
                 methodBody.append("_conv_input");
             }
         }
@@ -297,14 +297,14 @@ public class MethodDeclaration extends Declaration {
                 // Assign to varargs element
                 methodBody.append("  ").append(name).append("_input_args");
                 methodBody.append('[').append(i).append("] = ");
-            } else if (param.type.cast != null || param.type.isPrimitive()) {
+            } else if (param.type.cast != null || param.type.isPrimitive) {
                 // Is converted or boxed, assign to its own Object field
                 methodBody.append("  Object ").append(param.name.real());
                 methodBody.append(" = ");
             }
 
             if (param.type.cast == null) {
-                if (param.type.isPrimitive()) {
+                if (param.type.isPrimitive) {
                     // Box it before assigning
                     methodBody.append(BoxedType.getBoxedType(param.type.type).getSimpleName());
                     methodBody.append(".valueOf(");
@@ -338,7 +338,7 @@ public class MethodDeclaration extends Declaration {
 
             methodBody.append("this.").append(converterFieldName);
             methodBody.append(".convertInput(");
-            if (param.type.cast.isPrimitive()) {
+            if (param.type.cast.isPrimitive) {
                 methodBody.append(BoxedType.getBoxedType(param.type.cast.type).getSimpleName());
                 methodBody.append(".valueOf(");
                 methodBody.append(param.name.real()).append("_conv_input)");
@@ -355,7 +355,7 @@ public class MethodDeclaration extends Declaration {
             if (this.returnType.cast != null) {
                 // Store as Object with _conv_input before conversion
                 methodBody.append("Object ").append(name).append("_return_conv_input = ");
-            } else if (this.returnType.isPrimitive()) {
+            } else if (this.returnType.isPrimitive) {
                 // Cast to boxed type
                 Class<?> boxedType = BoxedType.getBoxedType(this.returnType.type);
                 methodBody.append(ReflectionUtil.getTypeName(boxedType)).append(' ');
@@ -405,7 +405,7 @@ public class MethodDeclaration extends Declaration {
 
             // Perform conversion in body
             Class<?> rType;
-            if (this.returnType.cast.isPrimitive()) {
+            if (this.returnType.cast.isPrimitive) {
                 rType = BoxedType.getBoxedType(this.returnType.cast.type);
             } else {
                 rType = this.returnType.cast.type;
@@ -422,7 +422,7 @@ public class MethodDeclaration extends Declaration {
         if (!this.returnType.type.equals(void.class)) {
             methodBody.append("  return ");
             methodBody.append(name).append("_return");
-            if (this.returnType.exposed().isPrimitive()) {
+            if (this.returnType.exposed().isPrimitive) {
                 methodBody.append('.').append(this.returnType.exposed().type.getSimpleName());
                 methodBody.append("Value()");
             }
@@ -701,7 +701,7 @@ public class MethodDeclaration extends Declaration {
                     // Modify the original body to use the field setter method instead
                     StringBuilder replacement = new StringBuilder();
                     replacement.append("this.").append(name).append(".set");
-                    if (fieldType.isPrimitive()) {
+                    if (fieldType.isPrimitive) {
                         replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
                     }
                     replacement.append('(');
@@ -715,7 +715,7 @@ public class MethodDeclaration extends Declaration {
                 } else {
                     // Modify the original body to use the field getter method instead
                     StringBuilder replacement = new StringBuilder();
-                    if (fieldType.isPrimitive()) {
+                    if (fieldType.isPrimitive) {
                         // Primitive-specific getter method
                         replacement.append("this.").append(name).append(".get");
                         replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());

@@ -63,7 +63,7 @@ public class ArrayConversion {
 
                             // Arrays like Object[] can be interfaced using Arrays.asList, so use that
                             // This can only be done for non-primitive elements and when a reverse converter is available
-                            if (!inputElementType.isPrimitive()) {
+                            if (!inputElementType.isPrimitive) {
                                 Converter<Object, Object> reverseConverter = Conversion.find(outputElementType, inputElementType);
                                 if (reverseConverter != null) {
                                     final DuplexConverter<Object, Object> duplexConverter = DuplexConverter.pair(elementConverter, reverseConverter);

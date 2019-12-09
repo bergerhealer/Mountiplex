@@ -100,6 +100,16 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
         }
     }
 
+    /**
+     * Gets the invoker that will be called when invoke() is called.
+     * Can be used to reduce a single stack trace element.
+     * 
+     * @return invoker
+     */
+    public final Invoker<T> getInvoker() {
+        return this.invoker;
+    }
+
     @Override
     public void forceInitialization() {
         if (invoker instanceof FastMethod.FastMethodInitProxy) {

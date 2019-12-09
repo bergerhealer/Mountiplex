@@ -93,7 +93,7 @@ public class Template {
          * @return Handle to an uninitialized object of this Class Type
          */
         public final H newHandleNull() {
-            return createHandle(newInstanceNull());
+            return createHandle(newInstanceNull(), false);
         }
 
         /**
@@ -127,17 +127,7 @@ public class Template {
 
             // Create duplex converter between handle type and instance type
             if (this.valid) {
-                this.handleConverter = new DuplexConverter<Object, H>(classType, this.handleType) {
-                    @Override
-                    public H convertInput(Object value) {
-                        return createHandle(value);
-                    }
-
-                    @Override
-                    public Object convertOutput(H value) {
-                        return value.getRaw();
-                    }
-                };
+                this.handleConverter = new DuplexHandleConverter<H>(this, classType);
                 Conversion.registerConverter(this.handleConverter);
 
                 // Resolve class declaration
@@ -388,7 +378,7 @@ public class Template {
          */
         public <T extends Handle> T cast(Class<T> type) {
             if (this.isInstanceOf(type)) {
-                return type.createHandle(this.getRaw());
+                return type.createHandle(this.getRaw(), false);
             } else {
                 throw new ClassCastException("Failed to cast handle of type " +
                         this.getRaw().getClass().getName() + " to " +
@@ -405,7 +395,7 @@ public class Template {
          */
         public <T extends Handle> T tryCast(Class<T> type) {
             if (this.isInstanceOf(type)) {
-                return type.createHandle(this.getRaw());
+                return type.createHandle(this.getRaw(), false);
             } else {
                 return null;
             }
@@ -473,6 +463,47 @@ public class Template {
         @Override
         public final String toString() {
             return getRaw().toString();
+        }
+    }
+
+    // duplex converter for converting from/to raw type/handle type
+    public static final class DuplexHandleConverter<H extends Handle> extends DuplexConverter<Object, H> {
+        public final Class<H> handleClass;
+
+        public DuplexHandleConverter(Class<H> handleClass, java.lang.Class<?> type) {
+            super(TypeDeclaration.fromClass(type), TypeDeclaration.fromClass(handleClass.handleType), null);
+            this.handleClass = handleClass;
+            this.reverse = new DuplexHandleConverterReverse<H>(this);
+        }
+
+        @Override
+        public H convertInput(Object value) {
+            return this.handleClass.createHandle(value, false);
+        }
+
+        @Override
+        public Object convertOutput(Handle value) {
+            return value.getRaw();
+        }
+    }
+
+    // duplex converter for converting from/to raw type/handle type, but in reverse
+    public static final class DuplexHandleConverterReverse<H extends Handle> extends DuplexConverter<H, Object> {
+        public final Class<H> handleClass;
+
+        public DuplexHandleConverterReverse(DuplexHandleConverter<H> handleConverter) {
+            super(handleConverter.output, handleConverter.input, handleConverter);
+            this.handleClass = handleConverter.handleClass;
+        }
+
+        @Override
+        public Object convertInput(H value) {
+            return value.getRaw();
+        }
+
+        @Override
+        public H convertOutput(Object value) {
+            return this.handleClass.createHandle(value, false);
         }
     }
 
