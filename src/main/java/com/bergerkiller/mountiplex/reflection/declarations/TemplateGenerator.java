@@ -234,6 +234,9 @@ public class TemplateGenerator {
                     if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
+                    if (TemplateHandleBuilder.isCreateHandleMethod(mDec)) {
+                        continue;
+                    }
                     addMethodBody(mDec, false);
                 }
 
@@ -242,7 +245,6 @@ public class TemplateGenerator {
                     if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
-
                     addMethodBody(mDec, true);
                 }
 

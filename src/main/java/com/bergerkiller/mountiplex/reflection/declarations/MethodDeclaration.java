@@ -617,31 +617,46 @@ public class MethodDeclaration extends Declaration {
                 result.add(new Requirement(name, foundDeclaration));
             }
 
+            // Check static (no instance name)
+            boolean isStatic = false;
+            if (foundDeclaration instanceof MethodDeclaration && ((MethodDeclaration) foundDeclaration).modifiers.isStatic()) {
+                isStatic = true;
+            }
+            if (foundDeclaration instanceof FieldDeclaration && ((FieldDeclaration) foundDeclaration).modifiers.isStatic()) {
+                isStatic = true;
+            }
+
             // Find the start of the contents before the #name
             // This will be the input value object for the field
             int instanceEndIdx = seek - 1;
-            while (instanceEndIdx > 0 && body.charAt(instanceEndIdx) == ' ') {
-                instanceEndIdx--;
-            }
-            int instanceStartIdx = instanceEndIdx;
-            instanceEndIdx++; // exclusive
-            {
-                int parenthesesCtr = 0;
-                for (; instanceStartIdx >= 0; instanceStartIdx--) {
-                    char c = body.charAt(instanceStartIdx);
-                    if (c == ')') {
-                        parenthesesCtr++;
-                    } else if (c == '(') {
-                        if (--parenthesesCtr < 0) {
+            int instanceStartIdx;
+            if (isStatic && !Character.isLetterOrDigit(body.charAt(instanceEndIdx))) {
+                instanceStartIdx = ++instanceEndIdx; // exclusive
+            } else {
+                while (instanceEndIdx > 0 && body.charAt(instanceEndIdx) == ' ') {
+                    instanceEndIdx--;
+                }
+                instanceStartIdx = instanceEndIdx;
+                instanceEndIdx++; // exclusive
+                {
+                    int parenthesesCtr = 0;
+                    for (; instanceStartIdx >= 0; instanceStartIdx--) {
+                        char c = body.charAt(instanceStartIdx);
+                        if (c == ')') {
+                            parenthesesCtr++;
+                        } else if (c == '(') {
+                            if (--parenthesesCtr < 0) {
+                                break;
+                            }
+                        } else if (!Character.isLetterOrDigit(c) && c != '.' && parenthesesCtr == 0) {
                             break;
                         }
-                    } else if (!Character.isLetterOrDigit(c) && c != '.' && parenthesesCtr == 0) {
-                        break;
                     }
+                    instanceStartIdx++; // exclude delimiter
                 }
-                instanceStartIdx++; // exclude delimiter
             }
-            String instanceName = body.substring(instanceStartIdx, instanceEndIdx);
+
+            String instanceName = isStatic ? "null" : body.substring(instanceStartIdx, instanceEndIdx);
 
             if (foundDeclaration instanceof FieldDeclaration) {
                 TypeDeclaration fieldType = ((FieldDeclaration) foundDeclaration).type;
@@ -669,11 +684,6 @@ public class MethodDeclaration extends Declaration {
                         }
                     }
                     break;
-                }
-
-                // For static fields, use null instanceName
-                if (((FieldDeclaration) foundDeclaration).modifiers.isStatic()) {
-                    instanceName = "null";
                 }
 
                 // When setting, find the end of the piece of 'value code'
@@ -755,12 +765,8 @@ public class MethodDeclaration extends Declaration {
                         MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + name);
                     }
                 } else {
-                    // For static methods, use null instanceName
-                    if (((MethodDeclaration) foundDeclaration).modifiers.isStatic()) {
-                        instanceName = "null";
-                    }
-
                     // Replace instanceName#name ( with our invoker
+                    // For static methods, only #name ( is replaced
                     StringBuilder replacement = new StringBuilder();
                     replacement.append("this.").append(name);
                     replacement.append('(').append(instanceName);

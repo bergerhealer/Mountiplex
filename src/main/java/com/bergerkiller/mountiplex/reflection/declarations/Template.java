@@ -37,6 +37,7 @@ public class Template {
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
         private TemplateHandleBuilder<H> handleBuilder = null;
+        private FastMethod<H> handleBuilderMethod = null;
         private NullInstantiator<Object> instantiator = null;
         private String classPath = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
@@ -70,6 +71,9 @@ public class Template {
         public final H createHandle(Object instance, boolean allowNullInstance) {
             if (instance == null && !allowNullInstance) {
                 return null;
+            }
+            if (this.handleBuilderMethod != null) {
+                return handleBuilderMethod.invoke(null, instance);
             }
             if (this.handleBuilder == null) {
                 synchronized (this) {
@@ -120,6 +124,7 @@ public class Template {
             }
         }
 
+        @SuppressWarnings("unchecked")
         private final void init(java.lang.Class<?> classType, ClassDeclarationResolver classDecResolver) {
             this.classType = classType;
             this.instantiator = new NullInstantiator<Object>(classType);
@@ -154,24 +159,34 @@ public class Template {
                 String templateFieldName = templateFieldRef.getName();
                 try {
                     Object templateField = templateFieldRef.get(this);
-                    if (templateField instanceof TemplateElement) {
-                        TemplateElement<?> element = (TemplateElement<?>) templateField;
-                        element.initElementName(this.classPath + "." + templateFieldName);
-                        elementsList.add(element);
-                        if (templateFieldRef.getAnnotation(Optional.class) != null) {
-                            element.setOptional();
-                        }
-                        if (templateFieldRef.getAnnotation(Readonly.class) != null) {
-                            element.setReadonly();
-                        }
-                        if (valid) {
-                            Object result = element.init(this.classDec, templateFieldName);
-                            if (result == null && !element._optional) {
-                                fieldsSuccessful = false;
+                    if (!(templateField instanceof TemplateElement)) {
+                        continue;
+                    }
+
+                    TemplateElement<?> element = (TemplateElement<?>) templateField;
+                    element.initElementName(this.classPath + "." + templateFieldName);
+                    elementsList.add(element);
+                    if (templateFieldRef.getAnnotation(Optional.class) != null) {
+                        element.setOptional();
+                    }
+                    if (templateFieldRef.getAnnotation(Readonly.class) != null) {
+                        element.setReadonly();
+                    }
+                    if (valid) {
+                        Object result = element.init(this.classDec, templateFieldName);
+                        if (result != null) {
+                            // If this is a static createHandle(Object) method, register it
+                            // Only do this if the method matches the signature exactly
+                            if (result instanceof MethodDeclaration &&
+                                TemplateHandleBuilder.isCreateHandleMethod((MethodDeclaration) result))
+                            {
+                                this.handleBuilderMethod = ((StaticMethod<H>) element).method;
                             }
-                        } else {
-                            element.initNoClass();
+                        } else if (!element._optional) {
+                            fieldsSuccessful = false;
                         }
+                    } else {
+                        element.initNoClass();
                     }
                 } catch (Throwable t) {
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize template field " +
@@ -219,6 +234,15 @@ public class Template {
          */
         public java.lang.Class<?> getType() {
             return this.classType;
+        }
+
+        /**
+         * Gets the exposed Handle Class Type of this Class
+         * 
+         * @return handle type
+         */
+        public java.lang.Class<?> getHandleType() {
+            return this.handleType;
         }
 
         /**
