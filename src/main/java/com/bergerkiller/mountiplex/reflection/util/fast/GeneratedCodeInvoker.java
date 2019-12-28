@@ -152,6 +152,9 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
 
     @SuppressWarnings("unchecked")
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
+        if (!declaration.isResolved()) {
+            throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());
+        }
         try {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getResolver().getDeclaredClass();
