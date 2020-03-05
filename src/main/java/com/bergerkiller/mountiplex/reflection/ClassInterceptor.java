@@ -244,12 +244,14 @@ public abstract class ClassInterceptor {
     }
 
     /**
-     * Gets the Object that is currently being invoked, or was last hooked
+     * Gets the Object that is currently being invoked.
+     * If this is called when no callback is being handled, then the
+     * last hooked instance is returned instead.
      * 
-     * @return Underlying Object
+     * @return Underlying Object instance
      */
     protected final Object instance() {
-        Object stack_instance = this.stackInfo.get().current_instance;
+        Object stack_instance = this.stackInfo.get().currentInstance();
         if (stack_instance != null) {
             return stack_instance;
         } else if (lastHookedObject.value == null) {
@@ -260,19 +262,14 @@ public abstract class ClassInterceptor {
     }
 
     /**
-     * Gets the Base Type of the Object that is currently being invoked, or was last hooked
+     * Gets the Base Type of the Object that is currently being invoked.
+     * If this is called when no callback is being handled, then the Base Type
+     * of the last hooked instance is returned instead.
      * 
      * @return Underlying base type
      */
     protected final Class<?> instanceBaseType() {
-        Object instance = this.instance();
-        if (instance instanceof EnhancedObject) {
-            return ((EnhancedObject) instance).CI_getBaseType();
-        } else if (instance != null) {
-            return instance.getClass();
-        } else {
-            return null;
-        }
+        return findInstanceBaseType(this.instance());
     }
 
     /**
@@ -313,9 +310,8 @@ public abstract class ClassInterceptor {
         // This is a common case where a handler calls a base method
         // Doing it this way avoids a map get/put call
         StackInformation stack = this.stackInfo.get();
-        StackFrame frame = stack.frames[stack.current_index];
-        if (instance == frame.instance && method.equals(frame.method)) {
-            return frame.proxy;
+        if (instance == stack.frame.instance && method.equals(stack.frame.method)) {
+            return stack.frame.proxy;
         }
 
         // Slower way of instantiating a new MethodProxy for this type
@@ -332,6 +328,23 @@ public abstract class ClassInterceptor {
                     " does not exist in class " + instance.getClass().getName());
         }
         return proxy;
+    }
+
+    /**
+     * Gets the base type of an instance hooked by a class interceptor. Of the instance is not hooked,
+     * then the instance type is returned instead.
+     * 
+     * @param instance
+     * @return base type of the instance
+     */
+    public static Class<?> findInstanceBaseType(Object instance) {
+        if (instance instanceof EnhancedObject) {
+            return ((EnhancedObject) instance).CI_getBaseType();
+        } else if (instance != null) {
+            return instance.getClass();
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -608,25 +621,18 @@ public abstract class ClassInterceptor {
         @Override
         public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
             StackInformation stack = this.interceptor.stackInfo.get();
+            StackFrame frame = stack.frame.next;
+
+            // Push new stack element
+            if (frame == null) {
+                frame = stack.frame.next = new StackFrame(stack.frame);
+            }
+            stack.frame = frame;
+
             try {
-                // Push stack element
-                if (stack.current_index == (stack.frames.length - 1)) {
-                    // Double the stack size
-                    StackFrame[] new_frames = new StackFrame[stack.frames.length * 2];
-                    for (int i = 0; i < new_frames.length; i++) {
-                        if (i < stack.frames.length) {
-                            new_frames[i] = stack.frames[i];
-                        } else {
-                            new_frames[i] = new StackFrame();
-                        }
-                    }
-                    stack.frames = new_frames;
-                }
-                StackFrame frame = stack.frames[++stack.current_index];
                 frame.instance = obj;
                 frame.proxy = proxy;
                 frame.method = method;
-                stack.current_instance = obj;
 
                 // Find method callback delegate if we don't know yet
                 Invokable callback = stack.getCallback(method);
@@ -659,7 +665,9 @@ public abstract class ClassInterceptor {
                 return callback.invoke(obj, args);
             } finally {
                 // Pop stack element
-                stack.current_index--;
+                // Make sure to reset instance, otherwise we risk a memory leak
+                frame.instance = null;
+                stack.frame = frame.prev;
             }
         }
     }
@@ -697,6 +705,9 @@ public abstract class ClassInterceptor {
      * 
      * In addition, it stores a mapping of methods to callback delegates for use by the interceptor.
      * These are also stored here so they are thread-local, preventing cross-thread Map access.
+     * 
+     * Because it is thread local, it is absolutely essential all data inside this class is wiped
+     * when invocation on a thread finishes. Otherwise there is a real risk of a memory leak.
      */
     private static final class StackInformation {
         // Method -> Invokable (Fast & slow method that uses Method.equals)
@@ -706,15 +717,10 @@ public abstract class ClassInterceptor {
         // Avoid map lookup for methods called very often
         private Method last_method = null;
         private Invokable last_method_callback = null;
+        public StackFrame frame = new StackFrame(null);
 
-        public StackFrame[] frames;
-        public Object current_instance;
-        public int current_index;
-
-        public StackInformation() {
-            this.frames = new StackFrame[] {new StackFrame()};
-            this.current_index = 0;
-            this.current_instance = null;
+        public Object currentInstance() {
+            return this.frame.instance;
         }
 
         public Invokable getCallback(Method method) { 
@@ -758,6 +764,12 @@ public abstract class ClassInterceptor {
         public Object instance = null;
         public MethodProxy proxy = null;
         public Method method = null;
+        public final StackFrame prev;
+        public StackFrame next = null;
+
+        public StackFrame(StackFrame prev) {
+            this.prev = prev;
+        }
     }
 
     /**
