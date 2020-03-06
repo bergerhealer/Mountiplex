@@ -43,10 +43,7 @@ public abstract class ClassInterceptor {
     private boolean useGlobalCallbacks = true;
     private final Map<Method, Invokable> globalMethodDelegates;
     private final InstanceHolder lastHookedObject = new InstanceHolder();
-    private final ThreadLocal<StackInformation> stackInfo = new ThreadLocal<StackInformation>() {
-        @Override
-        protected StackInformation initialValue() { return new StackInformation(); }
-    };
+    private final ThreadLocal<StackInformation> stackInfo = ThreadLocal.withInitial(StackInformation::new);
 
     static {
         MountiplexUtil.registerUnloader(new Runnable() {
@@ -368,7 +365,7 @@ public abstract class ClassInterceptor {
     /* ================================== Implementation Code =============================== */
     /* ====================================================================================== */
 
-    private static synchronized <T> T createEnhancedClass(final ClassInterceptor interceptor, 
+    private static synchronized <T> T createEnhancedClass(ClassInterceptor interceptor, 
                                                           Class<?> objectType, T object,
                                                           Class<?>[] paramTypes, Object[] params)
     {
@@ -388,7 +385,6 @@ public abstract class ClassInterceptor {
         // If none exists yet, generate a new one and put it into the table for future re-use
         EnhancedClass enhanced = enhancedTypes.get(key);
         if (enhanced == null) {
-            final StackInformation stackInfo = interceptor.stackInfo.get();
             Enhancer enhancer = new Enhancer();
             enhancer.setClassLoader(key.hookClass.getClassLoader());
 
@@ -401,36 +397,21 @@ public abstract class ClassInterceptor {
                 enhancer.setInterfaces(new Class<?>[] { EnhancedObject.class } );
             }
 
+            // Create callback filter
+            EnhancedClassCallbackFilter callbackFilter = new EnhancedClassCallbackFilter(interceptor, callbacks);
+
             // Initialize the callback types and callback mapping
             enhancer.setCallbackTypes(MountiplexUtil.getTypes(callbacks));
-            enhancer.setCallbackFilter(new CallbackFilter() {
-                @Override
-                public int accept(Method method) {
-                    // Properties are returned as Fixed Value types for quick access
-                    for (int i = 0; i < callbacks.length; i++) {
-                        if (callbacks[i] instanceof EnhancedObjectProperty &&
-                                ((EnhancedObjectProperty) callbacks[i]).getName().equals(method.getName())) {
-                            return i;
-                        }
-                    }
-
-                    // Handle callbacks/no-op
-                    Invokable callback = stackInfo.getCallback(method);
-                    if (callback == null) {
-                        callback = interceptor.getCallback(method);
-                        if (callback == null) {
-                            return (callbacks.length - 1); /* No callback, redirect to No Operation handler */
-                        }
-                        stackInfo.storeCallback(method, callback);
-                    }
-                    return (callbacks.length - 2); /* Has callback, redirect to CallbackMethodInterceptor */
-                }
-            });
+            enhancer.setCallbackFilter(callbackFilter);
 
             // Finally create the enhanced class type and store it in the mapping for later use
-            enhanced = new EnhancedClass(objectType, enhancer.createClass());
+            enhanced = new EnhancedClass(objectType, enhancer.createClass(), callbackFilter);
             enhancedTypes.put(key, enhanced);
             interceptor.onClassGenerated(enhanced.enhancedType);
+        } else {
+            // Set to valid values before initializing callbacks potentially
+            enhanced.callbackFilter.interceptor = interceptor;
+            enhanced.callbackFilter.callbacks = callbacks;
         }
 
         // Update EnhancedClass property
@@ -447,6 +428,8 @@ public abstract class ClassInterceptor {
         // Note that since we don't call any constructors, CGLib does not update the object callback list
         // We force an explicit internal update by calling the CI_getInterceptor() interface function
         // After this is done, we must delete the callbacks again to prevent a memory leak
+        // This is done using disableCallbacks() and by setting filter members to null
+        // This way the interceptor instance is allowed to be garbage collected
         enhanced.setCallbacks(callbacks);
         T enhancedObject = enhanced.createEnhanced(object, paramTypes, params);
         interceptor.lastHookedObject.value = enhancedObject;
@@ -501,6 +484,48 @@ public abstract class ClassInterceptor {
     }
 
     /**
+     * When generating the CGLib proxy class, handles returning the appropriate callbacks
+     * for each method that can be overridden.
+     */
+    private static final class EnhancedClassCallbackFilter implements CallbackFilter {
+        public ClassInterceptor interceptor;
+        public Callback[] callbacks;
+
+        public EnhancedClassCallbackFilter(ClassInterceptor interceptor, Callback[] callbacks) {
+            this.interceptor = interceptor;
+            this.callbacks = callbacks;
+        }
+
+        @Override
+        public int accept(Method method) {
+            // We don't expect this to be called after the first time
+            if (callbacks == null) {
+                throw new IllegalStateException("Filter was disabled and is called too late");
+            }
+
+            // Properties are returned as Fixed Value types for quick access
+            for (int i = 0; i < callbacks.length; i++) {
+                if (callbacks[i] instanceof EnhancedObjectProperty &&
+                        ((EnhancedObjectProperty) callbacks[i]).getName().equals(method.getName())) {
+                    return i;
+                }
+            }
+
+            // Handle callbacks/no-op
+            StackInformation stackInfo = interceptor.stackInfo.get();
+            Invokable callback = stackInfo.getCallback(method);
+            if (callback == null) {
+                callback = interceptor.getCallback(method);
+                if (callback == null) {
+                    return (callbacks.length - 1); /* No callback, redirect to No Operation handler */
+                }
+                stackInfo.storeCallback(method, callback);
+            }
+            return (callbacks.length - 2); /* Has callback, redirect to CallbackMethodInterceptor */
+        }
+    }
+
+    /**
      * Maintains metadata information about a particular CGLib-enhanced class.
      * Also handles the construction of new objects during hooking/unhooking.
      */
@@ -510,13 +535,15 @@ public abstract class ClassInterceptor {
         public final ObjectInstantiator<?> baseInstantiator;
         public final Class<?> baseType;
         public final Class<?> enhancedType;
+        private final EnhancedClassCallbackFilter callbackFilter;
         private final FastField<?>[] baseTypeFields;
         private final FastMethod<Void> setCallbacksMethod;
         private final Callback[] disabledCallbacks;
 
-        public EnhancedClass(Class<?> baseType, Class<?> enhancedType) {
+        public EnhancedClass(Class<?> baseType, Class<?> enhancedType, EnhancedClassCallbackFilter callbackFilter) {
             this.baseType = baseType;
             this.enhancedType = enhancedType;
+            this.callbackFilter = callbackFilter;
             this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
             this.enhancedInstantiator = ObjenesisHelper.getInstantiatorOf(enhancedType);
             if (this.baseInstantiator == null)
@@ -559,6 +586,8 @@ public abstract class ClassInterceptor {
 
         public final void disableCallbacks() {
             this.setCallbacksMethod.invoke(null, this.disabledCallbacks);
+            this.callbackFilter.interceptor = null;
+            this.callbackFilter.callbacks = null;
         }
 
         @SuppressWarnings("unchecked")

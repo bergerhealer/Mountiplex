@@ -36,7 +36,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     @SuppressWarnings("unchecked")
     public ClassHook() {
         this.methods = loadMethodList(getClass());
-        this.base = (T) this.methods.baseInterceptor.hook(this);
+        this.base = (T) new BaseClassInterceptor(this.methods).hook(this);
     }
 
     @Override
@@ -112,65 +112,24 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
     private static class HookMethodList {
         public final List<HookMethodEntry> entries = new ArrayList<HookMethodEntry>();
-        public final ClassInterceptor baseInterceptor = new ClassInterceptor() {
-            @Override
-            protected Invokable getCallback(Method method) {
-                HookMethodEntry foundEntry = null;
-                Iterator<HookMethodEntry> iter = entries.iterator();
-                do {
-                    if (!iter.hasNext()) return null;
-                } while (!(foundEntry = iter.next()).isMethod(method));
+    }
 
-                final HookMethodEntry entry = foundEntry;
-                return new Invokable() {
-                    @Override
-                    public Object invoke(Object instance, Object... args) {
-                        // Figure out what object we are currently handling and what type it is
-                        Object enhancedInstance = ((ClassHook<?>) instance).instance();
-                        Class<?> enhancedType = enhancedInstance.getClass();
+    private static class BaseClassInterceptor extends ClassInterceptor {
+        private final HookMethodList methodList;
 
-                        if (enhancedInstance instanceof EnhancedObject) {
-                            // Find a method proxy to use for calling the super method, and cache it
-                            MethodProxy proxy = entry.superMethodProxyMap.get(enhancedType);
-                            if (proxy == null) {
-                                Class<?> baseType = ((EnhancedObject) enhancedInstance).CI_getBaseType();
-                                Method m = entry.findMethodIn(TypeDeclaration.fromClass(baseType));
-                                if (m == null) {
-                                    throw new UnsupportedOperationException("Class " + baseType.getName() + 
-                                            " does not contain method " + entry.toString());
-                                }
+        public BaseClassInterceptor(HookMethodList methodList) {
+            this.methodList = methodList;
+        }
 
-                                proxy = findMethodProxy(m, enhancedInstance);
-                                entry.superMethodProxyMap.put(enhancedType, proxy);
-                            }
-
-                            // Call invokeSuper() on the MethodProxy to call the base class method
-                            try {
-                                return proxy.invokeSuper(enhancedInstance, args);
-                            } catch (Throwable ex) {
-                                Class<?> baseType = ((EnhancedObject) enhancedInstance).CI_getBaseType();
-                                Method m = entry.findMethodIn(TypeDeclaration.fromClass(baseType));
-                                throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
-                            }
-                        } else {
-                            // Not an enhanced instance, find the method in the class and invoke
-                            Method m = entry.findMethodIn(TypeDeclaration.fromClass(enhancedType));
-                            if (m == null) {
-                                throw new UnsupportedOperationException("Class " + enhancedType.getName() + 
-                                        " does not contain method " + entry.toString());
-                            }
-
-                            // Invoke the method directly
-                            try {
-                                return m.invoke(enhancedInstance, args);
-                            } catch (Throwable ex) {
-                                throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
-                            }
-                        }
-                    }
-                };
-            }
-        };
+        @Override
+        protected Invokable getCallback(Method method) {
+            HookMethodEntry foundEntry = null;
+            Iterator<HookMethodEntry> iter = this.methodList.entries.iterator();
+            do {
+                if (!iter.hasNext()) return null;
+            } while (!(foundEntry = iter.next()).isMethod(method));
+            return foundEntry.baseInvokable;
+        }
     }
 
     private static class HookMethodEntry extends MethodInvokable {
@@ -178,6 +137,50 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         public final Map<Class<?>, MethodProxy> superMethodProxyMap = new HashMap<Class<?>, MethodProxy>();
         public final String declaration;
         public final boolean optional;
+        public final Invokable baseInvokable = (instance, args) -> {
+            // Figure out what object we are currently handling and what type it is
+            Object enhancedInstance = ((ClassHook<?>) instance).instance();
+            Class<?> enhancedType = enhancedInstance.getClass();
+
+            if (enhancedInstance instanceof EnhancedObject) {
+                // Find a method proxy to use for calling the super method, and cache it
+                MethodProxy proxy = superMethodProxyMap.get(enhancedType);
+                if (proxy == null) {
+                    EnhancedObject enhanced = (EnhancedObject) enhancedInstance;
+                    Method m = findMethodIn(TypeDeclaration.fromClass(enhanced.CI_getBaseType()));
+                    if (m == null) {
+                        throw new UnsupportedOperationException("Class " + enhanced.CI_getBaseType().getName() + 
+                                " does not contain method " + HookMethodEntry.this.toString());
+                    }
+
+                    proxy = enhanced.CI_getInterceptor().findMethodProxy(m, enhancedInstance);
+                    superMethodProxyMap.put(enhancedType, proxy);
+                }
+
+                // Call invokeSuper() on the MethodProxy to call the base class method
+                try {
+                    return proxy.invokeSuper(enhancedInstance, args);
+                } catch (Throwable ex) {
+                    Class<?> baseType = ((EnhancedObject) enhancedInstance).CI_getBaseType();
+                    Method m = findMethodIn(TypeDeclaration.fromClass(baseType));
+                    throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
+                }
+            } else {
+                // Not an enhanced instance, find the method in the class and invoke
+                Method m = findMethodIn(TypeDeclaration.fromClass(enhancedType));
+                if (m == null) {
+                    throw new UnsupportedOperationException("Class " + enhancedType.getName() + 
+                            " does not contain method " + HookMethodEntry.this.toString());
+                }
+
+                // Invoke the method directly
+                try {
+                    return m.invoke(enhancedInstance, args);
+                } catch (Throwable ex) {
+                    throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
+                }
+            }
+        };
 
         public HookMethodEntry(Method method, String name, boolean optional) {
             super(method);
