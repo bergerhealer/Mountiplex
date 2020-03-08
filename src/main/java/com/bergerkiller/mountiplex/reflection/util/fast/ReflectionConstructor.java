@@ -18,8 +18,7 @@ public class ReflectionConstructor<T> implements Constructor<T> {
         // Check argument count
         Class<?>[] paramTypes = c.getParameterTypes();
         if (paramTypes.length != args.length) {
-            return new IllegalArgumentException("Invalid amount of arguments for method (" +
-                    args.length + " given, " + paramTypes.length + " expected)");
+            return new InvalidArgumentCountException("constructor", args.length, paramTypes.length);
         }
 
         // Check argument types

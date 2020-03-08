@@ -19,12 +19,6 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
         this.m = method;
     }
 
-    protected static final void verifyArgCount(Object[] args, int expected) {
-        if (args.length != expected) {
-            throw newInvalidArgs(args.length, expected);
-        }
-    }
-
     @Override
     public Object invoke(Object instance) {
         throw failArgs(0);
@@ -55,13 +49,8 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
         throw failArgs(5);
     }
 
-    protected static final RuntimeException newInvalidArgs(int numArgs, int expected) {
-        return new IllegalArgumentException("Invalid amount of arguments for method (" +
-                numArgs + " given, " + expected + " expected)");
-    }
-
-    protected final RuntimeException failArgs(int numArgs) {
-        return newInvalidArgs(numArgs, m.getParameterTypes().length);
+    protected final InvalidArgumentCountException failArgs(int numArgs) {
+        return new InvalidArgumentCountException("method", numArgs, m.getParameterTypes().length);
     }
 
     public static GeneratedInvoker create(java.lang.reflect.Method method) {
@@ -117,7 +106,7 @@ public abstract class GeneratedInvoker implements Invoker<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 2);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedInvoker.class), "failArgs", "(I)Ljava/lang/RuntimeException;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedInvoker.class), "failArgs", "(I)Lcom/bergerkiller/mountiplex/reflection/util/fast/InvalidArgumentCountException;", false);
                 mv.visitInsn(ATHROW);
             }
 

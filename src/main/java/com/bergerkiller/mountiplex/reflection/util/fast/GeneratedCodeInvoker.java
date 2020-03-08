@@ -55,19 +55,8 @@ public abstract class GeneratedCodeInvoker<T> implements Invoker<T> {
         throw failArgs(5);
     }
 
-    protected static final void verifyArgCount(Object[] args, int expected) {
-        if (args.length != expected) {
-            throw newInvalidArgs(args.length, expected);
-        }
-    }
-
-    protected static final RuntimeException newInvalidArgs(int numArgs, int expected) {
-        return new IllegalArgumentException("Invalid amount of arguments for method (" +
-                numArgs + " given, " + expected + " expected)");
-    }
-
-    protected final RuntimeException failArgs(int numArgs) {
-        return newInvalidArgs(numArgs, argCount);
+    protected final InvalidArgumentCountException failArgs(int numArgs) {
+        return new InvalidArgumentCountException("method", numArgs, argCount);
     }
 
     private static final CtClass getClass(Class<?> type) throws NotFoundException {

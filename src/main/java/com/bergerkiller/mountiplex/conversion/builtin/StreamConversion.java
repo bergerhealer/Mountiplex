@@ -2,7 +2,6 @@ package com.bergerkiller.mountiplex.conversion.builtin;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -67,7 +66,7 @@ public class StreamConversion {
         }
     }
 
-    private static final class StreamConverterMapper extends Converter<Stream<?>, Stream<?>> implements Function<Object, Object> {
+    private static final class StreamConverterMapper extends Converter<Stream<?>, Stream<?>> {
         private final Converter<?, ?> _elementConverter;
 
         public StreamConverterMapper(TypeDeclaration input, TypeDeclaration output, Converter<?, ?> converter) {
@@ -76,13 +75,8 @@ public class StreamConversion {
         }
 
         @Override
-        public Object apply(Object t) {
-            return this._elementConverter.convert(t);
-        }
-
-        @Override
         public Stream<?> convertInput(Stream<?> value) {
-            return value.map(this);
+            return value.map(this._elementConverter);
         }
     }
 

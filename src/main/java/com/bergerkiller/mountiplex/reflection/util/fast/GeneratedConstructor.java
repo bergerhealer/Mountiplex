@@ -18,12 +18,6 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
         this.c = (java.lang.reflect.Constructor) constructor; 
     }
 
-    protected static final void verifyArgCount(Object[] args, int expected) {
-        if (args.length != expected) {
-            throw newInvalidArgs(args.length, expected);
-        }
-    }
-
     @Override
     public Object newInstance() {
         throw failArgs(0);
@@ -54,13 +48,8 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
         throw failArgs(5);
     }
 
-    protected static final RuntimeException newInvalidArgs(int numArgs, int expected) {
-        return new IllegalArgumentException("Invalid amount of arguments for constructor (" +
-                numArgs + " given, " + expected + " expected)");
-    }
-
-    protected final RuntimeException failArgs(int numArgs) {
-        return newInvalidArgs(numArgs, c.getParameterTypes().length);
+    protected final InvalidArgumentCountException failArgs(int numArgs) {
+        return new InvalidArgumentCountException("constructor", numArgs, c.getParameterTypes().length);
     }
 
     public static GeneratedConstructor create(java.lang.reflect.Constructor<?> constructor) {
@@ -114,7 +103,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Ljava/lang/RuntimeException;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Lcom/bergerkiller/mountiplex/reflection/util/fast/InvalidArgumentCountException;", false);
                 mv.visitInsn(ATHROW);
             }
 

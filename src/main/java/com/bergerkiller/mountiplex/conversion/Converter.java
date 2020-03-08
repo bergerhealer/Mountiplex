@@ -1,9 +1,11 @@
 package com.bergerkiller.mountiplex.conversion;
 
+import java.util.function.Function;
+
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
-public abstract class Converter<I, O> {
+public abstract class Converter<I, O> implements Function<Object, O> {
     public final TypeDeclaration input;
     public final TypeDeclaration output;
 
@@ -35,6 +37,30 @@ public abstract class Converter<I, O> {
      */
     @SuppressWarnings("unchecked")
     public final O convert(Object value) {
+        O result = null;
+        if (value != null) {
+            Class<?> inputType = this.input.type;
+            if (inputType.isPrimitive()) {
+                inputType = BoxedType.getBoxedType(inputType);
+            }
+            if (inputType.isAssignableFrom(value.getClass())) {
+                result = this.convertInput((I) value);
+            }
+        } else if (this.acceptsNullInput()) {
+            result = this.convertInput(null);
+        }
+        if (result == null && this.output.isPrimitive) {
+            result = (O) BoxedType.getDefaultValue(this.output.type);
+        }
+        return result;
+    }
+
+    /**
+     * Same as {@link #convert(Object)} to implement {@link Function} interface
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public final O apply(Object value) {
         O result = null;
         if (value != null) {
             Class<?> inputType = this.input.type;

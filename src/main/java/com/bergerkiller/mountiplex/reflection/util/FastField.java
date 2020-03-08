@@ -61,6 +61,15 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
     }
 
     /**
+     * Checks whether this field is available
+     * 
+     * @return True if the method is available
+     */
+    public final boolean isAvailable() {
+        return this.field != null;
+    }
+
+    /**
      * Gets the backing Java Reflection Field for this Fast Field. If this fast field
      * is not initialized, this function returns <i>null</i>.
      * 

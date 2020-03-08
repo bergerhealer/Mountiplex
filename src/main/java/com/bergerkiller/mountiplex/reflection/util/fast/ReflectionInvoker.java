@@ -44,8 +44,7 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         // Check argument count
         Class<?>[] paramTypes = m.getParameterTypes();
         if (paramTypes.length != args.length) {
-            return new IllegalArgumentException("Invalid amount of arguments for method (" +
-                    args.length + " given, " + paramTypes.length + " expected)");
+            return new InvalidArgumentCountException("method", args.length, paramTypes.length);
         }
 
         // Check argument types
