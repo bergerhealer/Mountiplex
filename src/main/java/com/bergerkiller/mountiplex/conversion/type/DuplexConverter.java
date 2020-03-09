@@ -3,7 +3,7 @@ package com.bergerkiller.mountiplex.conversion.type;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
-import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 /**
  * Special type of converter that can also perform the same conversion in reverse,
@@ -383,8 +383,8 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     private static final class DuplexAnnotatedConverter<A, B> extends DuplexConverter<A, B> {
-        private final FastMethod<?> converterMethod;
-        private final FastMethod<?> reverseMethod;
+        private final Invoker<Object> converterInvoker;
+        private final Invoker<Object> reverseInvoker;
         private final boolean converterAcceptNull;
         private final boolean reverseAcceptNull;
 
@@ -395,8 +395,8 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
 
         public DuplexAnnotatedConverter(AnnotatedConverter converter, AnnotatedConverter reverse, DuplexAnnotatedConverter<B, A> reverseDupl) {
             super(reverse.output, converter.output, reverseDupl);
-            this.converterMethod = converter.method;
-            this.reverseMethod = reverse.method;
+            this.converterInvoker = converter.invoker;
+            this.reverseInvoker = reverse.invoker;
             this.converterAcceptNull = converter.acceptsNullInput();
             this.reverseAcceptNull = reverse.acceptsNullInput();
         }
@@ -404,13 +404,13 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         @Override
         @SuppressWarnings("unchecked")
         public B convertInput(A value) {
-            return (B) this.converterMethod.getInvoker().invoke(null, value);
+            return (B) this.converterInvoker.invoke(null, value);
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public A convertOutput(B value) {
-            return (A) this.reverseMethod.getInvoker().invoke(null, value);
+            return (A) this.reverseInvoker.invoke(null, value);
         }
 
         @Override

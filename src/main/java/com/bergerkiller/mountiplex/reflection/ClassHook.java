@@ -16,6 +16,8 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
+import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 import net.sf.cglib.proxy.MethodProxy;
 
@@ -40,7 +42,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     }
 
     @Override
-    protected Invokable getCallback(Method method) {
+    protected Invoker<?> getCallback(Method method) {
         TypeDeclaration method_type = TypeDeclaration.fromClass(method.getDeclaringClass());
         MethodDeclaration methodDec = Resolver.resolveMethod(method);
 
@@ -122,22 +124,25 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         }
 
         @Override
-        protected Invokable getCallback(Method method) {
+        protected Invoker<?> getCallback(Method method) {
             HookMethodEntry foundEntry = null;
             Iterator<HookMethodEntry> iter = this.methodList.entries.iterator();
             do {
                 if (!iter.hasNext()) return null;
-            } while (!(foundEntry = iter.next()).isMethod(method));
+            } while (!(foundEntry = iter.next()).method.equals(method));
             return foundEntry.baseInvokable;
         }
     }
 
-    private static class HookMethodEntry extends MethodInvokable {
+    private static class HookMethodEntry extends InterceptorCallback {
         public final InputTypeMap<Method> superMethodMap = new InputTypeMap<Method>();
         public final Map<Class<?>, MethodProxy> superMethodProxyMap = new HashMap<Class<?>, MethodProxy>();
         public final String declaration;
         public final boolean optional;
-        public final Invokable baseInvokable = (instance, args) -> {
+        public final Method method;
+
+        // This invokable is called with the hook as an instance
+        public final Invoker<?> baseInvokable = (instance, args) -> {
             // Figure out what object we are currently handling and what type it is
             Object enhancedInstance = ((ClassHook<?>) instance).instance();
             Class<?> enhancedType = enhancedInstance.getClass();
@@ -183,9 +188,20 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         };
 
         public HookMethodEntry(Method method, String name, boolean optional) {
-            super(method);
+            this.method = method;
             this.declaration = name;
             this.optional = optional;
+            this.interceptorCallback = new InitInvoker.MethodInvoker<Object>(method) {
+                @Override
+                protected Invoker<Object> getField() {
+                    return interceptorCallback;
+                }
+
+                @Override
+                protected void setField(Invoker<Object> field) {
+                    interceptorCallback = field;
+                }
+            };
         }
 
         @Override

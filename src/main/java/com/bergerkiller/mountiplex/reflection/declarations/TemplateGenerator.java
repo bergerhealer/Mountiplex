@@ -308,7 +308,7 @@ public class TemplateGenerator {
                     }
 
                     String fieldTypeStr = "Template.EnumConstant";
-                    if (fDec.type.cast != null) {
+                    if (hasConversion(fDec)) {
                         fieldTypeStr += ".Converted";
                         fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
                     } else {
@@ -327,12 +327,10 @@ public class TemplateGenerator {
                 boolean hasConstructors = false;
                 for (ConstructorDeclaration cDec : classDec.constructors) {
                     String constrTypeStr = "Template.Constructor";
-                    if (cDec.type.cast != null) {
+                    if (hasConversion(cDec)) {
                         constrTypeStr += ".Converted";
-                        constrTypeStr += "<" + getTypeStr(cDec.type.cast) + ">";
-                    } else {
-                        constrTypeStr += "<" + getTypeStr(cDec.type) + ">";
                     }
+                    constrTypeStr += "<" + getExposedTypeStr(cDec.type) + ">";
 
                     populateModifiers(cDec.modifiers);
                     addLine("public final " + constrTypeStr + " " + cDec.getName() + " = new " + constrTypeStr + "()");
@@ -349,7 +347,7 @@ public class TemplateGenerator {
                         continue;
                     }
                     String fieldTypeStr = "Template.StaticField";
-                    if (fDec.type.cast != null) {
+                    if (hasConversion(fDec)) {
                         fieldTypeStr += ".Converted";
                         fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
                     } else {
@@ -376,7 +374,7 @@ public class TemplateGenerator {
                         continue;
                     }
                     String fieldTypeStr = "Template.Field";
-                    if (fDec.type.cast != null) {
+                    if (hasConversion(fDec)) {
                         fieldTypeStr += ".Converted";
                         fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
                     } else {
@@ -542,18 +540,39 @@ public class TemplateGenerator {
         addLine("}");
     }
 
+    private boolean hasConversion(FieldDeclaration fDec) {
+        if (fDec.type.cast != null) {
+            // If read-only then casting to Object is free and no conversion is needed
+            // When writing is possible, there is more complex conversion involved
+            if (!fDec.modifiers.isReadonly() || fDec.type.type != Object.class) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasConversion(ConstructorDeclaration cDec) {
+        if (cDec.type.cast != null && cDec.type.cast.type != Object.class) {
+            return true;
+        }
+        for (int i = 0; i < cDec.parameters.parameters.length; i++) {
+            if (cDec.parameters.parameters[i].type.cast != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean hasConversion(MethodDeclaration mDec) {
-        boolean hasConversion = false;
-        if (mDec.returnType.cast != null) {
-            hasConversion = true;
+        if (mDec.returnType.cast != null && mDec.returnType.cast.type != Object.class) {
+            return true;
         }
         for (int i = 0; i < mDec.parameters.parameters.length; i++) {
             if (mDec.parameters.parameters[i].type.cast != null) {
-                hasConversion = true;
-                break;
+                return true;
             }
         }
-        return hasConversion;
+        return false;
     }
 
     private String getMethodAppend(MethodDeclaration mDec) {

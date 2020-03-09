@@ -13,9 +13,10 @@ import org.objenesis.ObjenesisHelper;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 import org.objectweb.asm.Type;
 import net.sf.cglib.core.Signature;
@@ -38,10 +39,10 @@ import net.sf.cglib.proxy.NoOp;
  * consistently return the same {@link CallbackDelegate} across all instances.
  */
 public abstract class ClassInterceptor {
-    private static Map<Class<?>, Map<Method, Invokable>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>();
+    private static Map<Class<?>, Map<Method, Invoker<?>>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invoker<?>>>();
     private static Map<ClassPair, EnhancedClass> enhancedTypes = new HashMap<ClassPair, EnhancedClass>();
     private boolean useGlobalCallbacks = true;
-    private final Map<Method, Invokable> globalMethodDelegates;
+    private final Map<Method, Invoker<?>> globalMethodDelegates;
     private final InstanceHolder lastHookedObject = new InstanceHolder();
     private final ThreadLocal<StackInformation> stackInfo = ThreadLocal.withInitial(StackInformation::new);
 
@@ -49,7 +50,7 @@ public abstract class ClassInterceptor {
         MountiplexUtil.registerUnloader(new Runnable() {
             @Override
             public void run() {
-                globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invokable>>(0);
+                globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invoker<?>>>(0);
                 enhancedTypes = new HashMap<ClassPair, EnhancedClass>(0);
             }
         });
@@ -57,9 +58,9 @@ public abstract class ClassInterceptor {
 
     public ClassInterceptor() {
         synchronized (globalMethodDelegatesMap) {
-            Map<Method, Invokable> globalMethodDelegates = globalMethodDelegatesMap.get(getClass());
+            Map<Method, Invoker<?>> globalMethodDelegates = globalMethodDelegatesMap.get(getClass());
             if (globalMethodDelegates == null) {
-                globalMethodDelegates = new HashMap<Method, Invokable>();
+                globalMethodDelegates = new HashMap<Method, Invoker<?>>();
                 globalMethodDelegatesMap.put(getClass(), globalMethodDelegates);
             }
             this.globalMethodDelegates = globalMethodDelegates;
@@ -73,7 +74,7 @@ public abstract class ClassInterceptor {
      * @param method
      * @return Callback delegate to execute, or NULL to not intercept the Method
      */
-    protected abstract Invokable getCallback(Method method);
+    protected abstract Invoker<?> getCallback(Method method);
 
     /**
      * Callback function called when a new intercepted hooked class type has been generated.
@@ -178,47 +179,14 @@ public abstract class ClassInterceptor {
     }
 
     /**
-     * Special callback delegate optimized for invoking a method in the ClassInterceptor instance
+     * Stores a callback for the current thread for this interceptor. This allows
+     * for optimized callback execution.
+     * 
+     * @param method
+     * @param callback
      */
-    public static class MethodInvokable extends FastMethod<Object> implements Invokable {
-
-        public MethodInvokable(Method method) {
-            if (method == null) {
-                throw new IllegalArgumentException("Method can not be null");
-            }
-            init(method);
-        }
-
-        @Override
-        public final Object invoke(Object instanceObject, Object... args) {
-            // This is not actually called, but here for completeness
-            return invokeVA(((EnhancedObject) instanceObject).CI_getInterceptor(), args);
-        }
-    }
-
-    /**
-     * Special callback delegate that always returns null, void, false, or 0 depending what type is expected.
-     * It fulfills the role of an "ignore".
-     */
-    public static class NullInvokable implements Invokable {
-        private final Object nullObject;
-
-        public NullInvokable() {
-            this.nullObject = null;
-        }
-
-        public NullInvokable(Object nullObject) {
-            this.nullObject = nullObject;
-        }
-
-        public NullInvokable(Method signature) {
-            this.nullObject = BoxedType.getDefaultValue(signature.getReturnType());
-        }
-
-        @Override
-        public Object invoke(Object instance, Object... args) {
-            return this.nullObject;
-        }
+    protected void storeCallbackForCurrentThread(Method method, Invoker<?> callback) {
+        stackInfo.get().storeCallback(method, callback);
     }
 
     /**
@@ -513,7 +481,7 @@ public abstract class ClassInterceptor {
 
             // Handle callbacks/no-op
             StackInformation stackInfo = interceptor.stackInfo.get();
-            Invokable callback = stackInfo.getCallback(method);
+            Invoker<?> callback = stackInfo.getCallback(method);
             if (callback == null) {
                 callback = interceptor.getCallback(method);
                 if (callback == null) {
@@ -664,7 +632,7 @@ public abstract class ClassInterceptor {
                 frame.method = method;
 
                 // Find method callback delegate if we don't know yet
-                Invokable callback = stack.getCallback(method);
+                Invoker<?> callback = stack.getCallback(method);
                 if (callback == null) {
                     synchronized (interceptor.globalMethodDelegates) {
                         callback = interceptor.globalMethodDelegates.get(method);
@@ -685,13 +653,14 @@ public abstract class ClassInterceptor {
                     stack.storeCallback(method, callback);
                 }
 
-                // Make sure to inline the MethodCallbackDelegate to avoid a stack frame
-                if (callback instanceof MethodInvokable) {
-                    return ((MethodInvokable) callback).invokeVA(this.interceptor, args);
+                // Make sure to inline the InterceptorCallback to avoid a stack frame
+                if (callback instanceof InterceptorCallback) {
+                    callback = ((InterceptorCallback) callback).interceptorCallback;
+                    obj = interceptor;
                 }
 
                 // Execute the callback
-                return callback.invoke(obj, args);
+                return callback.invokeVA(obj, args);
             } finally {
                 // Pop stack element
                 // Make sure to reset instance, otherwise we risk a memory leak
@@ -704,7 +673,7 @@ public abstract class ClassInterceptor {
     /**
      * This will never be used in reality and is strictly here to deal with unexpected NULL callbacks
      */
-    private static final class SuperClassInvokable implements Invokable {
+    private static final class SuperClassInvokable implements Invoker<Object> {
         private final MethodProxy proxy;
         private final Method method;
 
@@ -714,7 +683,7 @@ public abstract class ClassInterceptor {
         }
 
         @Override
-        public Object invoke(Object instance, Object... args) {
+        public Object invokeVA(Object instance, Object... args) {
             try {
                 return proxy.invokeSuper(instance, args);
             } catch (Throwable ex) {
@@ -722,6 +691,20 @@ public abstract class ClassInterceptor {
             }
         }
     };
+
+    /**
+     * Calls a method on this interceptor when invoked. The interceptorCallback field
+     * should be set to a valid invoker.
+     */
+    public static abstract class InterceptorCallback implements Invoker<Object> {
+        public Invoker<Object> interceptorCallback = InitInvoker.unavailableMethod();
+
+        @Override
+        public Object invokeVA(Object instance, Object... args) {
+            // This is never actually called because of optimizations in the method interceptor
+            return interceptorCallback.invokeVA(((EnhancedObject) instance).CI_getInterceptor(), args);
+        }
+    }
 
     /**
      * We have to track the 'current' object this interceptor is handling.
@@ -740,26 +723,26 @@ public abstract class ClassInterceptor {
      */
     private static final class StackInformation {
         // Method -> Invokable (Fast & slow method that uses Method.equals)
-        private final Map<Method, Invokable> methodDelegates_fast = new IdentityHashMap<Method, Invokable>();
-        private final Map<Method, Invokable> methodDelegates = new HashMap<Method, Invokable>();
+        private final Map<Method, Invoker<?>> methodDelegates_fast = new IdentityHashMap<>();
+        private final Map<Method, Invoker<?>> methodDelegates = new HashMap<>();
 
         // Avoid map lookup for methods called very often
         private Method last_method = null;
-        private Invokable last_method_callback = null;
+        private Invoker<?> last_method_callback = null;
         public StackFrame frame = new StackFrame(null);
 
         public Object currentInstance() {
             return this.frame.instance;
         }
 
-        public Invokable getCallback(Method method) { 
+        public Invoker<?> getCallback(Method method) {
             // Last called method (Fastest)
             if (method == last_method) {
                 return last_method_callback;
             }
 
             // From Method instance cache (Faster)
-            Invokable callback = methodDelegates_fast.get(method);
+            Invoker<?> callback = methodDelegates_fast.get(method);
             if (callback != null) {
                 last_method = method;
                 last_method_callback = callback;
@@ -779,7 +762,7 @@ public abstract class ClassInterceptor {
             return null;
         }
 
-        public void storeCallback(Method method, Invokable callback) {
+        public void storeCallback(Method method, Invoker<?> callback) {
             last_method = method;
             last_method_callback = callback;
             methodDelegates.put(method, callback);

@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.ClassInterceptor;
-import com.bergerkiller.mountiplex.reflection.Invokable;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 import static org.junit.Assert.*;
 
@@ -45,13 +45,10 @@ public class ClassInterceptorTest {
 
         ClassInterceptor interceptor = new ClassInterceptor() {
             @Override
-            protected Invokable getCallback(final Method method) {
+            protected Invoker<?> getCallback(final Method method) {
                 if (method.getName() == "meow") {
-                    return new Invokable() {
-                        @Override
-                        public Object invoke(Object instance, Object... args) {
-                            return invokeSuperMethod(method, instance, args);
-                        }
+                    return (instance, args) -> {
+                        return invokeSuperMethod(method, instance, args);
                     };
                 }
                 return null;
@@ -114,13 +111,10 @@ public class ClassInterceptorTest {
         }
 
         @Override
-        protected Invokable getCallback(Method method) {
+        protected Invoker<?> getCallback(Method method) {
             if (method.getName() == "meow") {
-                return new Invokable() {
-                    @Override
-                    public Object invoke(Object instance, Object... args) {
-                        return newCall;
-                    }
+                return (instance, args) -> {
+                    return newCall;
                 };
             }
             return null;

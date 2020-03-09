@@ -29,6 +29,8 @@ import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
+import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 public class Template {
 
@@ -38,7 +40,7 @@ public class Template {
         private DuplexConverter<Object, H> handleConverter = null;
         private final java.lang.Class<H> handleType;
         private TemplateHandleBuilder<H> handleBuilder = null;
-        private FastMethod<H> handleBuilderMethod = null;
+        private Invoker<H> handleBuilderMethod = null;
         private NullInstantiator<Object> instantiator = null;
         private String classPath = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
@@ -181,7 +183,17 @@ public class Template {
                             if (result instanceof MethodDeclaration &&
                                 TemplateHandleBuilder.isCreateHandleMethod((MethodDeclaration) result))
                             {
-                                this.handleBuilderMethod = ((StaticMethod<H>) element).method;
+                                this.handleBuilderMethod = new InitInvoker.ProxyInvoker<H>(((StaticMethod<H>) element).invoker) {
+                                    @Override
+                                    protected Invoker<H> getField() {
+                                        return handleBuilderMethod;
+                                    }
+
+                                    @Override
+                                    protected void setField(Invoker<H> field) {
+                                        handleBuilderMethod = field;
+                                    }
+                                };
                             }
                         } else if (!element._optional) {
                             fieldsSuccessful = false;
@@ -719,18 +731,14 @@ public class Template {
     }
 
     public static class AbstractMethod<T> extends TemplateElement<MethodDeclaration> {
-        protected final FastMethod<T> method = new FastMethod<T>();
+        private MethodDeclaration method = null;
+        protected Invoker<T> invoker = InitInvoker.unavailableMethod();
 
         @Override
         protected final void failNotFound() {
-            if (!this.method.isAvailable()) {
+            if (this.method == null) {
                 throw new RuntimeException("Method " + this.getElementName() + " not found");
             }
-        }
-
-        // throws an exception when arguments differ
-        protected final void failInvalidArgs(Object[] arguments) {
-            failInvalidArgs(method.getMethod().getParameterTypes(), arguments);
         }
 
         @Override
@@ -740,7 +748,18 @@ public class Template {
             }
             for (MethodDeclaration methodDec : dec.methods) {
                 if ((methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
-                    this.method.init(methodDec);
+                    this.method = methodDec;
+                    this.invoker = new InitInvoker.MethodInvoker<T>(methodDec) {
+                        @Override
+                        protected Invoker<T> getField() {
+                            return invoker;
+                        }
+
+                        @Override
+                        protected void setField(Invoker<T> field) {
+                            invoker = field;
+                        }
+                    };
                     return methodDec;
                 }
             }
@@ -750,19 +769,20 @@ public class Template {
 
         @Override
         public void forceInitialization() {
-            method.forceInitialization();
+            InitInvoker.initialize(invoker);
             failNotFound();
         }
 
         @Override
         protected void initElementName(String elementName) {
             super.initElementName(elementName);
-            method.initUnavailable(elementName); // makes sure its logged correctly
+            this.method = null;
+            this.invoker = InitInvoker.unavailableMethod(elementName); // makes sure its logged correctly
         }
 
         @Override
         public boolean isAvailable() {
-            return method.isAvailable();
+            return this.method != null;
         }
 
         /**
@@ -772,11 +792,13 @@ public class Template {
          */
         @SuppressWarnings("unchecked")
         public <R> MethodAccessor<R> toMethodAccessor() {
-            return (MethodAccessor<R>) new SafeMethod<T>(this.method);
+            FastMethod<T> fast = new FastMethod<T>();
+            fast.init(this.method, this.invoker);
+            return (MethodAccessor<R>) new SafeMethod<T>(fast);
         }
 
         public java.lang.reflect.Method toJavaMethod() {
-            return this.method.getMethod();
+            return this.method == null ? null : this.method.method;
         }
     }
 
@@ -1305,7 +1327,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invokeVA(Object... arguments) {
-            return this.method.invokeVA(null, arguments);
+            return this.invoker.invokeVA(null, arguments);
         }
 
         /**
@@ -1314,7 +1336,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke() {
-            return this.method.invoke(null);
+            return this.invoker.invoke(null);
         }
 
         /**
@@ -1324,7 +1346,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0) {
-            return this.method.invoke(null, arg0);
+            return this.invoker.invoke(null, arg0);
         }
 
         /**
@@ -1335,7 +1357,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1) {
-            return this.method.invoke(null, arg0, arg1);
+            return this.invoker.invoke(null, arg0, arg1);
         }
 
         /**
@@ -1347,7 +1369,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2) {
-            return this.method.invoke(null, arg0, arg1, arg2);
+            return this.invoker.invoke(null, arg0, arg1, arg2);
         }
 
         /**
@@ -1360,7 +1382,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.method.invoke(null, arg0, arg1, arg2, arg3);
+            return this.invoker.invoke(null, arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -1374,9 +1396,9 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.method.invoke(null, arg0, arg1, arg2, arg3, arg4);
+            return this.invoker.invoke(null, arg0, arg1, arg2, arg3, arg4);
         }
-        
+
         public static final class Converted<T> extends AbstractMethodConverter<StaticMethod<Object>, T> {
  
             public Converted() {
@@ -1393,7 +1415,7 @@ public class Template {
             public final T invokeVA(Object... arguments) {
                 verifyArgumentCount(arguments.length);
                 Object[] convertedArgs = convertArgs(arguments);
-                Object rawResult = this.raw.invokeVA(convertedArgs);
+                Object rawResult = this.raw.invoker.invokeVA(null, convertedArgs);
                 return convertResult(rawResult);
             }
 
@@ -1404,7 +1426,7 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke() {
-                return convertResult(this.raw.invoke());
+                return convertResult(this.raw.invoker.invoke(null));
             }
 
             /**
@@ -1417,9 +1439,9 @@ public class Template {
             public final T invoke(Object arg0) {
                 verifyArgumentCount(1);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(arg0));
+                    return convertResult(this.raw.invoker.invoke(null, arg0));
                 } else {
-                    return convertResult(this.raw.invoke(
+                    return convertResult(this.raw.invoker.invoke(null,
                             argConverter0.apply(arg0)));
                 }
             }
@@ -1435,9 +1457,9 @@ public class Template {
             public final T invoke(Object arg0, Object arg1) {
                 verifyArgumentCount(2);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(arg0, arg1));
+                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1));
                 } else {
-                    return convertResult(this.raw.invoke(
+                    return convertResult(this.raw.invoker.invoke(null,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1)));
                 }
@@ -1455,9 +1477,9 @@ public class Template {
             public final T invoke(Object arg0, Object arg1, Object arg2) {
                 verifyArgumentCount(3);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(arg0, arg1, arg2));
+                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2));
                 } else {
-                    return convertResult(this.raw.invoke(
+                    return convertResult(this.raw.invoker.invoke(null,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1),
                             argConverter2.apply(arg2)));
@@ -1477,9 +1499,9 @@ public class Template {
             public final T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
                 verifyArgumentCount(4);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(arg0, arg1, arg2, arg3));
+                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2, arg3));
                 } else {
-                    return convertResult(this.raw.invoke(
+                    return convertResult(this.raw.invoker.invoke(null,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1),
                             argConverter2.apply(arg2),
@@ -1501,9 +1523,9 @@ public class Template {
             public final T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
                 verifyArgumentCount(5);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(arg0, arg1, arg2, arg3, arg4));
+                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2, arg3, arg4));
                 } else {
-                    return convertResult(this.raw.invoke(
+                    return convertResult(this.raw.invoker.invoke(null,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1),
                             argConverter2.apply(arg2),
@@ -1526,7 +1548,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invokeVA(Object instance, Object... arguments) {
-            return this.method.invokeVA(instance, arguments);
+            return this.invoker.invokeVA(instance, arguments);
         }
 
         /**
@@ -1536,7 +1558,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance) {
-            return this.method.invoke(instance);
+            return this.invoker.invoke(instance);
         }
 
         /**
@@ -1547,7 +1569,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0) {
-            return this.method.invoke(instance, arg0);
+            return this.invoker.invoke(instance, arg0);
         }
 
         /**
@@ -1559,7 +1581,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1) {
-            return this.method.invoke(instance, arg0, arg1);
+            return this.invoker.invoke(instance, arg0, arg1);
         }
 
         /**
@@ -1572,7 +1594,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
-            return this.method.invoke(instance, arg0, arg1, arg2);
+            return this.invoker.invoke(instance, arg0, arg1, arg2);
         }
 
         /**
@@ -1586,7 +1608,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
-            return this.method.invoke(instance, arg0, arg1, arg2, arg3);
+            return this.invoker.invoke(instance, arg0, arg1, arg2, arg3);
         }
 
         /**
@@ -1601,7 +1623,7 @@ public class Template {
          * @return return value, null for void methods
          */
         public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-            return this.method.invoke(instance, arg0, arg1, arg2, arg3, arg4);
+            return this.invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4);
         }
 
         public static final class Converted<T> extends AbstractMethodConverter<Method<Object>, T> {
@@ -1623,7 +1645,7 @@ public class Template {
             public final T invokeVA(Object instance, Object... arguments) {
                 verifyArgumentCount(arguments.length);
                 Object[] convertedArgs = convertArgs(arguments);
-                Object rawResult = this.raw.invokeVA(instance, convertedArgs);
+                Object rawResult = this.raw.invoker.invokeVA(instance, convertedArgs);
                 return convertResult(rawResult);
             }
 
@@ -1636,7 +1658,7 @@ public class Template {
              */
             public T invoke(Object instance) {
                 verifyArgumentCount(0);
-                return convertResult(this.raw.invoke(instance));
+                return convertResult(this.raw.invoker.invoke(instance));
             }
 
             /**
@@ -1650,9 +1672,9 @@ public class Template {
             public T invoke(Object instance, Object arg0) {
                 verifyArgumentCount(1);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(instance, arg0));
+                    return convertResult(this.raw.invoker.invoke(instance, arg0));
                 } else {
-                    return convertResult(this.raw.invoke(instance,
+                    return convertResult(this.raw.invoker.invoke(instance,
                             argConverter0.apply(arg0)));
                 }
             }
@@ -1669,9 +1691,9 @@ public class Template {
             public T invoke(Object instance, Object arg0, Object arg1) {
                 verifyArgumentCount(2);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(instance, arg0, arg1));
+                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1));
                 } else {
-                    return convertResult(this.raw.invoke(instance,
+                    return convertResult(this.raw.invoker.invoke(instance,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1)));
                 }
@@ -1690,9 +1712,9 @@ public class Template {
             public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
                 verifyArgumentCount(3);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(instance, arg0, arg1, arg2));
+                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2));
                 } else {
-                    return convertResult(this.raw.invoke(instance,
+                    return convertResult(this.raw.invoker.invoke(instance,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1),
                             argConverter2.apply(arg2)));
@@ -1713,9 +1735,9 @@ public class Template {
             public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
                 verifyArgumentCount(4);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(instance, arg0, arg1, arg2, arg3));
+                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2, arg3));
                 } else {
-                    return convertResult(this.raw.invoke(instance,
+                    return convertResult(this.raw.invoker.invoke(instance,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1),
                             argConverter2.apply(arg2),
@@ -1738,9 +1760,9 @@ public class Template {
             public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
                 verifyArgumentCount(5);
                 if (this.argConverters == null) {
-                    return convertResult(this.raw.invoke(instance, arg0, arg1, arg2, arg3, arg4));
+                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4));
                 } else {
-                    return convertResult(this.raw.invoke(instance,
+                    return convertResult(this.raw.invoker.invoke(instance,
                             argConverter0.apply(arg0),
                             argConverter1.apply(arg1),
                             argConverter2.apply(arg2),

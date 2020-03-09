@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.ClassInterceptor;
-import com.bergerkiller.mountiplex.reflection.Invokable;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 public class InterfaceInterceptorTest {
 
@@ -15,15 +15,12 @@ public class InterfaceInterceptorTest {
     public void testInterfaceHook() {
         ClassInterceptor interceptor = new ClassInterceptor() {
             @Override
-            protected Invokable getCallback(Method method) {
+            protected Invoker<?> getCallback(Method method) {
                 if (!method.getName().equals("doTest")) {
                     return null;
                 }
-                return new Invokable() {
-                    @Override
-                    public Object invoke(Object instance, Object... args) {
-                        return "Hello, World!";
-                    }
+                return (instance, args) -> {
+                    return "Hello, World!";
                 };
             }
         };

@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 /**
  * Defines the methods to access a certain method
  */
-public interface MethodAccessor<T> extends Invokable {
+public interface MethodAccessor<T> {
 
     /**
      * Checks if this MethodAccessor performs the functions of a certain reflection Method.

@@ -8,37 +8,66 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
-import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 /**
  * A converter that calls a static method, preferably annotated with a
  * {@link ConverterMethod} annotation
  */
 public class AnnotatedConverter extends RawConverter {
-    public final FastMethod<?> method;
+    public Invoker<Object> invoker;
     public final boolean isUpcast;
     private final boolean nullInput;
     private final int cost;
 
-    public AnnotatedConverter(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output) {
-        this(method, input, output, false);
+    public AnnotatedConverter(MethodDeclaration method, TypeDeclaration input, TypeDeclaration output) {
+        this(method, null, input, output, false);
     }
 
-    public AnnotatedConverter(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
+    public AnnotatedConverter(MethodDeclaration method, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
+        this(method, null, input, output, isUpcast);
+    }
+
+    private AnnotatedConverter(MethodDeclaration method, Invoker<Object> invoker, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
         super(input, output);
-        this.method = method;
+        if (invoker == null) {
+            this.invoker = new InitInvoker.MethodInvoker<Object>(method) {
+                @Override
+                protected Invoker<Object> getField() {
+                    return AnnotatedConverter.this.invoker;
+                }
+
+                @Override
+                protected void setField(Invoker<Object> field) {
+                    AnnotatedConverter.this.invoker = field;
+                }
+            };
+        } else {
+            this.invoker = new InitInvoker.ProxyInvoker<Object>(invoker) {
+                @Override
+                protected Invoker<Object> getField() {
+                    return AnnotatedConverter.this.invoker;
+                }
+
+                @Override
+                protected void setField(Invoker<Object> field) {
+                    AnnotatedConverter.this.invoker = field;
+                }
+            };
+        }
         this.isUpcast = isUpcast;
 
-        Method javaMethod = method.getMethod();
-        ConverterMethod annot = (javaMethod == null) ? null : javaMethod.getAnnotation(ConverterMethod.class);
+        ConverterMethod annot = (method.method == null) ? null : method.method.getAnnotation(ConverterMethod.class);
         this.nullInput = (annot != null && annot.acceptsNull());
         this.cost = (annot == null) ? 1 : annot.cost();
     }
 
     @Override
     public Object convertInput(Object value) {
-        Object result = method.invoke(null, value);
+        Object result = invoker.invoke(null, value);
         if (!isUpcast || this.output.isAssignableFrom(result)) {
             return result;
         } else {
@@ -103,12 +132,24 @@ public class AnnotatedConverter extends RawConverter {
     public static class GenericProvider implements ConverterProvider {
         public final TypeDeclaration input;
         public final TypeDeclaration output;
-        public final FastMethod<?> method;
+        public final MethodDeclaration method;
+        public Invoker<Object> invoker;
 
-        public GenericProvider(FastMethod<?> method, TypeDeclaration input, TypeDeclaration output) {
+        public GenericProvider(MethodDeclaration method, TypeDeclaration input, TypeDeclaration output) {
             this.input = input;
             this.output = output;
             this.method = method;
+            this.invoker = new InitInvoker.MethodInvoker<Object>(method) {
+                @Override
+                protected Invoker<Object> getField() {
+                    return invoker;
+                }
+
+                @Override
+                protected void setField(Invoker<Object> field) {
+                    invoker = field;
+                }
+            };
         }
 
         @Override
@@ -164,7 +205,7 @@ public class AnnotatedConverter extends RawConverter {
                 return;
             }
 
-            converters.add(new AnnotatedConverter(this.method, this.input.setGenericTypes(inTypes), output, isUpcast));
+            converters.add(new AnnotatedConverter(this.method, this.invoker, this.input.setGenericTypes(inTypes), output, isUpcast));
         }
 
     }
