@@ -223,7 +223,7 @@ public class MethodDeclaration extends Declaration {
      * @return declaring class
      */
     public Class<?> getDeclaringClass() {
-        if (this.method != null) {
+        if (this.body == null && this.method != null) {
             return this.method.getDeclaringClass();
         } else {
             return this.getResolver().getDeclaredClass();
@@ -378,7 +378,9 @@ public class MethodDeclaration extends Declaration {
 
             // Add to class definition
             {
-                CtClass converterClass = ClassPool.getDefault().get(Converter.class.getName());
+                ClassPool tmp_pool = new ClassPool();
+                tmp_pool.insertClassPath(new ClassClassPath(Converter.class));
+                CtClass converterClass = tmp_pool.get(Converter.class.getName());
                 CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
                 ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
                 invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter));
@@ -445,7 +447,9 @@ public class MethodDeclaration extends Declaration {
 
             // Add to class definition
             {
-                CtClass converterClass = ClassPool.getDefault().get(Converter.class.getName());
+                ClassPool tmp_pool = new ClassPool();
+                tmp_pool.insertClassPath(new ClassClassPath(Converter.class));
+                CtClass converterClass = tmp_pool.get(Converter.class.getName());
                 CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
                 ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
                 invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter));
