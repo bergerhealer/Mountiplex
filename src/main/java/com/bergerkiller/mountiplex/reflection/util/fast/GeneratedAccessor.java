@@ -18,11 +18,14 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
         super(field);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public static <T> GeneratedAccessor<T> create(java.lang.reflect.Field field) {
-        // Optimize field access be generating the code to do it (its a public member)
+        // Optimize field access by generating the code to do it (its a public member)
+        ExtendedClassWriter<GeneratedAccessor<T>> cw = ExtendedClassWriter.builder(GeneratedAccessor.class)
+                .setFlags(ClassWriter.COMPUTE_MAXS)
+                .setAccess(ACC_FINAL).build();
+
         String selfName = Type.getInternalName(GeneratedAccessor.class);
-        ExtendedClassWriter<GeneratedAccessor<T>> cw = new ExtendedClassWriter<GeneratedAccessor<T>>(ClassWriter.COMPUTE_MAXS, (Class) GeneratedAccessor.class);
+
         MethodVisitor mv;
 
         // Constructor that calls the super constructor with the Field

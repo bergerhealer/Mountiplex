@@ -44,9 +44,11 @@ public class TemplateTest {
         assertEquals(12, TestObjectHandle.T.defaultInterfaceMethod.invoke(object).intValue());
         assertEquals(13, TestObjectHandle.T.inheritedClassMethod.invoke(object).intValue());
         assertEquals(621, TestObjectHandle.T.testGenerated.invoke(object).intValue());
+        assertEquals(244, TestObjectHandle.T.testGeneratedWithArg.invoke(object, 12).intValue());
         assertTrue(TestObjectHandle.T.testGenerated.isAvailable());
         assertTrue(TestObjectHandle.T.oneWay.isReadonly());
         assertEquals("OneWayConvertableType::UniqueType", TestObjectHandle.T.oneWay.get(object).name);
+        assertEquals(Integer.valueOf(562), TestObjectHandle.T.staticGenerated.invoke(50));
 
         try {
             TestObjectHandle.T.oneWay.set(object, null);
@@ -55,6 +57,47 @@ public class TemplateTest {
             assertEquals("Field oneWay is readonly", ex.getMessage());
         }
         assertNotNull(TestObjectHandle.T.oneWay.get(object));
+    }
+
+    // Same test as above, but uses handle instead
+    private void test_TestObjectHandle() {
+        // Preset correctly
+        TestObjectHandle.setStaticField("static_test");
+        TestObjectHandle.setStaticFinalField("static_final_test");
+
+        TestObject object = new TestObject();
+        TestObjectHandle handle = TestObjectHandle.createHandle(object);
+
+        assertEquals("static_test", TestObjectHandle.getStaticField());
+        assertEquals("static_final_test", TestObjectHandle.getStaticFinalField());
+        assertEquals("local_test", handle.getLocalField());
+        assertEquals("local_final_test", handle.getLocalFinalField());
+        TestObjectHandle.setStaticField("static_changed");
+        TestObjectHandle.setStaticFinalField("static_final_changed");
+        handle.setLocalField("local_changed");
+        handle.setLocalFinalField("local_final_changed");
+        assertEquals("static_changed", TestObjectHandle.getStaticField());
+        assertEquals("static_final_changed", TestObjectHandle.getStaticFinalField());
+        assertEquals("local_changed", handle.getLocalField());
+        assertEquals("local_final_changed", handle.getLocalFinalField());
+        assertEquals("12", handle.getIntConvField());
+        assertEquals(57, handle.testFunc(12, 45));
+        assertEquals("77", handle.testConvFunc1(43, 33));
+        assertEquals(68, handle.testConvFunc2("22", "44"));
+        assertEquals(288L, TestObjectHandle.testing2(12, "24"));
+        assertEquals(12, handle.defaultInterfaceMethod());
+        assertEquals(13, handle.inheritedClassMethod());
+        assertEquals(244, handle.testGeneratedWithArg(12));
+        assertEquals("OneWayConvertableType::UniqueType", handle.getOneWay().name);
+        assertEquals(562, TestObjectHandle.staticGenerated(50));
+
+        try {
+            TestObjectHandle.T.oneWay.set(object, null);
+            fail("Readonly field was written to");
+        } catch (UnsupportedOperationException ex) {
+            assertEquals("Field oneWay is readonly", ex.getMessage());
+        }
+        assertNotNull(handle.getOneWay());
     }
 
     private void test_PrivateTestObject() {
@@ -78,6 +121,8 @@ public class TemplateTest {
         assertEquals(1, BootstrapState.CALLED_ROOT);
         assertEquals(1, BootstrapState.CALLED_TESTOBJECT);
         assertEquals(1, BootstrapState.CALLED_PRIVATETESTOBJECT);
+
+        test_TestObjectHandle();
     }
 
     @Test

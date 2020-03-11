@@ -10,7 +10,8 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
-import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedMethodInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.InvalidArgumentCountException;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.SpeedTestObjectHandle;
 
@@ -58,7 +59,7 @@ public class MethodSpeedTest {
         System.out.println("Execution time of " + testName + ": " + (endTime - startTime) + "ms");
     }
 
-    public static class CustomGenSet extends GeneratedInvoker {
+    public static class CustomGenSet extends GeneratedMethodInvoker {
 
         public CustomGenSet(Method method) {
             super(method);
@@ -67,7 +68,7 @@ public class MethodSpeedTest {
         @Override
         public Object invokeVA(Object instance, Object... args) {
             if (args.length != 1) {
-                throw failArgs(args.length);
+                throw new InvalidArgumentCountException("method", args.length, 1);
             } else {
                 return invoke(instance, args[0]);
             }
@@ -80,7 +81,7 @@ public class MethodSpeedTest {
         }
     }
 
-    public static class CustomGenGet extends GeneratedInvoker {
+    public static class CustomGenGet extends GeneratedMethodInvoker {
 
         public CustomGenGet(Method method) {
             super(method);
@@ -89,7 +90,7 @@ public class MethodSpeedTest {
         @Override
         public Object invokeVA(Object instance, Object... args) {
             if (args.length != 0) {
-                throw failArgs(args.length);
+                throw new InvalidArgumentCountException("method", args.length, 0);
             } else {
                 return invoke(instance);
             }

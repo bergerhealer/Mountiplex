@@ -5,10 +5,54 @@ import java.util.List;
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
-public class TestObjectHandle extends Template.Handle {
+public abstract class TestObjectHandle extends Template.Handle {
     public static final TestObjectClass T = new TestObjectClass();
     protected static final StaticInitHelper _init_helper = new StaticInitHelper(TestObjectHandle.class, "com.bergerkiller.mountiplex.types.TestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
     public static final String CONSTANT = T.staticField.getSafe();
+
+    public static TestObjectHandle createHandle(Object instance) {
+        return T.createHandle(instance);
+    }
+
+    public static String getStaticField() {
+        return T.staticField.get();
+    }
+
+    public static void setStaticField(String value) {
+        T.staticField.set(value);
+    }
+
+    public static String getStaticFinalField() {
+        return T.staticFinalField.get();
+    }
+
+    public static void setStaticFinalField(String value) {
+        T.staticFinalField.set(value);
+    }
+
+    public static long testing2(int a, String b) {
+        return T.testing2.invoke(a, b);
+    }
+
+    public static int staticGenerated(int parameter) {
+        return T.staticGenerated.invoke(Integer.valueOf(parameter)).intValue();
+    }
+
+    public abstract String getLocalField();
+    public abstract void setLocalField(String value);
+    public abstract String getLocalFinalField();
+    public abstract void setLocalFinalField(String value);
+    public abstract String getIntConvField();
+    public abstract void setIntConvField(String value);
+    public abstract List<String> getTestRawField();
+    public abstract void setTestRawField(List<String> value);
+    public abstract UniqueType getOneWay();
+    public abstract int testFunc(int k, int l);
+    public abstract String testConvFunc1(int k, int l);
+    public abstract int testConvFunc2(String k, String l);
+    public abstract int defaultInterfaceMethod();
+    public abstract int inheritedClassMethod();
+    public abstract int testGeneratedWithArg(int parameter);
 
     public static class TestObjectClass extends Template.Class<TestObjectHandle> {
         public final Template.Field.Converted<List<String>> testRawField = new Template.Field.Converted<List<String>>();
@@ -23,8 +67,10 @@ public class TestObjectHandle extends Template.Handle {
         public final Template.Method<Integer> defaultInterfaceMethod = new Template.Method<Integer>();
         public final Template.Method<Integer> inheritedClassMethod = new Template.Method<Integer>();
         public final Template.StaticMethod.Converted<Long> testing2 = new Template.StaticMethod.Converted<Long>();
+        public final Template.Method<Integer> testGeneratedWithArg = new Template.Method<Integer>();
         @Template.Optional
         public final Template.Method<Integer> testGenerated = new Template.Method<Integer>();
+        public final Template.StaticMethod<Integer> staticGenerated = new Template.StaticMethod<Integer>();
         @Template.Optional
         public final Template.Field<String> unusedField = new Template.Field<String>();
         @Template.Readonly

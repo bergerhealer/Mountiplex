@@ -34,29 +34,9 @@ public class AnnotatedConverter extends RawConverter {
     private AnnotatedConverter(MethodDeclaration method, Invoker<Object> invoker, TypeDeclaration input, TypeDeclaration output, boolean isUpcast) {
         super(input, output);
         if (invoker == null) {
-            this.invoker = new InitInvoker.MethodInvoker<Object>(method) {
-                @Override
-                protected Invoker<Object> getField() {
-                    return AnnotatedConverter.this.invoker;
-                }
-
-                @Override
-                protected void setField(Invoker<Object> field) {
-                    AnnotatedConverter.this.invoker = field;
-                }
-            };
+            this.invoker = InitInvoker.forMethod(this, "invoker", method);
         } else {
-            this.invoker = new InitInvoker.ProxyInvoker<Object>(invoker) {
-                @Override
-                protected Invoker<Object> getField() {
-                    return AnnotatedConverter.this.invoker;
-                }
-
-                @Override
-                protected void setField(Invoker<Object> field) {
-                    AnnotatedConverter.this.invoker = field;
-                }
-            };
+            this.invoker = InitInvoker.proxy(this, "invoker", invoker);
         }
         this.isUpcast = isUpcast;
 
@@ -139,17 +119,7 @@ public class AnnotatedConverter extends RawConverter {
             this.input = input;
             this.output = output;
             this.method = method;
-            this.invoker = new InitInvoker.MethodInvoker<Object>(method) {
-                @Override
-                protected Invoker<Object> getField() {
-                    return invoker;
-                }
-
-                @Override
-                protected void setField(Invoker<Object> field) {
-                    invoker = field;
-                }
-            };
+            this.invoker = InitInvoker.forMethod(this, "invoker", method);
         }
 
         @Override

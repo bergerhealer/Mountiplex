@@ -53,7 +53,11 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
     }
 
     public static GeneratedConstructor create(java.lang.reflect.Constructor<?> constructor) {
-        ExtendedClassWriter<GeneratedConstructor> cw = new ExtendedClassWriter<GeneratedConstructor>(ClassWriter.COMPUTE_MAXS, GeneratedConstructor.class);
+        // Optimize constructor access by generating the code to do it (its a public member)
+        ExtendedClassWriter<GeneratedConstructor> cw = ExtendedClassWriter.builder(GeneratedConstructor.class)
+                .setFlags(ClassWriter.COMPUTE_MAXS)
+                .setAccess(ACC_FINAL).build();
+
         MethodVisitor mv;
         Class<?> instanceType = constructor.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
         String instanceName = Type.getInternalName(instanceType);

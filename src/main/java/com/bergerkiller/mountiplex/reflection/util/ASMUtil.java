@@ -21,6 +21,20 @@ public class ASMUtil {
     private static final int ASM_VERSION = Opcodes.ASM6;
 
     /**
+     * Gets an array of types using an array of classes
+     * 
+     * @param classes
+     * @return types
+     */
+    public static Type[] getTypes(Class<?>... classes) {
+        Type[] types = new Type[classes.length];
+        for (int i = 0; i < classes.length; i++) {
+            types[i] = Type.getType(classes[i]);
+        }
+        return types;
+    }
+
+    /**
      * Rewrites class data to remove the signatures of methods defined in the class
      * 
      * @param classData

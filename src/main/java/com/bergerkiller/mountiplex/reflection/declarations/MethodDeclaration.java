@@ -5,6 +5,8 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
+import org.objectweb.asm.Type;
+
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
@@ -16,6 +18,7 @@ import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import javassist.CannotCompileException;
+import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
@@ -214,6 +217,48 @@ public class MethodDeclaration extends Declaration {
         return false;
     }
 
+    /**
+     * Gets the Class in which this method is declared
+     * 
+     * @return declaring class
+     */
+    public Class<?> getDeclaringClass() {
+        if (this.method != null) {
+            return this.method.getDeclaringClass();
+        } else {
+            return this.getResolver().getDeclaredClass();
+        }
+    }
+
+    /**
+     * Gets the ASM library method descriptor String for the internal (not cast) interface of this method.
+     * This has signature (InstanceType omitted if static):
+     * <pre>ReturnType (InstanceType, Parameters...)</pre>
+     * If types used by this method are not accessible, Object is used instead.
+     * 
+     * @return ASM method descriptor
+     */
+    public String getASMInvokeDescriptor() {
+        Type[] params;
+        if (this.modifiers.isStatic()) {
+            params = new Type[this.parameters.parameters.length];
+            for (int i = 0; i < this.parameters.parameters.length; i++) {
+                params[i] = getAccessibleType(this.parameters.parameters[i].type.type);
+            }
+        } else {
+            params = new Type[this.parameters.parameters.length + 1];
+            params[0] = getAccessibleType(this.getDeclaringClass());
+            for (int i = 0; i < this.parameters.parameters.length; i++) {
+                params[i+1] = getAccessibleType(this.parameters.parameters[i].type.type);
+            }
+        }
+        return Type.getMethodDescriptor(Type.getType(this.returnType.type), params);
+    }
+
+    private static Type getAccessibleType(Class<?> type) {
+        return Type.getType(Resolver.getMeta(type).isPublic ? type : Object.class);
+    }
+
     @Override
     public String toString(boolean identity) {
         if (!isValid()) {
@@ -276,7 +321,10 @@ public class MethodDeclaration extends Declaration {
             FastMethod<Object> method = new FastMethod<Object>();
             method.init(this);
 
-            CtClass fastMethodClass = ClassPool.getDefault().get(FastMethod.class.getName());
+            ClassPool tmp_pool = new ClassPool();
+            tmp_pool.insertClassPath(new ClassClassPath(FastMethod.class));
+            CtClass fastMethodClass = tmp_pool.get(FastMethod.class.getName());
+
             CtField ctConverterField = new CtField(fastMethodClass, methodFieldName, invokerClass);
             ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
             invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(method));

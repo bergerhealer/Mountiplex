@@ -138,7 +138,7 @@ public class TemplateSpeedTest {
         final String className = Type.getInternalName(SpeedTestObject.class);
         final String propertyName = "i";
 
-        ExtendedClassWriter<GenSetter> cw = new ExtendedClassWriter<GenSetter>(0, GenSetter.class);
+        ExtendedClassWriter<GenSetter> cw = ExtendedClassWriter.builder(GenSetter.class).build();
 
         MethodVisitor mv;
 

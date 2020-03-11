@@ -40,8 +40,14 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver {
                 "    private static (long) int testing2:g(int a, (String) int b);\n" +
                 "    public int defaultInterfaceMethod();\n" +
                 "    public int inheritedClassMethod();\n" +
+                "    public int testGeneratedWithArg(int parameter) {\n" +
+                "        return 4 + parameter * 20;\n" +
+                "    }\n" +
                 "    public optional int testGenerated() {\n" +
                 "        return 621;\n" +
+                "    }\n" +
+                "    public static int staticGenerated(int parameter) {\n" +
+                "        return 512 + parameter;\n" +
                 "    }\n" +
                 "}\n" +
                 "package com.bergerkiller.mountiplex.types;\n" +

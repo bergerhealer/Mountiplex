@@ -183,17 +183,7 @@ public class Template {
                             if (result instanceof MethodDeclaration &&
                                 TemplateHandleBuilder.isCreateHandleMethod((MethodDeclaration) result))
                             {
-                                this.handleBuilderMethod = new InitInvoker.ProxyInvoker<H>(((StaticMethod<H>) element).invoker) {
-                                    @Override
-                                    protected Invoker<H> getField() {
-                                        return handleBuilderMethod;
-                                    }
-
-                                    @Override
-                                    protected void setField(Invoker<H> field) {
-                                        handleBuilderMethod = field;
-                                    }
-                                };
+                                this.handleBuilderMethod = InitInvoker.proxy(this, "handleBuilderMethod", ((StaticMethod<H>) element).invoker);
                             }
                         } else if (!element._optional) {
                             fieldsSuccessful = false;
@@ -732,7 +722,7 @@ public class Template {
 
     public static class AbstractMethod<T> extends TemplateElement<MethodDeclaration> {
         private MethodDeclaration method = null;
-        protected Invoker<T> invoker = InitInvoker.unavailableMethod();
+        public Invoker<T> invoker = InitInvoker.unavailableMethod();
 
         @Override
         protected final void failNotFound() {
@@ -749,17 +739,7 @@ public class Template {
             for (MethodDeclaration methodDec : dec.methods) {
                 if ((methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
                     this.method = methodDec;
-                    this.invoker = new InitInvoker.MethodInvoker<T>(methodDec) {
-                        @Override
-                        protected Invoker<T> getField() {
-                            return invoker;
-                        }
-
-                        @Override
-                        protected void setField(Invoker<T> field) {
-                            invoker = field;
-                        }
-                    };
+                    this.invoker = InitInvoker.forMethod(this, "invoker", methodDec);
                     return methodDec;
                 }
             }
@@ -769,7 +749,7 @@ public class Template {
 
         @Override
         public void forceInitialization() {
-            InitInvoker.initialize(invoker);
+            this.invoker.forceInitialization();
             failNotFound();
         }
 
@@ -777,7 +757,7 @@ public class Template {
         protected void initElementName(String elementName) {
             super.initElementName(elementName);
             this.method = null;
-            this.invoker = InitInvoker.unavailableMethod(elementName); // makes sure its logged correctly
+            this.invoker = InitInvoker.unavailable("method", elementName); // makes sure its logged correctly
         }
 
         @Override
@@ -1441,6 +1421,7 @@ public class Template {
                 if (this.argConverters == null) {
                     return convertResult(this.raw.invoker.invoke(null, arg0));
                 } else {
+                    this.raw.invoker.initializeInvoker();
                     return convertResult(this.raw.invoker.invoke(null,
                             argConverter0.apply(arg0)));
                 }

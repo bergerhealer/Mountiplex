@@ -37,20 +37,10 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
             this.invoker = InitInvoker.unavailableMethod();
         } else if (methodDeclaration.body == null && methodDeclaration.method == null) {
             this.method = null;
-            this.invoker = InitInvoker.unavailableMethod(methodDeclaration.toString());
+            this.invoker = InitInvoker.unavailable("method", methodDeclaration.toString());
         } else {
             this.method = methodDeclaration;
-            this.invoker = new InitInvoker.MethodInvoker<T>(methodDeclaration) {
-                @Override
-                protected Invoker<T> getField() {
-                    return invoker;
-                }
-
-                @Override
-                protected void setField(Invoker<T> field) {
-                    invoker = field;
-                }
-            };
+            this.invoker = InitInvoker.forMethod(this, "invoker", methodDeclaration);
         }
     }
 
@@ -66,15 +56,15 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
      */
     public final void initUnavailable(String missingInfo) {
         this.method = null;
-        this.invoker = InitInvoker.unavailableMethod(missingInfo);
+        this.invoker = InitInvoker.unavailable("method", missingInfo);
     }
 
     /**
      * Checks whether this fast method is initialized, and throws an exception if it is not.
      */
     public final void checkInit() {
-        if (this.invoker instanceof InitInvoker.UnavailableMethodInvoker) {
-            ((InitInvoker.UnavailableMethodInvoker<T>) this.invoker).create();
+        if (this.invoker instanceof InitInvoker.UnavailableInvoker) {
+            this.invoker.initializeInvoker();
         }
     }
 
@@ -134,7 +124,7 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
 
     @Override
     public void forceInitialization() {
-        InitInvoker.initialize(invoker);
+        this.invoker.forceInitialization();
     }
 
     @Override

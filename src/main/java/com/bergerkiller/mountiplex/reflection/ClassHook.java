@@ -191,17 +191,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             this.method = method;
             this.declaration = name;
             this.optional = optional;
-            this.interceptorCallback = new InitInvoker.MethodInvoker<Object>(method) {
-                @Override
-                protected Invoker<Object> getField() {
-                    return interceptorCallback;
-                }
-
-                @Override
-                protected void setField(Invoker<Object> field) {
-                    interceptorCallback = field;
-                }
-            };
+            this.interceptorCallback = InitInvoker.forMethod(this, "interceptorCallback", method);
         }
 
         @Override

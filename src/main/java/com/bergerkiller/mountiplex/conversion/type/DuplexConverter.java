@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.conversion.type;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 /**
@@ -395,8 +396,8 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
 
         public DuplexAnnotatedConverter(AnnotatedConverter converter, AnnotatedConverter reverse, DuplexAnnotatedConverter<B, A> reverseDupl) {
             super(reverse.output, converter.output, reverseDupl);
-            this.converterInvoker = converter.invoker;
-            this.reverseInvoker = reverse.invoker;
+            this.converterInvoker = InitInvoker.proxy(this, "converterInvoker", converter.invoker);
+            this.reverseInvoker = InitInvoker.proxy(this, "reverseInvoker", reverse.invoker);
             this.converterAcceptNull = converter.acceptsNullInput();
             this.reverseAcceptNull = reverse.acceptsNullInput();
         }

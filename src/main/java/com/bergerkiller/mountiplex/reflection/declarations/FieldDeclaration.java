@@ -11,6 +11,7 @@ import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import javassist.CannotCompileException;
+import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
@@ -155,7 +156,10 @@ public class FieldDeclaration extends Declaration {
             f.init(this.field);
             FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
 
-            CtClass fastFieldClass = ClassPool.getDefault().get(FastConvertedField.class.getName());
+            ClassPool tmp_pool = new ClassPool();
+            tmp_pool.insertClassPath(new ClassClassPath(FastConvertedField.class));
+            CtClass fastFieldClass = tmp_pool.get(FastConvertedField.class.getName());
+
             CtField ctField = new CtField(fastFieldClass, name, invokerClass);
             ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
             invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
@@ -164,7 +168,10 @@ public class FieldDeclaration extends Declaration {
             FastField<?> f = new FastField<Object>();
             f.init(this.field);
 
-            CtClass fastFieldClass = ClassPool.getDefault().get(FastField.class.getName());
+            ClassPool tmp_pool = new ClassPool();
+            tmp_pool.insertClassPath(new ClassClassPath(FastField.class));
+            CtClass fastFieldClass = tmp_pool.get(FastField.class.getName());
+
             CtField ctField = new CtField(fastFieldClass, name, invokerClass);
             ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
             invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));

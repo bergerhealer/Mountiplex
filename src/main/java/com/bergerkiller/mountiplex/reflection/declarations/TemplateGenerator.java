@@ -237,7 +237,7 @@ public class TemplateGenerator {
                     if (TemplateHandleBuilder.isCreateHandleMethod(mDec)) {
                         continue;
                     }
-                    addMethodBody(mDec, false);
+                    addStaticMethodBody(mDec);
                 }
 
                 // Local methods
@@ -245,7 +245,7 @@ public class TemplateGenerator {
                     if (mDec.modifiers.isUnknown() || mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
-                    addMethodBody(mDec, true);
+                    addAbstractMethodBody(mDec);
                 }
 
                 // Custom code section
@@ -493,45 +493,48 @@ public class TemplateGenerator {
         return argsStr;
     }
 
-    private void addMethodBody(MethodDeclaration mDec, boolean abstractDecl) {
-        String methodStr = "public ";
-        if (mDec.modifiers.isStatic()) {
-            methodStr += "static ";
-        }
-        if (abstractDecl) {
-            methodStr += "abstract ";
-        }
-        methodStr += getExposedTypeStr(mDec.returnType);
-        methodStr += " " + mDec.name.real();
-        methodStr += getParamsBody(mDec.parameters);
-        if (abstractDecl) {
-            addLine(methodStr);
-            return;
-        }
+    private void addAbstractMethodBody(MethodDeclaration mDec) {
+        addLine("public abstract " +
+                getExposedTypeStr(mDec.returnType) +
+                " " + mDec.name.real() +
+                getParamsBody(mDec.parameters));
+    }
 
+    private void addStaticMethodBody(MethodDeclaration mDec) {
         // Include body
-        addLine(methodStr + " {");
+        addLine("public static " +
+                getExposedTypeStr(mDec.returnType) +
+                " " + mDec.name.real() +
+                getParamsBody(mDec.parameters) + " {");
 
         String bodyStr = "";
         if (!void.class.equals(getExposedType(mDec.returnType).type)) {
             bodyStr += "return ";
         }
 
-        //TODO: Also make this work for converted methods
-        if (mDec.parameters.parameters.length <= 5) {
-            // 0/1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
-            bodyStr += "T." + mDec.name.real() + ".invoke(";
+        if (hasConversion(mDec)) {
+            // Call invoke/invokeVA on the Template methods themselves
+            if (mDec.parameters.parameters.length <= 5) {
+                // 0/1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
+                bodyStr += "T." + mDec.name.real() + ".invoke(";
+            } else {
+                // varargs Object[] invoke
+                bodyStr += "T." + mDec.name.real() + ".invokeVA(";
+            }
         } else {
-            // varargs Object[] invoke
-            bodyStr += "T." + mDec.name.real() + ".invokeVA(";
-        }
-
-        if (!mDec.modifiers.isStatic()) {
-            bodyStr += "getRaw()";
-            if (mDec.parameters.parameters.length > 0) {
-                bodyStr += ", ";
+            // Call invoke/invokeVA on the 'invoker' field
+            if (mDec.parameters.parameters.length == 0) {
+                // 0 argument specified invoke function, omit trailing ,
+                bodyStr += "T." + mDec.name.real() + ".invoker.invoke(null";
+            } else if (mDec.parameters.parameters.length <= 5) {
+                // 1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
+                bodyStr += "T." + mDec.name.real() + ".invoker.invoke(null,";
+            } else {
+                // varargs Object[] invoke
+                bodyStr += "T." + mDec.name.real() + ".invoker.invokeVA(null,";
             }
         }
+
         bodyStr += getArgsBody(mDec.parameters);
         bodyStr += ")";
 

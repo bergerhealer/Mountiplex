@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
-import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ReflectionInvoker<T> implements Invoker<T> {
@@ -123,14 +122,8 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         return invokeVA(instance, new Object[] {arg0, arg1, arg2, arg3, arg4});
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> Invoker<T> create(java.lang.reflect.Method method) {
-        Class<?>[] paramTypes = method.getParameterTypes();
-        if (paramTypes.length <= 5 && Resolver.isPublic(method)) {
-            return (Invoker<T>) GeneratedInvoker.create(method);
-        } else {
-            return new ReflectionInvoker<T>(method);
-        }
+        method.setAccessible(true);
+        return new ReflectionInvoker<T>(method);
     }
-
 }
