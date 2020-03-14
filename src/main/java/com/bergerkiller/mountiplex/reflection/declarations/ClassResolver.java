@@ -303,12 +303,53 @@ public class ClassResolver {
      * @return True if the expression evaluates as True, False if not
      */
     public boolean evaluateExpression(String expression) {
+        // Find instances of && or || in the String, and separate each expression by these
+        // We evaluate left to right, which means this statement:
+        // true && false || true
+        // evaluates to true, because true && false = false -> false || true = true
+        boolean prevExpressionResult = false;
+        int prevExpressionStart = 0;
+        boolean compareAnd = false;
+        for (int cIdx = 0; cIdx < expression.length()-1; cIdx++) {
+            char c = expression.charAt(cIdx);
+
+            boolean nextCompareAnd;
+            if (c == '&' && expression.charAt(cIdx+1) == '&') {
+                nextCompareAnd = true;
+            } else if (c == '|' && expression.charAt(cIdx+1) == '|') {
+                nextCompareAnd = false;
+            } else {
+                continue;
+            }
+
+            // Evaluate previous expression
+            if (compareAnd) {
+                prevExpressionResult &= evaluateExpression_part(expression.substring(prevExpressionStart, cIdx));
+            } else {
+                prevExpressionResult |= evaluateExpression_part(expression.substring(prevExpressionStart, cIdx));
+            }
+
+            // Reset to the next expression
+            cIdx++; // skip second & or |
+            compareAnd = nextCompareAnd;
+            prevExpressionStart = cIdx + 1;
+        }
+
+        // Trailing part
+        if (compareAnd) {
+            return prevExpressionResult && evaluateExpression_part(expression.substring(prevExpressionStart));
+        } else {
+            return prevExpressionResult || evaluateExpression_part(expression.substring(prevExpressionStart));
+        }
+    }
+
+    private boolean evaluateExpression_part(String expression) {
         // =============== Tokenize the expression ================
         expression = expression.trim();
         String varName = null;
         for (int cIdx = 0; cIdx < expression.length(); cIdx++) {
             char c = expression.charAt(cIdx);
-            if (cIdx == ' ' || !Character.isLetter(c)) {
+            if (cIdx == ' ' || (!Character.isLetter(c) && c != '_')) {
                 varName = expression.substring(0, cIdx);
                 expression = expression.substring(cIdx).trim();
                 break;

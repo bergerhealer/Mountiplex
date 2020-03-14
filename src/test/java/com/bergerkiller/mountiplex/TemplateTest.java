@@ -177,6 +177,8 @@ public class TemplateTest {
     public void testVariables() {
         ClassResolver resolver = new ClassResolver();
         resolver.setVariable("version", "1.12-pre5");
+        resolver.setVariable("cond_a", "12");
+        resolver.setVariable("cond_b", "44");
         assertTrue(resolver.evaluateExpression("version == 1.12-pre5"));
         assertTrue(resolver.evaluateExpression("version >= 1.12-pre5"));
         assertTrue(resolver.evaluateExpression("version <= 1.12-pre5"));
@@ -189,6 +191,16 @@ public class TemplateTest {
         assertTrue(resolver.evaluateExpression("version < 1.13-pre5"));
         assertTrue(resolver.evaluateExpression("version >= 1.12"));
         assertFalse(resolver.evaluateExpression("version >= 1.12-pre6"));
+
+        assertTrue(resolver.evaluateExpression("cond_a == 12"));
+        assertTrue(resolver.evaluateExpression("cond_b == 44"));
+        assertTrue(resolver.evaluateExpression("cond_a == 12 && cond_b == 44"));
+        assertFalse(resolver.evaluateExpression("cond_a == 11 && cond_b == 44"));
+        assertFalse(resolver.evaluateExpression("cond_a == 12 && cond_b == 43"));
+        assertTrue(resolver.evaluateExpression("cond_a == 12 || cond_b == 44"));
+        assertFalse(resolver.evaluateExpression("cond_a == 11 || cond_b == 43"));
+        assertTrue(resolver.evaluateExpression("cond_a == 11 || cond_b == 44"));
+        assertTrue(resolver.evaluateExpression("cond_a == 12 || cond_b == 43"));
     }
 
     @Test
