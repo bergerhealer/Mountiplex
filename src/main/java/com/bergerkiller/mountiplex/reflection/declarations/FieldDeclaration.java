@@ -193,6 +193,12 @@ public class FieldDeclaration extends Declaration {
             if (this.field == null) {
                 return null;
             }
+
+            // Field must be public when declaration says it's public
+            if (this.modifiers.isPublic() && !Modifier.isPublic(this.field.getModifiers())) {
+                this.field = null;
+                return null;
+            }
             return this;
         } catch (NoSuchFieldException ex) {
             // Not found

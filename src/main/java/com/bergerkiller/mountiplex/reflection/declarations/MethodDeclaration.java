@@ -533,7 +533,7 @@ public class MethodDeclaration extends Declaration {
             java.lang.reflect.Method method;
             method = this.getResolver().getDeclaredClass().getDeclaredMethod(this.name.value(), this.parameters.toParamArray());
             MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
-            if (result.match(this)) {
+            if (result.match(this) && checkPublic(method)) {
                 this.method = method;
                 return this;
             }
@@ -545,7 +545,7 @@ public class MethodDeclaration extends Declaration {
         {
             ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, this.getResolver().getDeclaredClass());
             MethodDeclaration result = cDec.findMethod(this);
-            if (result != null) {
+            if (result != null && checkPublic(result.method)) {
                 this.method = result.method;
                 return this;
             }
@@ -555,7 +555,7 @@ public class MethodDeclaration extends Declaration {
         for (TypeDeclaration superType : typeDec.getSuperTypes()) {
             ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, superType.type);
             MethodDeclaration result = cDec.findMethod(this);
-            if (result != null) {
+            if (result != null && checkPublic(result.method)) {
                 this.method = result.method;
                 return this;
             }
@@ -563,6 +563,10 @@ public class MethodDeclaration extends Declaration {
 
         // Not found
         return null;
+    }
+
+    private boolean checkPublic(java.lang.reflect.Method method) {
+        return !this.modifiers.isPublic() || Modifier.isPublic(method.getModifiers());
     }
 
     private Requirement[] processRequirements(StringBuilder body) {
