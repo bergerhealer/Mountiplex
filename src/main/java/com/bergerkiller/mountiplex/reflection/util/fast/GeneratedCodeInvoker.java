@@ -1,6 +1,8 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
@@ -23,19 +25,33 @@ import javassist.NotFoundException;
  * Generates an invoker that executes a method body
  */
 public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
+    private static final List<ResolvedClassPool> CACHED_CLASS_POOLS = new ArrayList<ResolvedClassPool>();
+
+    private static ResolvedClassPool retrieveClassPool() {
+        synchronized (CACHED_CLASS_POOLS) {
+            if (CACHED_CLASS_POOLS.isEmpty()) {
+                return new ResolvedClassPool();
+            } else {
+                return CACHED_CLASS_POOLS.remove(CACHED_CLASS_POOLS.size()-1);
+            }
+        }
+    }
+
+    private static void storeClassPool(ResolvedClassPool pool) {
+        pool.clearImportedPackages();
+        synchronized (CACHED_CLASS_POOLS) {
+            CACHED_CLASS_POOLS.add(pool);
+        }
+    }
 
     private static final CtClass getExtendedClass(ClassPool pool, Class<?> type, Class<?> interfaceClass) throws NotFoundException {
-        ClassPool tmp_pool = new ClassPool();
-        tmp_pool.appendSystemPath();
-        tmp_pool.insertClassPath(new ClassClassPath(type));
-
-        CtClass origClazz = tmp_pool.getCtClass(type.getName());
+        CtClass origClazz = pool.getCtClass(type.getName());
         String newClassName = origClazz.getName() + ExtendedClassWriter.getNextPostfix();
         newClassName = ExtendedClassWriter.getAvailableClassName(newClassName);
-        
+
         CtClass extendedClass = pool.makeClass(newClassName, origClazz);
         if (interfaceClass != null) {
-            extendedClass.addInterface(tmp_pool.makeInterface(interfaceClass.getName()));
+            extendedClass.addInterface(pool.makeInterface(interfaceClass.getName()));
         }
         return extendedClass;
     }
@@ -161,6 +177,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
 
         public ResolvedClassPool() {
             super(true);
+            appendClassPath(new ClassClassPath(GeneratedCodeInvoker.class));
         }
 
         @Override
@@ -193,6 +210,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
             if (classname == null) {
                 return null;
             } else if ((url = super.find(classname)) != null) {
+                //System.out.println("[MPL] FIND " + classname + " UNCHANGED_URI");
                 return url;
             } else {
                 return super.find(Resolver.resolveClassPath(classname));
@@ -205,9 +223,12 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
             if (classname == null) {
                 return null;
             } else if (super.find(classname) != null) {
+                //System.out.println("[MPL] FIND " + classname + " UNCHANGED");
                 return classname;
             } else {
-                return Resolver.resolveClassPath(classname);
+                String str = Resolver.resolveClassPath(classname);
+                //System.out.println("[MPL] FIND " + classname + " -> " + str);
+                return str;
             }
         }
     }
@@ -221,15 +242,15 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
         if (!declaration.isResolved()) {
             throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());
         }
+
+        ResolvedClassPool pool = retrieveClassPool();
         try {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getDeclaringClass();
             Class<?> decClass = declaration.getResolver().getDeclaredClass();
-            ClassPool pool = new ResolvedClassPool();
             if (decClass != null) {
                 pool.importPackage(decClass.getPackage().getName());
             }
-            pool.appendClassPath(new ClassClassPath(GeneratedCodeInvoker.class));
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class, interfaceClass);
             CtMethod m;
             StringBuilder methodBody = new StringBuilder();
@@ -339,6 +360,8 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
             }
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
+        } finally {
+            storeClassPool(pool);
         }
     }
 }
