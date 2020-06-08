@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.resolver;
 
+import java.lang.reflect.GenericSignatureFormatError;
 import java.lang.reflect.MalformedParameterizedTypeException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -398,6 +399,9 @@ public class Resolver {
             try {
                 java.lang.reflect.Type s = type.type.getGenericSuperclass();
                 return (s == null) ? null : TypeDeclaration.fromType(s);
+            } catch (GenericSignatureFormatError ex) {
+                Class<?> s = type.type.getSuperclass();
+                return (s == null) ? null : fixResolveGenericTypes(type, TypeDeclaration.fromClass(s));
             } catch (MalformedParameterizedTypeException ex) {
                 Class<?> s = type.type.getSuperclass();
                 return (s == null) ? null : fixResolveGenericTypes(type, TypeDeclaration.fromClass(s));
