@@ -93,7 +93,6 @@ public class StaticInitHelper {
     public static void initType(Class<?> type) {
         Class<?> currentType = type;
         while (currentType != null && InitClass.class.isAssignableFrom(currentType)) {
-
             // Find the first static StaticInitHelper field we find and call a function on it
             // We only have to do this for the first one we find, because it will initializer
             // the super classes the same way
@@ -106,7 +105,7 @@ public class StaticInitHelper {
                             helper.init();
                         }
                     } catch (Throwable t) {
-                        t.printStackTrace();
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to initialize " + currentType.getName(), t);
                     }
                     return;
                 }
