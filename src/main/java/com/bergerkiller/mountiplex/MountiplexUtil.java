@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
 
+import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
+
 /*
  * basically just a bunch of functions taken over from BKCommonLib because we need them here
  */
@@ -85,15 +87,7 @@ public class MountiplexUtil {
      * @return array type
      */
     public static Class<?> getArrayType(Class<?> componentType) {
-        if (componentType.isPrimitive()) {
-            return Array.newInstance(componentType, 0).getClass();
-        } else {
-            try {
-                return Class.forName("[L" + componentType.getName() + ";");
-            } catch (ClassNotFoundException e) {
-                return Object[].class;
-            }
-        }
+        return getArrayType(componentType, 1);
     }
 
     /**
@@ -103,15 +97,11 @@ public class MountiplexUtil {
      * - int.class -> int[].class
      *
      * @param componentType to convert
-     * @param levels the amount of levels to create the array (e.g. 2=[][])
+     * @param num_dimensions the number of dimensions to create the array type (e.g. 2=[][])
      * @return array type
      */
-    public static Class<?> getArrayType(Class<?> componentType, int levels) {
-        Class<?> type = componentType;
-        while (levels-- > 0) {
-            type = getArrayType(type);
-        }
-        return type;
+    public static Class<?> getArrayType(Class<?> componentType, int num_dimensions) {
+        return ArrayHelper.getArrayType(componentType, num_dimensions);
     }
 
     /**

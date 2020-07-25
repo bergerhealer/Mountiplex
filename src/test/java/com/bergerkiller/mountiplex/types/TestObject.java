@@ -13,6 +13,7 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
     public final List testRawField = new ArrayList();
     public String unusedField = "unused";
     public final OneWayConvertableType oneWay = new OneWayConvertableType();
+    public long[][] multiArr;
 
     private int h(int n) {
         c += n;

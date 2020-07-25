@@ -53,6 +53,8 @@ public abstract class TestObjectHandle extends Template.Handle {
     public abstract int defaultInterfaceMethod();
     public abstract int inheritedClassMethod();
     public abstract int testGeneratedWithArg(int parameter);
+    public abstract long[][] getMultiArr();
+    public abstract void setMultiArr(long[][] value);
 
     public static class TestObjectClass extends Template.Class<TestObjectHandle> {
         public final Template.Field.Converted<List<String>> testRawField = new Template.Field.Converted<List<String>>();
@@ -75,5 +77,6 @@ public abstract class TestObjectHandle extends Template.Handle {
         public final Template.Field<String> unusedField = new Template.Field<String>();
         @Template.Readonly
         public final Template.Field.Converted<UniqueType> oneWay = new Template.Field.Converted<UniqueType>();
+        public final Template.Field<long[][]> multiArr = new Template.Field<long[][]>();
     }
 }

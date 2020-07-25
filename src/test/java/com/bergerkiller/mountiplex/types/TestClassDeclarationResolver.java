@@ -33,6 +33,7 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver {
                 "    public final (List<String>) List<Integer> testRawField;\n" +
                 "    public optional String unusedField:###;\n" +
                 "    public readonly final (UniqueType) OneWayConvertableType oneWay;\n" +
+                "    public long[][] multiArr;\n" +
                 "    \n" +
                 "    private int testFunc:d(int k, int l);\n" +
                 "    private (String) int testConvFunc1:e(int k, int l);\n" +

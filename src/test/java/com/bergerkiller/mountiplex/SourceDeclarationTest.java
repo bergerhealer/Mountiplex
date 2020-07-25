@@ -47,6 +47,11 @@ public class SourceDeclarationTest {
                            "#else\n" +
                            "METHODEXISTS SHOULD NOT FAIL\n" +
                            "#endif\n" +
+                           "#if exists java.util.ArrayList public java.util.ArrayList(int capacity);\n" +
+                           "PLEASE BE THERE\n" +
+                           "#else\n" +
+                           "THIS SHOULD NOT BE THERE BRO\n" +
+                           "#endif\n" +
                            "/*\n" +
                            "#if dummy >= 5\n" +
                            "THIS SHOULD BE IGNORED, BLOCK COMMENT\n" +
@@ -60,7 +65,8 @@ public class SourceDeclarationTest {
                           "DUMMY==12 SHOULD EVALUATE\n" +
                           "AFTER ENDIF SHOULD EVALUATE\n" +
                           "THIS SHOULD MATCH BECAUSE FIRST IF\n" +
-                          "COPYVALUEOF SHOULD EXIST\n";
+                          "COPYVALUEOF SHOULD EXIST\n" +
+                          "PLEASE BE THERE\n";
 
         String result = SourceDeclaration.preprocess(sourceDec);
         if (!result.equals(expected)) {

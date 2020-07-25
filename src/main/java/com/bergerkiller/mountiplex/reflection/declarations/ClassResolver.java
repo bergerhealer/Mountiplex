@@ -481,9 +481,15 @@ public class ClassResolver {
 
         // Array types
         if (name.endsWith("[]")) {
-            Class<?> componentType = resolveClass(name.substring(0, name.length() - 2));
+            int arrayLevels = 0;
+            do {
+                arrayLevels++;
+                name = name.substring(0, name.length() - 2);
+            } while (name.endsWith("[]"));
+
+            Class<?> componentType = resolveClass(name);
             if (componentType != null) {
-                return MountiplexUtil.getArrayType(componentType);
+                return MountiplexUtil.getArrayType(componentType, arrayLevels);
             } else {
                 return null;
             }
