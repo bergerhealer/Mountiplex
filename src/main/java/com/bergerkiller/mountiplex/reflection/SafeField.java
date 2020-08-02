@@ -7,6 +7,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 
 /**
@@ -65,16 +66,30 @@ public class SafeField<T> implements FieldAccessor<T> {
         String fixedName = Resolver.resolveFieldName(source, name);
         String dispName = name.equals(fixedName) ? name : (name + "[" + fixedName + "]");
         this.field.init(findRaw(source, fixedName));
-        if (this.field.getField() != null) {
-            if (fieldType != null && !this.field.getType().equals(fieldType)) {
-                MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
-                                          " in class " + source.getName() +
-                                          " is of type " + this.field.getType().getSimpleName() +
-                                          " while we expect type " + fieldType.getSimpleName());
-                this.field.init(null);
+        if (this.field.getField() == null) {
+            if (fieldType == null) {
+                this.field.initUnavailable("[???] " + source.getSimpleName() + "::" + name + "[???]");
             } else {
-                return;
+                this.field.initUnavailable(fieldType.getSimpleName() + " " + source.getSimpleName() + "::" + name + "[???]");
             }
+        } else {
+            if (fieldType == null) {
+                return; // no check
+            }
+
+            Class<?> realType = this.field.getType();
+            if (realType.equals(fieldType)) {
+                return; // All good!
+            }
+            if (BoxedType.tryBoxType(realType).equals(BoxedType.tryBoxType(fieldType))) {
+                return; // The input type is only wrong because of boxing/unboxing, we ignore this
+            }
+
+            MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
+                    " in class " + source.getName() +
+                    " is of type " + realType.getSimpleName() +
+                    " while we expect type " + fieldType.getSimpleName());
+            this.field.initUnavailable(fieldType.getSimpleName() + "[?] " + source.getSimpleName() + "::" + name);
         }
         MountiplexUtil.LOGGER.warning("Field '" + dispName + "' could not be found in class " + source.getName());
     }

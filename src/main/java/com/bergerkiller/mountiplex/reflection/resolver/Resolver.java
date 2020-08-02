@@ -15,6 +15,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
  * Resolves class, field and method names into Class, Fields and Methods.
@@ -213,12 +214,10 @@ public class Resolver {
 
     public static void registerMethodResolver(MethodNameResolver resolver) {
         Resolver.resolver.methodNameResolvers.add(resolver);
-        Resolver.resolver.classCache.clear();
     }
 
     public static void registerFieldResolver(FieldNameResolver resolver) {
         Resolver.resolver.fieldNameResolvers.add(resolver);
-        Resolver.resolver.classCache.clear();
     }
 
     public static String resolveClassPath(String classPath) {
@@ -328,7 +327,7 @@ public class Resolver {
         ClassResolver resolver = new ClassResolver();
         resolver.setDeclaredClass(type);
         resolver.setLogErrors(true);
-        FieldDeclaration fDec = new FieldDeclaration(resolver, declaration);
+        FieldDeclaration fDec = new FieldDeclaration(resolver, StringBuffer.of(declaration));
         return fDec.discover();
     }
 

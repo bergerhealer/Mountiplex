@@ -38,9 +38,13 @@ public class MethodMatchResolver {
         // Connect the methods together
         for (int i = 0; i < methods.length; i++) {
             MethodDeclaration method = methods[i];
+
+            // Ask Resolver for the real method name
+            MethodDeclaration nameResolved = method.resolveName();
+
             boolean found = false;
             for (int j = 0; j < realMethods.length; j++) {
-                if (realMethods[j].match(method)) {
+                if (realMethods[j].match(nameResolved)) {
 
                     // Log a warning when modifiers differ, but do not fail the matching
                     if (!realMethods[j].modifiers.match(method.modifiers)) {
@@ -54,7 +58,7 @@ public class MethodMatchResolver {
                 }
             }
             if (!found && !method.modifiers.isOptional() && method.body == null) {
-                FieldLCSResolver.logAlternatives("method", realMethods, method);
+                FieldLCSResolver.logAlternatives("method", realMethods, nameResolved);
             }
         }
     }

@@ -10,6 +10,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
+import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -550,7 +551,7 @@ public class ClassTemplate<T> {
         }
 
         // Parse the declaration
-        FieldDeclaration declare = new FieldDeclaration(resolver, declaration);
+        FieldDeclaration declare = new FieldDeclaration(resolver, StringBuffer.of(declaration));
         if (!declare.isValid()) {
             logFieldWarning(declaration, "could not be parsed");
             return SafeField.createNull(declaration);
@@ -559,6 +560,9 @@ public class ClassTemplate<T> {
             logFieldWarning(declare.toString(), "has some unresolved types");
             return SafeField.createNull(declaration);
         }
+
+        // Ask Resolver for the correct field name
+        declare = declare.resolveName();
 
         loadFields(true);
 
@@ -629,7 +633,7 @@ public class ClassTemplate<T> {
             }
 
             // Parse the declaration
-            FieldDeclaration declare = new FieldDeclaration(resolver, declaration);
+            FieldDeclaration declare = new FieldDeclaration(resolver, StringBuffer.of(declaration));
             if (!declare.isValid()) {
                 logFieldWarning(declaration, "could not be parsed");
                 return SafeField.createNull(declaration);
@@ -638,6 +642,9 @@ public class ClassTemplate<T> {
                 logFieldWarning(declare.toString(), "has some unresolved types");
                 return SafeField.createNull(declaration);
             }
+
+            // Ask Resolver for the correct field name
+            declare = declare.resolveName();
 
             // Check if the field matches the very next item
             FieldDeclaration next = nextFieldQueue.peek();
@@ -697,7 +704,7 @@ public class ClassTemplate<T> {
      */
     public <F> FieldAccessor<F> selectField(String declaration) {
         // Parse the declaration
-        FieldDeclaration declare = new FieldDeclaration(resolver, declaration);
+        FieldDeclaration declare = new FieldDeclaration(resolver, StringBuffer.of(declaration));
         if (!declare.isValid()) {
             logFieldWarning(declaration, "could not be parsed");
             return SafeField.createNull(declaration);
@@ -706,6 +713,9 @@ public class ClassTemplate<T> {
             logFieldWarning(declare.toString(), "has some unresolved types");
             return SafeField.createNull(declaration);
         }
+
+        // Ask Resolver for the correct field name
+        declare = declare.resolveName();
 
         loadFields(false);
 
@@ -785,6 +795,9 @@ public class ClassTemplate<T> {
     }
 
     public Method selectRawMethod(MethodDeclaration declare, boolean logErrors) {
+        // Ask Resolver for the correct method name
+        declare = declare.resolveName();
+
         // Check null type first
         if (this.type == null) {
             if (logErrors) {

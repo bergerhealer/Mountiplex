@@ -61,7 +61,6 @@ public class ClassDeclaration extends Declaration {
         this.subclasses = classes.toArray(new ClassDeclaration[classes.size()]);
     }
 
-    @Deprecated
     public ClassDeclaration(ClassResolver resolver, String declaration) {
         this(resolver, StringBuffer.of(declaration));
     }
@@ -223,7 +222,19 @@ public class ClassDeclaration extends Declaration {
                 }
             }
         }
-        FieldLCSResolver.resolve(this.fields, realFields);
+
+        // This takes care of asking the Resolver about the true name of the fields
+        FieldDeclaration[] nameResolvedFields = new FieldDeclaration[this.fields.length];
+        for (int i = 0; i < nameResolvedFields.length; i++) {
+            nameResolvedFields[i] = this.fields[i].resolveName();
+        }
+        FieldLCSResolver.resolve(nameResolvedFields, realFields);
+
+        // Copy found reflection Fields back into the field declaration
+        // Preserve original value/alias of the name
+        for (int i = 0; i < nameResolvedFields.length; i++) {
+            this.fields[i].copyFieldFrom(nameResolvedFields[i]);
+        }
     }
 
     private void resolveMethods() {

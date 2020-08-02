@@ -178,7 +178,7 @@ public class TemplateHandleBuilder<H> {
                 if (isPublicField) {
                     mv.visitVarInsn(ALOAD, 0);
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                    mv.visitFieldInsn(GETFIELD, instanceTypeName, fieldDec.name.value(), fieldTypeDesc);
+                    mv.visitFieldInsn(GETFIELD, instanceTypeName, fieldDec.getAccessedName(), fieldTypeDesc);
                 } else {
                     mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
                     mv.visitFieldInsn(GETFIELD, templateClassName, fieldName, templateElementDesc);
@@ -202,7 +202,7 @@ public class TemplateHandleBuilder<H> {
                         mv.visitVarInsn(ALOAD, 0);
                         mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                         mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
-                        mv.visitFieldInsn(PUTFIELD, instanceTypeName, fieldDec.name.value(), fieldTypeDesc);
+                        mv.visitFieldInsn(PUTFIELD, instanceTypeName, fieldDec.getAccessedName(), fieldTypeDesc);
                     } else {
                         mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
                         mv.visitFieldInsn(GETFIELD, templateClassName, fieldName, templateElementDesc);

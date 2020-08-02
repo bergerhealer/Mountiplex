@@ -429,6 +429,20 @@ public abstract class Declaration {
     }
 
     /**
+     * Called while decoding a method body to turn the original requirement declaration into valid compilable
+     * code that calls the requirements added by {@link #addAsRequirement(CtClass, String)}.
+     * 
+     * @param body The full StringBuilder buffer of the body in which source code is being parsed
+     * @param instanceName The object token on which this declaration is called
+     * @param requirementName The name of the requirement, right of the #-token
+     * @param startIdx Start index into the body, which is the index to the first character of the instance name
+     * @param endIdx End index into the body, which is the exclusive index of the last character of the requirement name
+     */
+    public void modifyBodyRequirement(StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+        throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
+    }
+
+    /**
      * Sorts a list of declarations based on the similarity with a compared type.
      * The most similar declarations are sorted to the beginning of the list.
      * 

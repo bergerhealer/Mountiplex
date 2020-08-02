@@ -5,6 +5,9 @@ import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastConvertedField;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
@@ -42,7 +45,6 @@ public class FieldDeclaration extends Declaration {
         this.name = new NameDeclaration(resolver, field.getName(), null);
     }
 
-    @Deprecated
     public FieldDeclaration(ClassResolver resolver, String declaration) {
         this(resolver, StringBuffer.of(declaration));
     }
@@ -66,9 +68,21 @@ public class FieldDeclaration extends Declaration {
         }
     }
 
-    public final void setField(FieldDeclaration other) {
-        this.field = other.field;
-        this.isEnum = other.isEnum;
+    /* Hidden constructor for changing the name of the field */
+    private FieldDeclaration(FieldDeclaration original, String newName) {
+        super(original.getResolver());
+        this.modifiers = original.modifiers;
+        this.name = original.name.rename(newName);
+        this.type = original.type;
+        this.isEnum = original.isEnum;
+        this.field = original.field;
+    }
+
+    public final void copyFieldFrom(FieldDeclaration other) {
+        if (this != other) {
+            this.field = other.field;
+            this.isEnum = other.isEnum;
+        }
     }
 
     @Override
@@ -179,6 +193,133 @@ public class FieldDeclaration extends Declaration {
     }
 
     @Override
+    public void modifyBodyRequirement(StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+        TypeDeclaration fieldType = this.type;
+        if (fieldType.cast != null) {
+            fieldType = fieldType.cast;
+        }
+
+        // If there is a = after the name (possible spaces), then the field is assigned
+        // In that case, wrap the entire statement in a set operation
+        // Beware of == as that is not an assignment operation
+        int setOperationValueStartIdx = -1;
+        for (int i = nameEndIdx; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == ' ') {
+                continue;
+            }
+            if (c == '=') {
+                if ((i+1) >= body.length() || body.charAt(i+1) != '=') {
+                    setOperationValueStartIdx = i + 1;
+                    while (setOperationValueStartIdx < body.length() &&
+                           body.charAt(setOperationValueStartIdx) == ' ')
+                    {
+                        setOperationValueStartIdx++;
+                    }
+                }
+            }
+            break;
+        }
+
+        // Modifiers for checking public, if missing (0), none of the modifiers match
+        // When the class in which the field is declared is not accessible, force field as unavailable
+        int modifiers = 0;
+        if (this.field != null && Resolver.isPublic(this.field.getDeclaringClass())) {
+            modifiers = this.field.getModifiers();
+        }
+
+        // When setting
+        if (setOperationValueStartIdx != -1) {
+            // When setting, and the field is both public and non-final, we can set the field inline
+            // That way no requirement needs to be used to do this
+            // Only the instanceName#field portion in the body has to be replaced
+            if (Modifier.isPublic(modifiers) && !Modifier.isFinal(modifiers)) {
+                StringBuilder replacement = new StringBuilder();
+                if (Modifier.isStatic(modifiers)) {
+                    // Replace with ClassName.fieldName
+                    replacement.append(this.field.getDeclaringClass().getName());
+                } else {
+                    // Replace with instanceName.fieldName
+                    replacement.append(instanceName);
+                }
+                replacement.append('.').append(this.field.getName());
+                body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
+                return;
+            }
+
+            // Find the end of the piece of 'value code'
+            // For example, this will find 'helper.counter + 5' in:
+            // object#field = helper.counter + 5;
+            int setOperationValueEndIdx = setOperationValueStartIdx;
+
+            int parenthesesCtr = 0;
+            for (; setOperationValueEndIdx < body.length(); setOperationValueEndIdx++) {
+                char c = body.charAt(setOperationValueEndIdx);
+                if (c == ';') {
+                    break;
+                } else if (c == '(') {
+                    parenthesesCtr++;
+                } else if (c == ')') {
+                    if (--parenthesesCtr < 0) {
+                        break;
+                    }
+                }
+            }
+
+            String valueName = body.substring(setOperationValueStartIdx, setOperationValueEndIdx);
+
+            // Modify the original body to use the field setter method instead
+            StringBuilder replacement = new StringBuilder();
+            replacement.append("this.").append(requirementName).append(".set");
+            if (fieldType.isPrimitive) {
+                replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
+            }
+            replacement.append('(');
+            replacement.append(instanceName);
+            replacement.append(", ");
+            replacement.append(valueName);
+            replacement.append(')');
+
+            // Replace portion in body with replacement
+            body.replace(instanceStartIdx, setOperationValueEndIdx, replacement.toString());
+        } else {
+            StringBuilder replacement = new StringBuilder();
+
+            // When getting, and the field is public, we can set the field inline
+            // That way no requirement needs to be used to do this
+            // Only the instanceName#field portion in the body has to be replaced
+            if (Modifier.isPublic(modifiers)) {
+                // Get the field directly, not using the requirements
+                if (Modifier.isStatic(modifiers)) {
+                    // Replace with ClassName.fieldName
+                    replacement.append(this.field.getDeclaringClass().getName());
+                } else {
+                    // Replace with instanceName.fieldName
+                    replacement.append(instanceName);
+                }
+                replacement.append('.').append(this.field.getName());
+            } else {
+                // Modify the original body to use the field getter method instead
+                if (fieldType.isPrimitive) {
+                    // Primitive-specific getter method
+                    replacement.append("this.").append(requirementName).append(".get");
+                    replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
+                } else {
+                    // Get + cast
+                    replacement.append(ReflectionUtil.getCastString(fieldType.type));
+                    replacement.append("this.").append(requirementName).append(".get");
+                }
+                replacement.append('(');
+                replacement.append(instanceName);
+                replacement.append(')');
+            }
+
+            // Replace portion in body with replacement
+            body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
+        }
+    }
+
+    @Override
     public FieldDeclaration discover() {
         if (!this.isValid() || !this.isResolved()) {
             return null;
@@ -186,19 +327,22 @@ public class FieldDeclaration extends Declaration {
 
         java.lang.reflect.Field javaField;
         try {
-            javaField = this.getResolver().getDeclaredClass().getDeclaredField(this.name.value());
-            FieldDeclaration[] arrField = { this };
+            FieldDeclaration nameResolved = this.resolveName();
+            javaField = this.getResolver().getDeclaredClass().getDeclaredField(nameResolved.name.value());
+
+            FieldDeclaration[] arrField = { nameResolved };
             FieldDeclaration[] arrRealField = { new FieldDeclaration(this.getResolver(), javaField) };
             FieldLCSResolver.resolve(arrField, arrRealField);
-            if (this.field == null) {
+            if (nameResolved.field == null) {
                 return null;
             }
 
             // Field must be public when declaration says it's public
-            if (this.modifiers.isPublic() && !Modifier.isPublic(this.field.getModifiers())) {
-                this.field = null;
+            if (this.modifiers.isPublic() && !Modifier.isPublic(nameResolved.field.getModifiers())) {
                 return null;
             }
+
+            this.copyFieldFrom(nameResolved);
             return this;
         } catch (NoSuchFieldException ex) {
             // Not found
@@ -206,5 +350,35 @@ public class FieldDeclaration extends Declaration {
             t.printStackTrace(); // wut
         }
         return null;
+    }
+
+    /**
+     * Asks the {@link Resolver} what the real field name is, given the provided signature
+     * of this field declaration. If the name is not different, this same field declaration
+     * is returned.
+     * 
+     * @return name-resolved field declaration
+     */
+    public FieldDeclaration resolveName() {
+        if (!this.isResolved()) {
+            return this;
+        }
+        String resolvedName = Resolver.resolveFieldName(this.getResolver().getDeclaredClass(), this.name.value());
+        if (resolvedName != null && !resolvedName.equals(this.name.value())) {
+            return new FieldDeclaration(this, resolvedName);
+        } else {
+            return this;
+        }
+    }
+
+    /**
+     * Gets the name of the field actually accessed in generated code.
+     * This is the reflection Field name if found, otherwise the name.value()
+     * is used as a fallback.
+     * 
+     * @return accessed name
+     */
+    protected String getAccessedName() {
+        return field != null ? field.getName() : this.name.value();
     }
 }

@@ -243,4 +243,21 @@ public class NameDeclaration extends Declaration {
         str.append(indent).append("}\n");
     }
 
+    /**
+     * Changes the name {@link #value()}, preserving the original alias. If no alias was set, then the
+     * original name becomes the alias. If the new name is equal to the current value, then
+     * this same declaration is returned.
+     * 
+     * @param newName The new name, can not be null
+     * @return new name declaration with the name changed
+     */
+    public NameDeclaration rename(String newName) {
+        if (newName.equals(this.value())) {
+            return this;
+        } else if (this.hasAlias()) {
+            return new NameDeclaration(this.getResolver(), newName, this.alias());
+        } else {
+            return new NameDeclaration(this.getResolver(), newName, this.value());
+        }
+    }
 }

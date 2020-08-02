@@ -165,6 +165,18 @@ public class MethodDeclaration extends Declaration {
         }
     }
 
+    /* Hidden constructor for changing the name of the method */
+    private MethodDeclaration(MethodDeclaration original, String newName) {
+        super(original.getResolver());
+        this.method = original.method;
+        this.modifiers = original.modifiers;
+        this.returnType = original.returnType;
+        this.name = original.name.rename(newName);
+        this.parameters = original.parameters;
+        this.body = original.body;
+        this.bodyRequirements = original.bodyRequirements;
+    }
+
     @Override
     public double similarity(Declaration other) {
         if (!(other instanceof MethodDeclaration)) {
@@ -503,6 +515,49 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
+    public void modifyBodyRequirement(StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+        // Find the first opening parenthesis after the name
+        int firstOpenIndex = nameEndIdx;
+        while (firstOpenIndex < body.length()) {
+            char c = body.charAt(firstOpenIndex);
+            if (c == ' ') {
+                firstOpenIndex++;
+            } else if (c == '(') {
+                break;
+            } else {
+                // Invalid!
+                firstOpenIndex = -1;
+                break;
+            }
+        }
+        if (firstOpenIndex == -1) {
+            // Invalid! Not a method!
+            if (this.getResolver().getLogErrors()) {
+                MountiplexUtil.LOGGER.warning("Requirement refers to method but is used as field");
+                MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + requirementName);
+            }
+        } else {
+            // Replace instanceName#name ( with our invoker
+            // For static methods, only #name ( is replaced
+            StringBuilder replacement = new StringBuilder();
+            replacement.append("this.").append(requirementName);
+            replacement.append('(').append(instanceName);
+
+            // Add a comma if there is something inside the ()
+            for (int i = firstOpenIndex + 1; i < body.length(); i++) {
+                char c = body.charAt(i);
+                if (c == ' ') continue;
+                if (c == ')') break;
+
+                replacement.append(", ");
+                break;
+            }
+
+            body.replace(instanceStartIdx, firstOpenIndex+1, replacement.toString());
+        }
+    }
+
+    @Override
     public MethodDeclaration discover() {
         if (!this.isValid() || !this.isResolved()) {
             return null;
@@ -541,12 +596,16 @@ public class MethodDeclaration extends Declaration {
             }
         }
 
+        // At this point we are no longer searching in the Class Declaration 'pool'
+        // Because of that, we must now ask the Resolver to give us the real method name
+        MethodDeclaration nameResolved = this.resolveName();
+
         // First try to find the method in a quick way
         try {
             java.lang.reflect.Method method;
-            method = this.getResolver().getDeclaredClass().getDeclaredMethod(this.name.value(), this.parameters.toParamArray());
+            method = this.getResolver().getDeclaredClass().getDeclaredMethod(nameResolved.name.value(), nameResolved.parameters.toParamArray());
             MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
-            if (result.match(this) && checkPublic(method)) {
+            if (result.match(nameResolved) && checkPublic(method)) {
                 this.method = method;
                 return this;
             }
@@ -557,7 +616,7 @@ public class MethodDeclaration extends Declaration {
         // Try looking through the class itself by using a ClassDeclaration to preprocess it
         {
             ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, this.getResolver().getDeclaredClass());
-            MethodDeclaration result = cDec.findMethod(this);
+            MethodDeclaration result = cDec.findMethod(nameResolved);
             if (result != null && checkPublic(result.method)) {
                 this.method = result.method;
                 return this;
@@ -567,7 +626,7 @@ public class MethodDeclaration extends Declaration {
         // Check the superclasses of the declaring class as well
         for (TypeDeclaration superType : typeDec.getSuperTypes()) {
             ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, superType.type);
-            MethodDeclaration result = cDec.findMethod(this);
+            MethodDeclaration result = cDec.findMethod(nameResolved);
             if (result != null && checkPublic(result.method)) {
                 this.method = result.method;
                 return this;
@@ -727,134 +786,40 @@ public class MethodDeclaration extends Declaration {
 
             String instanceName = isStatic ? "null" : body.substring(instanceStartIdx, instanceEndIdx);
 
-            if (foundDeclaration instanceof FieldDeclaration) {
-                TypeDeclaration fieldType = ((FieldDeclaration) foundDeclaration).type;
-                if (fieldType.cast != null) {
-                    fieldType = fieldType.cast;
-                }
-
-                // If there is a = after the name (possible spaces), then the field is assigned
-                // In that case, wrap the entire statement in a set operation
-                // Beware of == as that is not an assignment operation
-                int setOperationValueStartIdx = -1;
-                for (int i = nameEndIdx; i < body.length(); i++) {
-                    char c = body.charAt(i);
-                    if (c == ' ') {
-                        continue;
-                    }
-                    if (c == '=') {
-                        if ((i+1) >= body.length() || body.charAt(i+1) != '=') {
-                            setOperationValueStartIdx = i + 1;
-                            while (setOperationValueStartIdx < body.length() &&
-                                   body.charAt(setOperationValueStartIdx) == ' ')
-                            {
-                                setOperationValueStartIdx++;
-                            }
-                        }
-                    }
-                    break;
-                }
-
-                // When setting, find the end of the piece of 'value code'
-                // For example, this will find 'helper.counter + 5' in:
-                // object#field = helper.counter + 5;
-                if (setOperationValueStartIdx != -1) {
-                    int setOperationValueEndIdx = setOperationValueStartIdx;
-
-                    int parenthesesCtr = 0;
-                    for (; setOperationValueEndIdx < body.length(); setOperationValueEndIdx++) {
-                        char c = body.charAt(setOperationValueEndIdx);
-                        if (c == ';') {
-                            break;
-                        } else if (c == '(') {
-                            parenthesesCtr++;
-                        } else if (c == ')') {
-                            if (--parenthesesCtr < 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    String valueName = body.substring(setOperationValueStartIdx, setOperationValueEndIdx);
-
-                    // Modify the original body to use the field setter method instead
-                    StringBuilder replacement = new StringBuilder();
-                    replacement.append("this.").append(name).append(".set");
-                    if (fieldType.isPrimitive) {
-                        replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
-                    }
-                    replacement.append('(');
-                    replacement.append(instanceName);
-                    replacement.append(", ");
-                    replacement.append(valueName);
-                    replacement.append(')');
-
-                    // Replace portion in body with replacement
-                    body.replace(instanceStartIdx, setOperationValueEndIdx, replacement.toString());
-                } else {
-                    // Modify the original body to use the field getter method instead
-                    StringBuilder replacement = new StringBuilder();
-                    if (fieldType.isPrimitive) {
-                        // Primitive-specific getter method
-                        replacement.append("this.").append(name).append(".get");
-                        replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
-                    } else {
-                        // Get + cast
-                        replacement.append(ReflectionUtil.getCastString(fieldType.type));
-                        replacement.append("this.").append(name).append(".get");
-                    }
-                    replacement.append('(');
-                    replacement.append(instanceName);
-                    replacement.append(')');
-
-                    // Replace portion in body with replacement
-                    body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
-                }
-            } // field handling end
-
-            if (foundDeclaration instanceof MethodDeclaration) {
-                // Find the first opening parenthesis after the name
-                int firstOpenIndex = nameEndIdx;
-                while (firstOpenIndex < body.length()) {
-                    char c = body.charAt(firstOpenIndex);
-                    if (c == ' ') {
-                        firstOpenIndex++;
-                    } else if (c == '(') {
-                        break;
-                    } else {
-                        // Invalid!
-                        firstOpenIndex = -1;
-                        break;
-                    }
-                }
-                if (firstOpenIndex == -1) {
-                    // Invalid! Not a method!
-                    if (this.getResolver().getLogErrors()) {
-                        MountiplexUtil.LOGGER.warning("Requirement refers to method but is used as field");
-                        MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + name);
-                    }
-                } else {
-                    // Replace instanceName#name ( with our invoker
-                    // For static methods, only #name ( is replaced
-                    StringBuilder replacement = new StringBuilder();
-                    replacement.append("this.").append(name);
-                    replacement.append('(').append(instanceName);
-
-                    // Add a comma if there is something inside the ()
-                    for (int i = firstOpenIndex + 1; i < body.length(); i++) {
-                        char c = body.charAt(i);
-                        if (c == ' ') continue;
-                        if (c == ')') break;
-
-                        replacement.append(", ");
-                        break;
-                    }
-
-                    body.replace(instanceStartIdx, firstOpenIndex+1, replacement.toString());
-                }
-            } // method handling end
+            // Alter the body to place the code that calls the requirement
+            foundDeclaration.modifyBodyRequirement(body, instanceName, name, instanceStartIdx, nameEndIdx);
         }
 
         return result.toArray(new Requirement[result.size()]);
+    }
+
+    /**
+     * Asks the {@link Resolver} what the real method name is, given the provided signature
+     * of this method declaration. If the name is not different, this same method declaration
+     * is returned.
+     * 
+     * @return name-resolved method declaration
+     */
+    public MethodDeclaration resolveName() {
+        if (!this.isResolved()) {
+            return this;
+        }
+        String resolvedName = Resolver.resolveMethodName(this.getResolver().getDeclaredClass(), this.name.value(), this.parameters.toParamArray());
+        if (resolvedName != null && !resolvedName.equals(this.name.value())) {
+            return new MethodDeclaration(this, resolvedName);
+        } else {
+            return this;
+        }
+    }
+
+    /**
+     * Gets the name of the method actually accessed in generated code.
+     * This is the reflection Method name if found, otherwise the name.value()
+     * is used as a fallback.
+     * 
+     * @return accessed name
+     */
+    protected String getAccessedName() {
+        return method != null ? method.getName() : this.name.value();
     }
 }

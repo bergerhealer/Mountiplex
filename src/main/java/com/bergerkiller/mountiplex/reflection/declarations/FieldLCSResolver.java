@@ -154,7 +154,7 @@ public class FieldLCSResolver {
         while (succIter.hasNext()) {
             FieldLCSResolver.Pair pair = succIter.next();
             if (pair.a != null && pair.b != null) {
-                pair.a.setField(pair.b);
+                pair.a.copyFieldFrom(pair.b);
                 succIter.remove();
             }
         }
@@ -198,7 +198,6 @@ public class FieldLCSResolver {
         public final ArrayList<FieldDeclaration> b = new ArrayList<FieldDeclaration>();
 
         public Sequence() {
-            
         }
 
         public Sequence(List<FieldDeclaration> a, List<FieldDeclaration> b) {
