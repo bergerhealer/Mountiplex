@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
@@ -47,7 +48,7 @@ public class ReflectionUtil {
         if (type.isPrimitive() || BoxedType.getUnboxedType(type) != null) {
             name = type.getSimpleName();
         } else {
-            name = type.getName();
+            name = Resolver.resolveClassName(type);
         }
         for (int i = 0; i < numArrays; i++) {
             name += "[]";

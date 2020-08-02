@@ -6,12 +6,12 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 
 import static org.objectweb.asm.Opcodes.*;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 public abstract class GeneratedMethodInvoker implements Invoker<Object> {
     public final java.lang.reflect.Method m;
@@ -32,7 +32,7 @@ public abstract class GeneratedMethodInvoker implements Invoker<Object> {
 
         MethodVisitor mv;
         Class<?> instanceType = method.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
-        String instanceName = Type.getInternalName(instanceType);
+        String instanceName = MPLType.getInternalName(instanceType);
         Class<?>[] paramTypes = method.getParameterTypes();
         Class<?> returnType = method.getReturnType();
         boolean isStatic = Modifier.isStatic(method.getModifiers());
@@ -46,7 +46,7 @@ public abstract class GeneratedMethodInvoker implements Invoker<Object> {
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);
             mv.visitVarInsn(ALOAD, 1);
-            mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(GeneratedMethodInvoker.class), "<init>", "(Ljava/lang/reflect/Method;)V", false);
+            mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(GeneratedMethodInvoker.class), "<init>", "(Ljava/lang/reflect/Method;)V", false);
             mv.visitInsn(RETURN);
             mv.visitMaxs(2, 2);
             mv.visitEnd();
@@ -78,13 +78,13 @@ public abstract class GeneratedMethodInvoker implements Invoker<Object> {
             }
             {
                 // Invalid number of arguments
-                mv.visitTypeInsn(NEW, Type.getInternalName(InvalidArgumentCountException.class));
+                mv.visitTypeInsn(NEW, MPLType.getInternalName(InvalidArgumentCountException.class));
                 mv.visitInsn(DUP);
                 mv.visitLdcInsn("method");
                 mv.visitVarInsn(ALOAD, 2);
                 mv.visitInsn(ARRAYLENGTH);
                 ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
-                mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(InvalidArgumentCountException.class), "<init>", "(Ljava/lang/String;II)V", false);
+                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(InvalidArgumentCountException.class), "<init>", "(Ljava/lang/String;II)V", false);
                 mv.visitInsn(ATHROW);
             }
 

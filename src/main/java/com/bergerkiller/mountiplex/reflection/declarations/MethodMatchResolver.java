@@ -16,12 +16,18 @@ public class MethodMatchResolver {
         // Merge declared and public methods as one long list
         // Skip declared methods that are public - they are already in the list
         ArrayList<java.lang.reflect.Method> realRefMethods = new ArrayList<java.lang.reflect.Method>();
-        realRefMethods.addAll(Arrays.asList(declaringClass.getMethods()));
-        for (java.lang.reflect.Method decMethod : declaringClass.getDeclaredMethods()) {
-            if (Modifier.isPublic(decMethod.getModifiers())) {
-                continue;
+
+        try {
+            realRefMethods.addAll(Arrays.asList(declaringClass.getMethods()));
+            for (java.lang.reflect.Method decMethod : declaringClass.getDeclaredMethods()) {
+                if (Modifier.isPublic(decMethod.getModifiers())) {
+                    continue;
+                }
+                realRefMethods.add(decMethod);
             }
-            realRefMethods.add(decMethod);
+        } catch (Throwable t) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to identify methods of class " + declaringClass.getName(), t);
+            return;
         }
 
         MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.size()];

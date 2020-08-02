@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.WeakHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 
 /**
  * A class writer with the sole aim of extending a class and re-implementing certain methods in it
@@ -88,26 +88,26 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             // If interfaces are specified, then the signature must be generated also
             String signature = null;
             if (!options.interfaces.isEmpty()) {
-                signature = Type.getDescriptor(superType);
+                signature = MPLType.getDescriptor(superType);
                 for (Class<?> interfaceType : options.interfaces) {
-                    signature += Type.getDescriptor(interfaceType);
+                    signature += MPLType.getDescriptor(interfaceType);
                 }
             }
 
             // Class that is extended, is Object when super type is an interface
-            String superName = Type.getInternalName(superType);
+            String superName = MPLType.getInternalName(superType);
 
             // Interfaces List<Class<?>> -> String[] if set
             String[] interfaceNames = null;
             if (!options.interfaces.isEmpty()) {
                 interfaceNames = new String[options.interfaces.size()];
                 for (int i = 0; i < interfaceNames.length; i++) {
-                    interfaceNames[i] = Type.getInternalName(options.interfaces.get(i));
+                    interfaceNames[i] = MPLType.getInternalName(options.interfaces.get(i));
                 }
             }
 
             this.name = options.superClass.getName() + postfix;
-            this.internalName = Type.getInternalName(options.superClass) + postfix;
+            this.internalName = MPLType.getInternalName(options.superClass) + postfix;
             this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
             this.visit(V1_8, options.access, this.internalName, signature, superName, interfaceNames);
         }
@@ -115,7 +115,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
     // TODO: make cleaner
     private static String computeNameDescriptor(Class<?> type, String postfix) {
-        String basePath = Type.getDescriptor(type);
+        String basePath = MPLType.getDescriptor(type);
         return basePath.substring(0, basePath.length()-1) + postfix + ";";
     }
 
@@ -206,8 +206,8 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         } else if (primType.isPrimitive()) {
             Class<?> boxedType = BoxedType.getBoxedType(primType);
             if (boxedType != null) {
-                mv.visitMethodInsn(INVOKESTATIC, Type.getInternalName(boxedType),
-                        "valueOf", "(" + Type.getDescriptor(primType) + ")" + Type.getDescriptor(boxedType), false);
+                mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(boxedType),
+                        "valueOf", "(" + MPLType.getDescriptor(primType) + ")" + MPLType.getDescriptor(boxedType), false);
             }
         }
     }
@@ -223,14 +223,14 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         if (outType.isPrimitive()) {
             Class<?> boxedType = BoxedType.getBoxedType(outType);
             if (boxedType != null) {
-                mv.visitTypeInsn(CHECKCAST, Type.getInternalName(boxedType));
-                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(boxedType),
-                        outType.getName() + "Value", "()" + Type.getDescriptor(outType), false);
+                mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(boxedType));
+                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(boxedType),
+                        outType.getName() + "Value", "()" + MPLType.getDescriptor(outType), false);
             }
         } else if (outType.isArray()) {
-            mv.visitTypeInsn(CHECKCAST, Type.getDescriptor(outType));
+            mv.visitTypeInsn(CHECKCAST, MPLType.getDescriptor(outType));
         } else if (!Object.class.equals(outType)) {
-            mv.visitTypeInsn(CHECKCAST, Type.getInternalName(outType));
+            mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(outType));
         }
     }
 
@@ -243,14 +243,14 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * @param method to be invoked
      */
     public static void visitInvoke(MethodVisitor mv, Class<?> instanceType, Method method) {
-        final String instanceName = Type.getInternalName(instanceType);
+        final String instanceName = MPLType.getInternalName(instanceType);
         final boolean isInterface = instanceType.isInterface();
         if (Modifier.isStatic(method.getModifiers())) {
-            mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), Type.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), MPLType.getMethodDescriptor(method), isInterface);
         } else if (instanceType.isInterface()) {
-            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), Type.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), MPLType.getMethodDescriptor(method), isInterface);
         } else {
-            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), Type.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), MPLType.getMethodDescriptor(method), isInterface);
         }
     }
 
@@ -262,8 +262,8 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * @param constructor to be invoked
      */
     public static void visitInit(MethodVisitor mv, Class<?> instanceType, java.lang.reflect.Constructor<?> constructor) {
-        final String instanceName = Type.getInternalName(instanceType);
-        mv.visitMethodInsn(INVOKESPECIAL, instanceName, "<init>", Type.getConstructorDescriptor(constructor), false);
+        final String instanceName = MPLType.getInternalName(instanceType);
+        mv.visitMethodInsn(INVOKESPECIAL, instanceName, "<init>", MPLType.getConstructorDescriptor(constructor), false);
     }
 
     private static final class GeneratorClassLoader extends ClassLoader {

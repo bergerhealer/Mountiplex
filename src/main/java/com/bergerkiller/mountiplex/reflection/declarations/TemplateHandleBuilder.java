@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -10,13 +11,13 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 
 /**
  * Reads the abstract class information of a Template Handle type and generates an appropriate
@@ -73,8 +74,9 @@ public class TemplateHandleBuilder<H> {
             topInstanceType = Object.class;
         }
 
-        String instanceTypeDesc = Type.getDescriptor(topInstanceType);
-        String instanceTypeName = Type.getInternalName(topInstanceType);
+        String instanceTypeDesc = MPLType.getDescriptor(topInstanceType);
+        String instanceTypeName = MPLType.getInternalName(topInstanceType);
+
         MethodVisitor mv;
         FieldVisitor fv;
 
@@ -88,7 +90,7 @@ public class TemplateHandleBuilder<H> {
         mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(" + instanceTypeDesc + ")V", null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(this.handleType), "<init>", "()V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(this.handleType), "<init>", "()V", false);
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 1);
         mv.visitFieldInsn(PUTFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
@@ -113,11 +115,11 @@ public class TemplateHandleBuilder<H> {
             Template.Class<?> templateClass = getTemplateClass(currentHandleType);
 
             // Internal name of the handle type, when writing access to T
-            String currentHandleName = Type.getInternalName(currentHandleType);
+            String currentHandleName = MPLType.getInternalName(currentHandleType);
 
             Class<?> templateClassType = templateClass.getClass();
-            String templateClassDesc = Type.getDescriptor(templateClassType);
-            String templateClassName = Type.getInternalName(templateClassType);
+            String templateClassDesc = MPLType.getDescriptor(templateClassType);
+            String templateClassName = MPLType.getInternalName(templateClassType);
             Class<?> instanceType = templateClass.getType();
             ClassDeclaration classDec = templateClass.getClassDeclaration();
             if (classDec == null) {
@@ -131,7 +133,7 @@ public class TemplateHandleBuilder<H> {
                 }
 
                 Class<?> fieldType = TemplateGenerator.getExposedType(fieldDec.type).type;
-                String fieldTypeDesc = Type.getDescriptor(fieldType);
+                String fieldTypeDesc = MPLType.getDescriptor(fieldType);
                 String fieldName = fieldDec.name.real();
 
                 // Find out what Template accessor names to use
@@ -141,8 +143,8 @@ public class TemplateHandleBuilder<H> {
                 String templateElementDesc;
                 try {
                     templateElement = templateClassType.getField(fieldName).getType();
-                    templateElementName = Type.getInternalName(templateElement);
-                    templateElementDesc = Type.getDescriptor(templateElement);
+                    templateElementName = MPLType.getInternalName(templateElement);
+                    templateElementDesc = MPLType.getDescriptor(templateElement);
                 } catch (Throwable t) {
                     throw MountiplexUtil.uncheckedRethrow(t);
                 }
@@ -186,10 +188,10 @@ public class TemplateHandleBuilder<H> {
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                     mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "get" + accessorName, "(Ljava/lang/Object;)" + accessorType, false);
                     if (accessorName.isEmpty() && !fieldType.equals(Object.class)) {
-                        mv.visitTypeInsn(CHECKCAST, Type.getInternalName(fieldType));
+                        mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(fieldType));
                     }
                 }
-                mv.visitInsn(Type.getType(fieldType).getOpcode(IRETURN));
+                mv.visitInsn(MPLType.getOpcode(fieldType, IRETURN));
                 mv.visitMaxs(2, 1);
                 mv.visitEnd();
 
@@ -201,14 +203,14 @@ public class TemplateHandleBuilder<H> {
                     if (isPublicNonfinalField) {
                         mv.visitVarInsn(ALOAD, 0);
                         mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                        mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
+                        mv.visitVarInsn(MPLType.getOpcode(fieldType, ILOAD), 1);
                         mv.visitFieldInsn(PUTFIELD, instanceTypeName, fieldDec.getAccessedName(), fieldTypeDesc);
                     } else {
                         mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
                         mv.visitFieldInsn(GETFIELD, templateClassName, fieldName, templateElementDesc);
                         mv.visitVarInsn(ALOAD, 0);
                         mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                        mv.visitVarInsn(Type.getType(fieldType).getOpcode(ILOAD), 1);
+                        mv.visitVarInsn(MPLType.getOpcode(fieldType, ILOAD), 1);
                         mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "set" + accessorName, "(Ljava/lang/Object;" + accessorType + ")V", false);
                     }
                     mv.visitInsn(RETURN);
@@ -227,16 +229,13 @@ public class TemplateHandleBuilder<H> {
 
                 // Build the method descriptor
                 boolean hasTypeConversion = (methodDec.returnType.cast != null);
-                Class<?> returnTypeClass = TemplateGenerator.getExposedType(methodDec.returnType).type;
-                Type returnType = Type.getType(returnTypeClass);
-                Class<?>[] paramTypeClasses = new Class<?>[methodDec.parameters.parameters.length];
-                Type[] paramTypes = new Type[paramTypeClasses.length];
+                Class<?> returnType = TemplateGenerator.getExposedType(methodDec.returnType).type;
+                Class<?>[] paramTypes = new Class<?>[methodDec.parameters.parameters.length];
                 for (int i = 0; i < paramTypes.length; i++) {
                     hasTypeConversion |= (methodDec.parameters.parameters[i].type.cast != null);
-                    paramTypeClasses[i] = TemplateGenerator.getExposedType(methodDec.parameters.parameters[i].type).type;
-                    paramTypes[i] = Type.getType(paramTypeClasses[i]);
+                    paramTypes[i] = TemplateGenerator.getExposedType(methodDec.parameters.parameters[i].type).type;
                 }
-                String methodDesc = Type.getMethodDescriptor(returnType, paramTypes);
+                String methodDesc = MPLType.getMethodDescriptor(returnType, paramTypes);
 
                 // Figure out what kind of accessor Object is used here (Converted or not)
                 Template.TemplateElement<?> templateElement;
@@ -245,8 +244,8 @@ public class TemplateHandleBuilder<H> {
                 try {
                     java.lang.reflect.Field templateField = templateClassType.getField(methodName);
                     templateElement = (Template.TemplateElement<?>) templateField.get(templateClass);
-                    templateElementName = Type.getInternalName(templateField.getType());
-                    templateElementDesc = Type.getDescriptor(templateField.getType());
+                    templateElementName = MPLType.getInternalName(templateField.getType());
+                    templateElementDesc = MPLType.getDescriptor(templateField.getType());
                 } catch (Throwable t) {
                     throw MountiplexUtil.uncheckedRethrow(t);
                 }
@@ -266,20 +265,19 @@ public class TemplateHandleBuilder<H> {
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                     int register = 1;
                     for (int i = 0; i < paramTypes.length; i++) {
-                        mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
-                        register += paramTypes[i].getSize();
+                        register = MPLType.visitVarILoad(mv, paramTypes[i], register);
                     }
                     ExtendedClassWriter.visitInvoke(mv, instanceType, methodDec.method);
-                    mv.visitInsn(returnType.getOpcode(IRETURN));
+                    mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));
                 } else if (isGeneratedInvoker(templateElement)) {
                     // Can cast invoker to a runtime-generated interface and call that directly
                     // Note: these are only local methods, static methods aren't generated here
                     GeneratedInvoker<?> invoker = (GeneratedInvoker<?>) ((Template.AbstractMethod<?>) templateElement).invoker;
-                    String interfaceType = Type.getInternalName(invoker.getInterface());
+                    String interfaceType = MPLType.getInternalName(invoker.getInterface());
 
                     mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
                     mv.visitFieldInsn(GETFIELD, templateClassName, methodName, templateElementDesc);
-                    mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", Type.getDescriptor(Invoker.class));
+                    mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", MPLType.getDescriptor(Invoker.class));
                     mv.visitTypeInsn(CHECKCAST, interfaceType);
 
                     int register = 0;
@@ -291,16 +289,14 @@ public class TemplateHandleBuilder<H> {
 
                     // Load parameters
                     for (ParameterDeclaration param : methodDec.parameters.parameters) {
-                        Type paramType = Type.getType(param.type.type);
-                        mv.visitVarInsn(paramType.getOpcode(ILOAD), register);
-                        register += paramType.getSize();
+                        register = MPLType.visitVarILoad(mv, param.type.type, register);
                     }
 
                     // Call the interface method
                     mv.visitMethodInsn(INVOKEINTERFACE, interfaceType, methodName, methodDec.getASMInvokeDescriptor(), true);
 
                     // Close the method with a valid return statement
-                    mv.visitInsn(returnType.getOpcode(IRETURN));
+                    mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));
                 } else {
                     // Call into the T.fieldname Template Method
                     mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
@@ -308,7 +304,7 @@ public class TemplateHandleBuilder<H> {
 
                     // Is an abstract method, we can call the invoker field directly                    
                     if (templateElement instanceof Template.AbstractMethod) {
-                        mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", Type.getDescriptor(Invoker.class));
+                        mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", MPLType.getDescriptor(Invoker.class));
                     }
 
                     // Call invoke or invokeVA on the static template method instance, or the invoker field if we can
@@ -323,17 +319,16 @@ public class TemplateHandleBuilder<H> {
                         invokeDescBldr.append("(Ljava/lang/Object;");
                         int register = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
-                            mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
-                            register += paramTypes[i].getSize();
+                            register = MPLType.visitVarILoad(mv, paramTypes[i], register);
 
-                            ExtendedClassWriter.visitBoxVariable(mv, paramTypeClasses[i]);
+                            ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
                             invokeDescBldr.append("Ljava/lang/Object;");
                         }
                         invokeDescBldr.append(")Ljava/lang/Object;");
 
                         // Call invoke(instance, argn) on either the invoker interface, or the template method virtual function
                         if (templateElement instanceof Template.AbstractMethod) {
-                            mv.visitMethodInsn(INVOKEINTERFACE, Type.getInternalName(Invoker.class), "invoke", invokeDescBldr.toString(), true);
+                            mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Invoker.class), "invoke", invokeDescBldr.toString(), true);
                         } else {
                             mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invoke", invokeDescBldr.toString(), false);
                         }
@@ -347,16 +342,15 @@ public class TemplateHandleBuilder<H> {
                             mv.visitInsn(DUP);
                             mv.visitIntInsn(BIPUSH, i);
 
-                            mv.visitVarInsn(paramTypes[i].getOpcode(ILOAD), register);
-                            register += paramTypes[i].getSize();
+                            register = MPLType.visitVarILoad(mv, paramTypes[i], register);
 
-                            ExtendedClassWriter.visitBoxVariable(mv, paramTypeClasses[i]);
+                            ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
                             mv.visitInsn(AASTORE);
                         }
 
                         // Call invokeVA(instance, args[]) on either the invoker interface, or the template method virtual function
                         if (templateElement instanceof Template.AbstractMethod) {
-                            mv.visitMethodInsn(INVOKEINTERFACE, Type.getInternalName(Invoker.class), "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", false);
+                            mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Invoker.class), "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", false);
                         } else {
                             mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", false);
                         }
@@ -364,14 +358,14 @@ public class TemplateHandleBuilder<H> {
 
                     // Close the method with a valid return statement
                     // Cast the value returned from invoke() to a primitive if required
-                    if (returnTypeClass.equals(void.class)) {
+                    if (returnType.equals(void.class)) {
                         mv.visitInsn(POP);
                         mv.visitInsn(RETURN);
-                    } else if (returnTypeClass.equals(Object.class)) {
+                    } else if (returnType.equals(Object.class)) {
                         mv.visitInsn(ARETURN);
                     } else {
-                        ExtendedClassWriter.visitUnboxVariable(mv, returnTypeClass);
-                        mv.visitInsn(returnType.getOpcode(IRETURN));
+                        ExtendedClassWriter.visitUnboxVariable(mv, returnType);
+                        mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));
                     }
                 }
                 mv.visitMaxs(3, 2);
@@ -383,7 +377,14 @@ public class TemplateHandleBuilder<H> {
         this.handleImplType = cw.generate();
 
         try {
-            this.handleConstructor.init(this.handleImplType.getConstructor(topInstanceType));
+            Constructor<? extends H> constructor;
+            try {
+                constructor = this.handleImplType.getConstructor(topInstanceType);
+            } catch (Throwable t) {
+                throw new IllegalStateException("Failed to find generated handle constructor of handle for " + topInstanceType.getName(), t);
+            }
+
+            this.handleConstructor.init(constructor);
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }

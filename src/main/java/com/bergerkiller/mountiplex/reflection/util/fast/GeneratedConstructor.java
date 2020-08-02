@@ -3,12 +3,12 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 import static org.objectweb.asm.Opcodes.*;
 
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 
 public abstract class GeneratedConstructor implements Constructor<Object> {
     private final java.lang.reflect.Constructor<Object> c;
@@ -60,7 +60,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
 
         MethodVisitor mv;
         Class<?> instanceType = constructor.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
-        String instanceName = Type.getInternalName(instanceType);
+        String instanceName = MPLType.getInternalName(instanceType);
         Class<?>[] paramTypes = constructor.getParameterTypes();
         if (paramTypes.length > 5) {
             throw new IllegalArgumentException("Constructor has too many parameters to be optimizable");
@@ -107,7 +107,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, Type.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Lcom/bergerkiller/mountiplex/reflection/util/fast/InvalidArgumentCountException;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Lcom/bergerkiller/mountiplex/reflection/util/fast/InvalidArgumentCountException;", false);
                 mv.visitInsn(ATHROW);
             }
 

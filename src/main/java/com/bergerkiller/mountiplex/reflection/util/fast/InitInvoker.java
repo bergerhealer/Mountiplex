@@ -14,6 +14,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Special Invoker that initializes an Invoker field when first called, allowing for
@@ -312,9 +313,9 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
 
             // Constructor
             {
-                String argsDescriptor = "(" + Type.getDescriptor(Object.class) +
-                                              Type.getDescriptor(FieldAccessor.class) +
-                                              Type.getDescriptor(MethodDeclaration.class) + ")V";
+                String argsDescriptor = "(" + MPLType.getDescriptor(Object.class) +
+                                              MPLType.getDescriptor(FieldAccessor.class) +
+                                              MPLType.getDescriptor(MethodDeclaration.class) + ")V";
 
                 mv = cw.visitMethod(ACC_PUBLIC, "<init>", argsDescriptor, null, null);
                 mv.visitCode();
@@ -322,7 +323,7 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitVarInsn(ALOAD, 2);
                 mv.visitVarInsn(ALOAD, 3);
-                mv.visitMethodInsn(INVOKESPECIAL, Type.getInternalName(InitGeneratedCodeInvoker.class), "<init>", argsDescriptor, false);
+                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(InitGeneratedCodeInvoker.class), "<init>", argsDescriptor, false);
                 mv.visitInsn(RETURN);
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();
@@ -334,8 +335,8 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
                 mv = cw.visitMethod(ACC_PUBLIC, methodDeclaration.name.real(), methodDesc, null, null);
                 mv.visitCode();
                 mv.visitVarInsn(ALOAD, 0);
-                mv.visitMethodInsn(INVOKEVIRTUAL, cw.getInternalName(), "initializeInvoker", "()" + Type.getDescriptor(Invoker.class), false);
-                mv.visitTypeInsn(CHECKCAST, Type.getInternalName(interfaceClass));
+                mv.visitMethodInsn(INVOKEVIRTUAL, cw.getInternalName(), "initializeInvoker", "()" + MPLType.getDescriptor(Invoker.class), false);
+                mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(interfaceClass));
 
                 int stackPos = 1;
 
@@ -353,7 +354,7 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
                     stackPos += paramType.getSize();
                 }
 
-                mv.visitMethodInsn(INVOKEINTERFACE, Type.getInternalName(interfaceClass), methodDeclaration.name.real(), methodDesc, true);
+                mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(interfaceClass), methodDeclaration.name.real(), methodDesc, true);
                 mv.visitInsn(Type.getType(methodDeclaration.returnType.type).getOpcode(IRETURN));
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();

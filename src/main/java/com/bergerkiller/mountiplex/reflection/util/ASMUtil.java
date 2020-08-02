@@ -17,6 +17,8 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+
 public class ASMUtil {
     private static final int ASM_VERSION = Opcodes.ASM6;
 
@@ -307,7 +309,7 @@ public class ASMUtil {
         // Turn method into signature to find
         final FoundConstantInfo found = new FoundConstantInfo();
         final String method_name = method.getName();
-        final String method_desc = Type.getMethodDescriptor(method);
+        final String method_desc = MPLType.getMethodDescriptor(method);
 
         try {
             Class<?> type = method.getDeclaringClass();

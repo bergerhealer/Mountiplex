@@ -5,8 +5,6 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
-import org.objectweb.asm.Type;
-
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
@@ -16,6 +14,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -251,23 +250,23 @@ public class MethodDeclaration extends Declaration {
      * @return ASM method descriptor
      */
     public String getASMInvokeDescriptor() {
-        Type[] params;
+        Class<?>[] params;
         if (this.modifiers.isStatic()) {
-            params = new Type[this.parameters.parameters.length];
+            params = new Class[this.parameters.parameters.length];
             for (int i = 0; i < this.parameters.parameters.length; i++) {
                 params[i] = getAccessibleType(this.parameters.parameters[i].type);
             }
         } else {
-            params = new Type[this.parameters.parameters.length + 1];
+            params = new Class[this.parameters.parameters.length + 1];
             params[0] = getAccessibleType(this.getDeclaringClass());
             for (int i = 0; i < this.parameters.parameters.length; i++) {
                 params[i+1] = getAccessibleType(this.parameters.parameters[i].type);
             }
         }
-        return Type.getMethodDescriptor(Type.getType(this.returnType.type), params);
+        return MPLType.getMethodDescriptor(this.returnType.type, params);
     }
 
-    private static Type getAccessibleType(TypeDeclaration type) {
+    private static Class<?> getAccessibleType(TypeDeclaration type) {
         if (type == null) {
             throw new IllegalArgumentException("Input type is null");
         } else if (!type.isResolved()) {
@@ -277,11 +276,11 @@ public class MethodDeclaration extends Declaration {
         }
     }
 
-    private static Type getAccessibleType(Class<?> type) {
+    private static Class<?> getAccessibleType(Class<?> type) {
         if (type == null) {
             throw new IllegalArgumentException("Input type is null");
         }
-        return Type.getType(Resolver.getMeta(type).isPublic ? type : Object.class);
+        return Resolver.getMeta(type).isPublic ? type : Object.class;
     }
 
     @Override

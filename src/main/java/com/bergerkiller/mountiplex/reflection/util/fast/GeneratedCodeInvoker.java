@@ -45,13 +45,13 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
     }
 
     private static final CtClass getExtendedClass(ClassPool pool, Class<?> type, Class<?> interfaceClass) throws NotFoundException {
-        CtClass origClazz = pool.getCtClass(type.getName());
+        CtClass origClazz = pool.getCtClass(Resolver.resolveClassName(type));
         String newClassName = origClazz.getName() + ExtendedClassWriter.getNextPostfix();
         newClassName = ExtendedClassWriter.getAvailableClassName(newClassName);
 
         CtClass extendedClass = pool.makeClass(newClassName, origClazz);
         if (interfaceClass != null) {
-            extendedClass.addInterface(pool.makeInterface(interfaceClass.getName()));
+            extendedClass.addInterface(pool.makeInterface(Resolver.resolveClassName(interfaceClass)));
         }
         return extendedClass;
     }
@@ -249,7 +249,24 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
             Class<?> instanceType = declaration.getDeclaringClass();
             Class<?> decClass = declaration.getResolver().getDeclaredClass();
             if (decClass != null) {
-                pool.importPackage(decClass.getPackage().getName());
+                Package p = decClass.getPackage();
+                if (p != null) {
+                    pool.importPackage(p.getName());
+                } else {
+                    // Decode the package path from class name ourselves
+                    // This might fail :(
+                    String package_path = Resolver.resolveClassName(decClass);
+                    int lastDot;
+                    while ((lastDot = package_path.lastIndexOf('.')) != -1) {
+                        String lastPart = package_path.substring(lastDot+1);
+                        if (lastPart.isEmpty() || !Character.isUpperCase(lastPart.charAt(0))) {
+                            break;
+                        } else {
+                            package_path = package_path.substring(0, lastDot);
+                        }
+                    }
+                    pool.importPackage(package_path);
+                }
             }
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class, interfaceClass);
             CtMethod m;

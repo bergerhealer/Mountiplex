@@ -7,6 +7,7 @@ import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
@@ -24,7 +25,7 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setAccess(ACC_FINAL).build();
 
-        String selfName = Type.getInternalName(GeneratedAccessor.class);
+        String selfName = MPLType.getInternalName(GeneratedAccessor.class);
 
         MethodVisitor mv;
 
@@ -33,14 +34,14 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 1);
-        mv.visitMethodInsn(INVOKESPECIAL, selfName, "<init>", "(" + Type.getDescriptor(java.lang.reflect.Field.class) + ")V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, selfName, "<init>", "(" + MPLType.getDescriptor(java.lang.reflect.Field.class) + ")V", false);
         mv.visitInsn(RETURN);
         mv.visitMaxs(2, 2);
         mv.visitEnd();
 
         // Getter/setter makeup
         int mod = field.getModifiers();
-        String className = Type.getInternalName(field.getDeclaringClass());
+        String className = MPLType.getInternalName(field.getDeclaringClass());
         Type fieldType = Type.getType(field.getType());
         String fieldTypeName = fieldType.getDescriptor();
         String fieldName = field.getName();
@@ -54,7 +55,7 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
 
         if (Modifier.isPublic(mod) && !Modifier.isStatic(mod)) {
             if (accessorName == null) {
-                String fieldTypeInternalName = Type.getInternalName(field.getType());
+                String fieldTypeInternalName = MPLType.getInternalName(field.getType());
 
                 // Get the Object field
                 mv = cw.visitMethod(ACC_PUBLIC, "get", "(Ljava/lang/Object;)Ljava/lang/Object;", null, null);
