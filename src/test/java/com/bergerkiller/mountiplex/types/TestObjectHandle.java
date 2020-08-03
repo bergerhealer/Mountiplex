@@ -3,11 +3,10 @@ package com.bergerkiller.mountiplex.types;
 import java.util.List;
 
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
+@Template.InstanceType("com.bergerkiller.mountiplex.types.TestObject")
 public abstract class TestObjectHandle extends Template.Handle {
-    public static final TestObjectClass T = new TestObjectClass();
-    protected static final StaticInitHelper _init_helper = new StaticInitHelper(TestObjectHandle.class, "com.bergerkiller.mountiplex.types.TestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
+    public static final TestObjectClass T = Template.Class.create(TestObjectClass.class, com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
     public static final String CONSTANT = T.staticField.getSafe();
 
     public static TestObjectHandle createHandle(Object instance) {

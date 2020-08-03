@@ -14,7 +14,6 @@ import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
@@ -160,9 +159,7 @@ public class Resolver {
         String alterPath = resolveClassPath(path);
         try {
             if (initialize) {
-                Class<?> type = Class.forName(alterPath);
-                StaticInitHelper.initType(type);
-                return type;
+                return Class.forName(alterPath);
             } else {
                 return Class.forName(alterPath, false, MountiplexUtil.class.getClassLoader());
             }
@@ -195,7 +192,6 @@ public class Resolver {
     public static void initializeClass(Class<?> classType) {
         try {
             Class.forName(classType.getName());
-            StaticInitHelper.initType(classType);
         } catch (ExceptionInInitializerError e) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + classType.getName() + "':", e.getCause());
         } catch (ClassNotFoundException e) {

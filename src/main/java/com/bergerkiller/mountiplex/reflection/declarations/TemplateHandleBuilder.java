@@ -20,16 +20,18 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 
 /**
- * Reads the abstract class information of a Template Handle type and generates an appropriate
+ * Reads the abstract class information of a Template {@link Template.Handle Handle} type and generates an appropriate
  * implementation of the abstract methods.
  */
-public class TemplateHandleBuilder<H> {
+public class TemplateHandleBuilder<H extends Handle> {
+    private final Template.Class<H> templateClass;
     private final Class<H> handleType;
     private Class<? extends H> handleImplType;
     private final FastConstructor<H> handleConstructor = new FastConstructor<H>();
 
-    public TemplateHandleBuilder(Class<H> handleType) {
-        this.handleType = handleType;
+    public TemplateHandleBuilder(Template.Class<H> templateClass) {
+        this.templateClass = templateClass;
+        this.handleType = templateClass.getHandleType();
         this.handleConstructor.initUnavailable("new " + handleType.getName() + "()");
     }
 
@@ -41,6 +43,7 @@ public class TemplateHandleBuilder<H> {
         return handleConstructor.newInstance(instance);
     }
 
+    //TODO: Might be incorrect if somebody named this something other than T!
     private Template.Class<?> getTemplateClass(Class<?> handleClass) {
         try {
             return (Template.Class<?>) handleClass.getField("T").get(null);
@@ -54,17 +57,36 @@ public class TemplateHandleBuilder<H> {
                ((Template.AbstractMethod<?>) templateElement).invoker instanceof GeneratedInvoker;
     }
 
+    @SuppressWarnings("unchecked")
     public void build() {
+        if (this.templateClass.getType() == null) {
+            throw new IllegalStateException("Handle internal type of " + this.handleType + " is null");
+        }
+
+        if (this.handleType == Template.Handle.class) {
+            this.handleImplType = (Class<? extends H>) FallbackHandle.class;
+            try {
+                Constructor<? extends H> constructor;
+                try {
+                    constructor = this.handleImplType.getConstructor(Object.class);
+                } catch (Throwable t) {
+                    throw new IllegalStateException("Failed to find generated handle constructor for fallback handle", t);
+                }
+
+                this.handleConstructor.init(constructor);
+            } catch (Throwable t) {
+                throw MountiplexUtil.uncheckedRethrow(t);
+            }
+            return;
+        }
+
         // Set up the class writer for the implementation of the handle type
         ExtendedClassWriter<H> cw = ExtendedClassWriter.builder(this.handleType)
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setAccess(ACC_FINAL)
                 .setPostfix("$impl").build();
 
-        Class<?> topInstanceType = getTemplateClass(this.handleType).getType();
-        if (topInstanceType == null) {
-            throw new IllegalStateException("Handle internal type of " + this.handleType + " is null");
-        }
+        Class<?> topInstanceType = this.templateClass.getType();
 
         // Non-public classes can not be stored as a type in another class
         // In those cases, we can only access them through reflection, and in
@@ -110,20 +132,19 @@ public class TemplateHandleBuilder<H> {
         // Walk all Handle superclass types that this Handle class type is
         // For all types we must implement the abstract methods for the fields/methods represented
         Class<?> currentHandleType = this.handleType;
+        Template.Class<?> currentTemplateClass = this.templateClass;
         do {
-            // Find the value of 'T' for the current Handle type
-            Template.Class<?> templateClass = getTemplateClass(currentHandleType);
-
             // Internal name of the handle type, when writing access to T
             String currentHandleName = MPLType.getInternalName(currentHandleType);
 
-            Class<?> templateClassType = templateClass.getClass();
+            // Note: superclass because it is actually $impl (generated)
+            Class<?> templateClassType = currentTemplateClass.getSelfClassType();
             String templateClassDesc = MPLType.getDescriptor(templateClassType);
             String templateClassName = MPLType.getInternalName(templateClassType);
-            Class<?> instanceType = templateClass.getType();
-            ClassDeclaration classDec = templateClass.getClassDeclaration();
+            Class<?> instanceType = currentTemplateClass.getType();
+            ClassDeclaration classDec = currentTemplateClass.getClassDeclaration();
             if (classDec == null) {
-                throw new IllegalStateException("Template Handle Class " + templateClass + " has no Class Declaration! Not initialized?");
+                throw new IllegalStateException("Template Handle Class " + currentTemplateClass + " has no Class Declaration! Not initialized?");
             }
 
             // Implement the getter and setter methods for all non-static fields
@@ -243,7 +264,7 @@ public class TemplateHandleBuilder<H> {
                 String templateElementDesc;
                 try {
                     java.lang.reflect.Field templateField = templateClassType.getField(methodName);
-                    templateElement = (Template.TemplateElement<?>) templateField.get(templateClass);
+                    templateElement = (Template.TemplateElement<?>) templateField.get(currentTemplateClass);
                     templateElementName = MPLType.getInternalName(templateField.getType());
                     templateElementDesc = MPLType.getDescriptor(templateField.getType());
                 } catch (Throwable t) {
@@ -371,8 +392,14 @@ public class TemplateHandleBuilder<H> {
                 mv.visitMaxs(3, 2);
                 mv.visitEnd();
             }
+
+            // Next layer of handles, if we reach Handle, then there are no more superclasses
             currentHandleType = currentHandleType.getSuperclass();
-        } while (currentHandleType != Handle.class);
+            if (currentHandleType == Template.Handle.class) {
+                break;
+            }
+            currentTemplateClass = getTemplateClass(currentHandleType);
+        } while (true);
 
         this.handleImplType = cw.generate();
 
@@ -405,5 +432,22 @@ public class TemplateHandleBuilder<H> {
                method.parameters.parameters[0].type.isResolved() &&
                method.parameters.parameters[0].type.type.equals(Object.class) &&
                method.parameters.parameters[0].type.cast == null;
+    }
+
+    /**
+     * Fallback Handle class when no declarations/generated methods exist.
+     * Merely provides access to the raw instance.
+     */
+    static final class FallbackHandle extends Template.Handle {
+        private final Object instance;
+
+        public FallbackHandle(Object instance) {
+            this.instance = instance;
+        }
+
+        @Override
+        public Object getRaw() {
+            return this.instance;
+        }
     }
 }

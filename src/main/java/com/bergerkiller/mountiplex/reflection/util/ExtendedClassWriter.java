@@ -11,6 +11,10 @@ import java.util.WeakHashMap;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
+import javassist.CannotCompileException;
+import javassist.CtClass;
+import javassist.NotFoundException;
+
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 
@@ -26,6 +30,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     private final String internalName;
     private final String typeDescriptor;
     private final GeneratorClassLoader loader;
+    private CtClass ctClass = null;
 
     static {
         MountiplexUtil.registerUnloader(new Runnable() {
@@ -136,10 +141,47 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         return this.typeDescriptor;
     }
 
+    /**
+     * Takes the current ByteCode already generated and finishes it, turning it into
+     * a JavaAssist CtClass ready for further modifications. The return CtClass
+     * can be further changed, such as adding methods or fields. When done, the
+     * {@link #generate()} or {@link #generateInstance(Class[], Object[])} methods will
+     * compile the final CtClass result.<br>
+     * <br>
+     * No more ASM commands (visit*) should be called after calling this method, as they
+     * will have no effect.
+     * 
+     * @return Javassist CtClass
+     */
+    public CtClass getCtClass() {
+        if (this.ctClass == null) {
+            this.visitEnd();
+
+            // Convert the current byte representation into a ByteArray, and then into a CtClass
+            // Next time generate() is called, we instead generate using JavaAssist
+            javassist.ClassPool cp = javassist.ClassPool.getDefault();
+            cp.insertClassPath(new javassist.ByteArrayClassPath(this.name, this.toByteArray()));
+            try {
+                this.ctClass = cp.get(this.name);
+            } catch (NotFoundException e) {
+                throw new RuntimeException("Failed to instantiate CtClass " + this.name + " from bytecode");
+            }
+        }
+        return this.ctClass;
+    }
+
     @SuppressWarnings("unchecked")
     public Class<T> generate() {
-        this.visitEnd();
-        return (Class<T>) loader.defineClass(this.name, this.toByteArray());
+        if (this.ctClass == null) {
+            this.visitEnd();
+            return (Class<T>) this.loader.defineClass(this.name, this.toByteArray());
+        } else {
+            try {
+                return (Class<T>) this.ctClass.toClass(this.loader, null);
+            } catch (CannotCompileException e) {
+                throw new RuntimeException("Failed to compile class " + this.name, e);
+            }
+        }
     }
 
     public T generateInstance(Class<?>[] parameterTypes, Object[] initArgs) {

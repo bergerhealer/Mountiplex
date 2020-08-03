@@ -30,6 +30,10 @@ public class ASMPlaygroundTest {
             TestObjectHandle.T.testFunc.invoker.invoke(instance, value1, value2);
         }
 
+        public java.lang.Class<?> getSelfClassType() {
+            return getClass().getSuperclass();
+        }
+
         public static class Class {
             public Template.Method<Integer> theMethod;
         }

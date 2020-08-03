@@ -20,36 +20,73 @@ import com.bergerkiller.mountiplex.reflection.SafeField;
 import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
-import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper.InitMethod;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 public class Template {
 
+    /**
+     * The Class represents all the Class-level information for an instance type.
+     * It is here that all the static methods are defined, {@link Handle} classes
+     * are created and initialization occurs.
+     *
+     * @param <H> - Handle type matching this Class that is used for wrapping instances
+     */
     public static class Class<H extends Handle> implements LazyInitializedObject {
         private boolean valid = false;
+        private boolean optional = false;
+        private String classPath = null;
         private java.lang.Class<?> classType = null;
+        private java.lang.Class<H> handleType = null;
         private DuplexConverter<Object, H> handleConverter = null;
-        private final java.lang.Class<H> handleType;
         private TemplateHandleBuilder<H> handleBuilder = null;
         private Invoker<H> handleBuilderMethod = null;
         private NullInstantiator<Object> instantiator = null;
-        private String classPath = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
         private FastField<?>[] fields = null;
         private ClassDeclaration classDec = null;
 
-        @SuppressWarnings("unchecked")
+        /**
+         * Initializes a new Class instance of the given Class Type. No class declarations are queried, instead, such information
+         * should all be available using annotations.
+         * 
+         * @param classType Type of Class to create
+         * @return Class Instance
+         */
+        public static <C extends Class<H>, H extends Handle> C create(java.lang.Class<C> classType) {
+            return create(classType, null);
+        }
+
+        /**
+         * Initializes a new Class instance of the given Class Type. To fill the Class members and generate it's methods, the
+         * class declaration for the represented type is queried using the given ClassDeclarationResolver.
+         * 
+         * @param classType Type of Class to create
+         * @param classDeclarationResolver Resolver used to find the ClassDeclaration for this Class
+         * @return Class Instance
+         */
+        public static <C extends Class<H>, H extends Handle> C create(java.lang.Class<C> classType, ClassDeclarationResolver classDeclarationResolver) {
+            try {
+                TemplateClassBuilder<C, H> builder = new TemplateClassBuilder<C, H>(classType, classDeclarationResolver);
+                return builder.build();
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize " + classType.getName(), t);
+                return null;
+            }
+        }
+
+        /**
+         * Initializes this Class assuming it has been extended. The extended Class
+         * should provide information about the Handle class and any important annotations
+         * for initialization.
+         */
         public Class() {
-            this.handleType = (java.lang.Class<H>) getClass().getDeclaringClass();
         }
 
         /**
@@ -81,7 +118,7 @@ public class Template {
             if (this.handleBuilder == null) {
                 synchronized (this) {
                     if (this.handleBuilder == null) {
-                        TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this.handleType);
+                        TemplateHandleBuilder<H> builder = new TemplateHandleBuilder<H>(this);
                         builder.build();
                         if (this.handleBuilder == null) {
                             this.handleBuilder = builder;
@@ -128,31 +165,24 @@ public class Template {
         }
 
         @SuppressWarnings("unchecked")
-        private final void init(java.lang.Class<?> classType, ClassDeclarationResolver classDecResolver) {
-            this.classType = classType;
+        final void init(TemplateClassBuilder<?, H> builder) {
+            this.handleType = builder.handleType;
+            this.classPath = builder.instanceClassPath;
+            this.classType = builder.instanceType;
+            this.classDec = builder.classDec;
+            this.optional = builder.isOptional;
+            this.valid = (this.classType != null && this.classDec != null);
             this.instantiator = new NullInstantiator<Object>(classType);
-            this.valid = (classType != null);
 
             // Create duplex converter between handle type and instance type
-            if (this.valid) {
+            if (this.classType != null && this.handleType != null) {
                 this.handleConverter = new DuplexHandleConverter<H>(this, classType);
                 Conversion.registerConverter(this.handleConverter);
+            }
 
-                // Resolve class declaration
-                if (classDecResolver != null) {
-                    this.classDec = classDecResolver.resolveClassDeclaration(this.classPath, classType);
-                } else {
-                    this.classDec = Resolver.resolveClassDeclaration(this.classPath, classType);
-                }
-                if (this.classDec == null) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.classType.getName() + " not found");
-                    valid = false;
-                }
-
-                // Execute bootstrap code
-                if (this.classDec != null) {
-                    this.classDec.getResolver().runBootstrap();
-                }
+            // Execute bootstrap code
+            if (this.valid) {
+                this.classDec.getResolver().runBootstrap();
             }
 
             // Initialize all declared fields
@@ -227,7 +257,7 @@ public class Template {
          * @return True if optional, False if it is guaranteed to exist
          */
         public final boolean isOptional() {
-            return this.handleType.getAnnotation(Optional.class) != null; 
+            return this.optional;
         }
 
         /**
@@ -242,10 +272,21 @@ public class Template {
         /**
          * Gets the exposed Handle Class Type of this Class
          * 
-         * @return handle type
+         * @return Handle type
          */
-        public java.lang.Class<?> getHandleType() {
+        public java.lang.Class<H> getHandleType() {
             return this.handleType;
+        }
+
+        /**
+         * Gets the exposed Class Class Type of this Class.
+         * If this Class instance was generated, the type might
+         * differ from the result of getClass().
+         * 
+         * @return Class type
+         */
+        protected java.lang.Class<?> getSelfClassType() {
+            return this.getClass();
         }
 
         /**
@@ -353,9 +394,9 @@ public class Template {
     }
 
     /**
-     * Base class for objects that refer to a hidden type
+     * Wraps instances of a {@link Class} providing per-object instance methods.
      */
-    public static abstract class Handle implements StaticInitHelper.InitClass {
+    public static abstract class Handle {
         /**
          * Checks whether the backing raw type is an instance of a certain type of class
          * 
@@ -381,9 +422,7 @@ public class Template {
          * 
          * @return raw instance
          */
-        public Object getRaw() {
-            return null;
-        }
+        public abstract Object getRaw();
 
         /**
          * Gets the raw instance backing this Handle.
@@ -438,28 +477,6 @@ public class Template {
                     return instance;
                 }
             };
-        }
-
-        @InitMethod
-        protected static final void initialize(final java.lang.Class<? extends Handle> handleType, String classPath, ClassDeclarationResolver resolver) {
-            try {
-                Class<?> handleClass = ((Class<?>) handleType.getField("T").get(null));
-                handleClass.classPath = classPath;
-
-                // Load the class at the path and retrieve the Class Declaration belonging to it
-                java.lang.Class<?> classType = Resolver.loadClass(classPath, false);
-                if (classType == null) {
-                    if (!handleClass.isOptional()) {
-                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Class " + classPath + " not found; Template '" +
-                                handleType.getSimpleName() + " not initialized.");
-                    }
-                }
-
-                // Initialize the template class fields
-                handleClass.init(classType, resolver);
-            } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register " + handleType.getName(), t);
-            }
         }
 
         @Override
@@ -2371,6 +2388,14 @@ public class Template {
                 field.setBoolean(instance, value);
             }
         }
+    }
+
+    /**
+     * Indicates what instance class name the  {@link Handle} and/or {@link Class}  is for
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface InstanceType {
+        String value();
     }
 
     /**

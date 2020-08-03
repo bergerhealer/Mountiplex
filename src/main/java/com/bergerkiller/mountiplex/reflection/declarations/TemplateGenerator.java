@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
 public class TemplateGenerator {
     private ClassDeclaration rootClassDec = null;
@@ -45,7 +44,6 @@ public class TemplateGenerator {
         this.builder = new StringBuilder();
         this.imports = new TreeMap<String, String>();
         this.imports.put("Template", Template.class.getName());
-        this.imports.put("StaticInitHelper", StaticInitHelper.class.getName());
         this.indent = 0;
         String packagePath = this.path;
 
@@ -140,14 +138,12 @@ public class TemplateGenerator {
                    "To access members without creating a handle type, use the static {@link #T} member.\n" +
                    "New handles can be created from raw instances using {@link #createHandle(Object)}.");
         populateModifiers(classDec.modifiers);
+        addLine("@Template.InstanceType(\"" + classDec.type.typePath + "\")");
         addLine("public abstract " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
         {
             addComment("@See {@link " + className(classDec) + "}");
-            addLine("public static final " + className(classDec) + " T = new " + className(classDec) + "()");
-            addLine("static final StaticInitHelper _init_helper = new StaticInitHelper(" + handleName(classDec) + ".class, " +
-                "\"" + classDec.type.typePath + "\", " +
-                classDec.getResolver().getClassDeclarationResolverName() + ")");
-            addLine();
+            addLine("public static final " + className(classDec) + " T = Template.Class.create(" + className(classDec) + ".class, " +
+                    classDec.getResolver().getClassDeclarationResolverName() + ")");
 
             {
                 // Enumeration constants

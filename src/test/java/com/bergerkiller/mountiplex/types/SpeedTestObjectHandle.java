@@ -1,11 +1,10 @@
 package com.bergerkiller.mountiplex.types;
 
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
+@Template.InstanceType("com.bergerkiller.mountiplex.types.SpeedTestObject")
 public abstract class SpeedTestObjectHandle extends Template.Handle {
-    public static final SpeedTestObjectClass T = new SpeedTestObjectClass();
-    protected static final StaticInitHelper _init_helper = new StaticInitHelper(SpeedTestObjectHandle.class, "com.bergerkiller.mountiplex.types.SpeedTestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
+    public static final SpeedTestObjectClass T = Template.Class.create(SpeedTestObjectClass.class, com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
 
     public static SpeedTestObjectHandle createHandle(Object handleInstance) {
         return T.createHandle(handleInstance);

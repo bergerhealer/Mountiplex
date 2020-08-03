@@ -1,11 +1,10 @@
 package com.bergerkiller.mountiplex.types;
 
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
+@Template.InstanceType("com.bergerkiller.mountiplex.types.PrivateTestObject")
 public abstract class PrivateTestObjectHandle extends Template.Handle {
-    public static final PrivateTestObjectClass T = new PrivateTestObjectClass();
-    protected static final StaticInitHelper _init_helper = new StaticInitHelper(PrivateTestObjectHandle.class, "com.bergerkiller.mountiplex.types.PrivateTestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
+    public static final PrivateTestObjectClass T = Template.Class.create(PrivateTestObjectClass.class, com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
 
     /* ============================================================================== */
 

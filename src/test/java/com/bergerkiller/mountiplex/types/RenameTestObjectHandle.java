@@ -1,11 +1,10 @@
 package com.bergerkiller.mountiplex.types;
 
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
-import com.bergerkiller.mountiplex.reflection.util.StaticInitHelper;
 
+@Template.InstanceType("com.bergerkiller.mountiplex.types.RenameTestObject")
 public abstract class RenameTestObjectHandle extends Template.Handle {
-    public static final RenameTestObjectClass T = new RenameTestObjectClass();
-    protected static final StaticInitHelper _init_helper = new StaticInitHelper(RenameTestObjectHandle.class, "com.bergerkiller.mountiplex.types.RenameTestObject", com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
+    public static final RenameTestObjectClass T = Template.Class.create(RenameTestObjectClass.class, com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE);
 
     public static RenameTestObjectHandle createHandle(Object handleInstance) {
         return T.createHandle(handleInstance);
