@@ -147,4 +147,28 @@ public abstract class Converter<I, O> implements Function<Object, O> {
         return this.getClass().getName() + "[cost=" + getCost() + ", " + input.toString() + " -> " + output.toString() + "]";
     }
 
+    /**
+     * Produces a converter when {@link #get()} is called
+     * 
+     * @param <I> Input type
+     * @param <O> Output type
+     */
+    public static interface Supplier<I, O> {
+        /**
+         * Gets the Converter. Returns null if it could not be supplied.
+         * 
+         * @return Converter
+         */
+        Converter<I, O> get();
+
+        /**
+         * Gets a supplier for a constant value
+         * 
+         * @param converter
+         * @return supplier that returns the converter
+         */
+        public static <I, O> Supplier<I, O> of(final Converter<I, O> converter) {
+            return () -> converter;
+        }
+    }
 }

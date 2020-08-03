@@ -185,6 +185,17 @@ public class Conversion {
         return (InputConverter<T>) find(TypeDeclaration.fromClass(output));
     }
 
+    /**
+     * Returns a Supplier for a Converter from input to output. The actual converter is searched once get() is called.
+     * 
+     * @param input Input type
+     * @param output Output type
+     * @return Converter Supplier
+     */
+    public static <I, O> Converter.Supplier<I, O> findSupplier(final Class<I> input, final Class<O> output) {
+        return () -> find(input, output);
+    }
+
     @SuppressWarnings("unchecked")
     public static <I, O> Converter<I, O> find(Class<I> input, Class<O> output) {
         return (Converter<I, O>) find(TypeDeclaration.fromClass(input), TypeDeclaration.fromClass(output));
@@ -196,6 +207,24 @@ public class Conversion {
         }
     }
 
+    /**
+     * Returns a Supplier for a Converter from input to output. The actual converter is searched once get() is called.
+     * 
+     * @param input Input type
+     * @param output Output type
+     * @return Converter Supplier
+     */
+    public static Converter.Supplier<Object, Object> findSupplier(final TypeDeclaration input, final TypeDeclaration output) {
+        return () -> find(input, output);
+    }
+
+    /**
+     * Looks up the Converter from the input type to output type
+     * 
+     * @param input Input type declaration
+     * @param output Output type declaration
+     * @return Converter from input to output, or null if it is not found
+     */
     public static Converter<Object, Object> find(TypeDeclaration input, TypeDeclaration output) {
         TypeTuple key = new TypeTuple(input, output);
         synchronized (lock) {

@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
-import java.util.function.Function;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -11,7 +10,7 @@ import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.type.DisabledConverter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
-import com.bergerkiller.mountiplex.conversion.type.NullConverter;
+import com.bergerkiller.mountiplex.conversion.util.ParamsConverterList;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.MethodAccessor;
@@ -801,7 +800,7 @@ public class Template {
 
     public static class AbstractFieldConverter<F extends AbstractField<?>, T> extends TemplateElement<FieldDeclaration> {
         public final F raw;
-        protected DuplexConverter<?, T> converter = null;
+        protected DuplexConverter.Supplier<?, T> converter = DuplexConverter.Supplier.none();
 
         protected AbstractFieldConverter(F raw) {
             this.raw = raw;
@@ -809,7 +808,7 @@ public class Template {
 
         // throws an exception when the converter was not initialized
         protected final void failNoConverter() {
-            if (converter == null) {
+            if (!converter.available()) {
                 throw new UnsupportedOperationException("Field converter for " + this.getElementName() + " was not found");
             }
         }
@@ -834,33 +833,45 @@ public class Template {
             }
             FieldDeclaration fDec = this.raw.init(dec, name);
             if (fDec != null) {
-                Converter<?, T> conv_a = null;
-                Converter<T, ?> conv_b = null;
+                // Future suppliers for the field converters
+                final Converter.Supplier<?, T> sup_conv_a;
+                final Converter.Supplier<T, ?> sup_conv_b;
                 if (this.isReadonly()) {
-                    conv_a = (Converter<?, T>) Conversion.find(fDec.type, fDec.type.cast);
-                    conv_b = new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly");
+                    sup_conv_a = (Converter.Supplier<?, T>) Conversion.findSupplier(fDec.type, fDec.type.cast);
+                    sup_conv_b = Converter.Supplier.of(new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly"));
                 } else {
-                    conv_a = (Converter<?, T>) Conversion.find(fDec.type, fDec.type.cast);
-                    conv_b = (Converter<T, ?>) Conversion.find(fDec.type.cast, fDec.type);
+                    sup_conv_a = (Converter.Supplier<?, T>) Conversion.findSupplier(fDec.type, fDec.type.cast);
+                    sup_conv_b = (Converter.Supplier<T, ?>) Conversion.findSupplier(fDec.type.cast, fDec.type);
                 }
-                if (conv_a == null) {
-                    initFail("Converter for field " + fDec.name.toString() + 
-                            " not found: " + fDec.type.toString(true) + " -> " + fDec.type.cast.toString(true));
-                    return null;
-                } else if (conv_b == null) {
-                    initFail("Converter for field " + fDec.name.toString() + 
-                            " not found: " + fDec.type.cast.toString(true) + " -> " + fDec.type.toString(true));
-                    return null;
-                } else {
-                    this.converter = DuplexConverter.pair(conv_a, conv_b);
-                }
+
+                // Error handler when a converters cannot be found
+                final FailFieldConverterNotFound fail_conv = new FailFieldConverterNotFound(fDec.name, fDec.type, fDec.type.cast);
+
+                // When the converter is needed, resolves the converter to use (lazy)
+                // Refreshes the converter field so that multiple lookup isn't needed
+                converter = () -> {
+                    DuplexConverter<?, T> result;
+                    Converter<?, T> conv_a = sup_conv_a.get();
+                    Converter<T, ?> conv_b = sup_conv_b.get();
+                    if (conv_a == null) {
+                        fail_conv.fail(this, false);
+                        result = null;
+                    } else if (conv_b == null) {
+                        fail_conv.fail(this, true);
+                        result = null;
+                    } else {
+                        result = DuplexConverter.pair(conv_a, conv_b);
+                    }
+                    converter = DuplexConverter.Supplier.of(result);
+                    return (DuplexConverter<Object, T>) result;
+                };
             }
             return fDec;
         }
 
         @Override
         public boolean isAvailable() {
-            return raw.isAvailable() && converter != null;
+            return raw.isAvailable() && converter.available();
         }
 
         @Override
@@ -877,7 +888,7 @@ public class Template {
         public TranslatorFieldAccessor<T> toFieldAccessor() {
             DuplexConverter<?, T> converter;
             if (this.isAvailable()) {
-                converter = this.converter;
+                converter = this.converter.get();
             } else {
                 // This is here so it doesn't error out in the constructor
                 converter = DuplexConverter.createNull(TypeDeclaration.fromClass(Object.class));
@@ -888,15 +899,8 @@ public class Template {
 
     public static abstract class AbstractParamsConverter<R extends TemplateElement<?>, T, D extends Declaration> extends TemplateElement<D> {
         public final R raw;
-        protected Function<Object, T> resultConverter = null; // Is null when result value doesn't have to be converted
-        protected Function<Object, ?>[] argConverters = null; // Is null when arguments don't have to be converted
-        protected Function<Object, ?> argConverter0 = null; // Equal to argConverters[0] (null if missing)
-        protected Function<Object, ?> argConverter1 = null; // Equal to argConverters[1] (null if missing)
-        protected Function<Object, ?> argConverter2 = null; // Equal to argConverters[2] (null if missing)
-        protected Function<Object, ?> argConverter3 = null; // Equal to argConverters[3] (null if missing)
-        protected Function<Object, ?> argConverter4 = null; // Equal to argConverters[4] (null if missing)
-        protected boolean isConvertersInitialized = false;
-        protected int argCount = -1; // Is -1 when isConvertersInitialized == false, otherwise equals number of expected arguments
+        protected ParamsConverterList.Supplier<T> converters = ParamsConverterList.Supplier.uninitialized();
+        protected int argCount = -1; // Is -1 when uninitialized or converters failed to initialize
 
         protected AbstractParamsConverter(R raw) {
             this.raw = raw;
@@ -907,9 +911,7 @@ public class Template {
             raw.forceInitialization();
 
             // If converters could not be initialized, force an exception
-            if (!this.isConvertersInitialized) {
-                this.verifyArgumentCount(-1);
-            }
+            this.converters.get();
         }
 
         @Override
@@ -918,63 +920,19 @@ public class Template {
             raw.initElementName(elementName);
         }
 
-        @SuppressWarnings("unchecked")
         protected final void initConverters(String name, TypeDeclaration returnType, ParameterListDeclaration parameters) {
-            this.isConvertersInitialized = true;
             this.argCount = parameters.parameters.length;
-            this.resultConverter = null;
-            this.argConverters = null;
-            this.argConverter0 = null;
-            this.argConverter1 = null;
-            this.argConverter2 = null;
-            this.argConverter3 = null;
-            this.argConverter4 = null;
-
-            // Initialize the converter for the return value
-            if (returnType.cast != null) {
-                this.resultConverter = (Converter<?, T>) Conversion.find(returnType, returnType.cast);
-                if (this.resultConverter == null) {
-                    this.isConvertersInitialized = false;
-                    this.argCount = -1;
-                    MountiplexUtil.LOGGER.warning("Converter for " + name + 
-                            " return type not found: " + returnType.toString());
-                } else if (this.resultConverter instanceof NullConverter) {
-                    this.resultConverter = null;
-                }
-            }
-
-            // Converters for the arguments of the method
-            ParameterDeclaration[] params = parameters.parameters;
-            this.argConverters = new Function[params.length];
-            boolean hasArgumentConversion = false;
-            for (int i = 0; i < params.length; i++) {
-                if (params[i].type.cast != null) {
-                    this.argConverters[i] = Conversion.find(params[i].type.cast, params[i].type);
-                    if (this.argConverters[i] == null) {
-                        this.isConvertersInitialized = false;
-                        this.argCount = -1;
-                        MountiplexUtil.LOGGER.warning("Converter for " + name + 
-                                " argument " + params[i].name.toString() + " not found: " + params[i].type.toString());
-                    } else if (this.argConverters[i] instanceof NullConverter) {
-                        this.argConverters[i] = Function.identity();
-                    } else {
-                        // It's ok
-                        hasArgumentConversion = true;
-                    }
+            this.converters = ParamsConverterList.Supplier.lazy(() -> {
+                ParamsConverterList<T> list = new ParamsConverterList<T>(name, returnType, parameters);
+                if (list.valid) {
+                    converters = ParamsConverterList.Supplier.of(list);
                 } else {
-                    // No conversion
-                    this.argConverters[i] = Function.identity();
+                    argCount = -1; // Force error at runtime when invoked
+                    converters = ParamsConverterList.Supplier.unsupported(
+                            "Method converters for " + this.getElementName() + " could not be initialized");
                 }
-            }
-            if (hasArgumentConversion) {
-                if (params.length >= 1) this.argConverter0 = this.argConverters[0];
-                if (params.length >= 2) this.argConverter1 = this.argConverters[1];
-                if (params.length >= 3) this.argConverter2 = this.argConverters[2];
-                if (params.length >= 4) this.argConverter3 = this.argConverters[3];
-                if (params.length >= 5) this.argConverter4 = this.argConverters[4];
-            } else {
-                this.argConverters = null;
-            }
+                return converters;
+            });
         }
 
         @Override
@@ -988,37 +946,23 @@ public class Template {
             return raw.isAvailable();
         }
 
-        protected final void verifyArgumentCount(int argCount) {
+        /**
+         * Prepares execution of a method or constructor, verifying the argument count.
+         * Exceptions are thrown if something is wrong.
+         * 
+         * @param argCount
+         * @return parameter list
+         */
+        protected final ParamsConverterList<T> prepare(int argCount) {
             if (this.argCount != argCount) {
-                if (!this.isConvertersInitialized) {
+                if (!this.converters.available()) {
                     this.raw.failNotFound();
-                    throw new UnsupportedOperationException("Method converters for " + this.getElementName() + " could not be initialized");
+                    this.converters.get(); // throws
                 }
                 throw new IllegalArgumentException("Invalid number of arguments (" +
                         this.argCount + " expected, but got " + argCount + ")");
             }
-        }
-
-        @SuppressWarnings("unchecked")
-        protected final T convertResult(Object result) {
-            if (this.resultConverter != null) {
-                return this.resultConverter.apply(result);
-            } else {
-                return (T) result;
-            }
-        }
-
-        protected final Object[] convertArgs(Object[] arguments) {
-            if (this.argConverters != null) {
-                // Got to convert the parameters
-                Object[] convertedArgs = new Object[arguments.length];
-                for (int i = 0; i < convertedArgs.length; i++) {
-                    convertedArgs[i] = this.argConverters[i].apply(arguments[i]);
-                }
-                return convertedArgs;
-            } else {
-                return arguments;
-            }
+            return this.converters.get();
         }
     }
 
@@ -1191,10 +1135,10 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstanceVA(Object... arguments) {
-                verifyArgumentCount(arguments.length);
-                Object[] convertedArgs = convertArgs(arguments);
+                ParamsConverterList<T> converters = prepare(arguments.length);
+                Object[] convertedArgs = converters.convertArgs(arguments);
                 Object rawResult = this.raw.newInstanceVA(convertedArgs);
-                return convertResult(rawResult);
+                return converters.convertResult(rawResult);
             }
 
             /**
@@ -1204,8 +1148,8 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstance() {
-                verifyArgumentCount(0);
-                return convertResult(this.raw.newInstance());
+                ParamsConverterList<T> converters = prepare(0);
+                return converters.convertResult(this.raw.newInstance());
             }
 
             /**
@@ -1216,12 +1160,12 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstance(Object arg0) {
-                verifyArgumentCount(1);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.newInstance(arg0));
+                ParamsConverterList<T> converters = prepare(1);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.newInstance(arg0));
                 } else {
-                    return convertResult(this.raw.newInstance(
-                            argConverter0.apply(arg0)));
+                    return converters.convertResult(this.raw.newInstance(
+                            converters.arg0.apply(arg0)));
                 }
             }
 
@@ -1234,13 +1178,13 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstance(Object arg0, Object arg1) {
-                verifyArgumentCount(2);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.newInstance(arg0, arg1));
+                ParamsConverterList<T> converters = prepare(2);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.newInstance(arg0, arg1));
                 } else {
-                    return convertResult(this.raw.newInstance(
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1)));
+                    return converters.convertResult(this.raw.newInstance(
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1)));
                 }
             }
 
@@ -1254,14 +1198,14 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstance(Object arg0, Object arg1, Object arg2) {
-                verifyArgumentCount(3);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.newInstance(arg0, arg1, arg2));
+                ParamsConverterList<T> converters = prepare(3);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.newInstance(arg0, arg1, arg2));
                 } else {
-                    return convertResult(this.raw.newInstance(
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2)));
+                    return converters.convertResult(this.raw.newInstance(
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2)));
                 }
             }
 
@@ -1276,15 +1220,15 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstance(Object arg0, Object arg1, Object arg2, Object arg3) {
-                verifyArgumentCount(4);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.newInstance(arg0, arg1, arg2, arg3));
+                ParamsConverterList<T> converters = prepare(4);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.newInstance(arg0, arg1, arg2, arg3));
                 } else {
-                    return convertResult(this.raw.newInstance(
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2),
-                            argConverter3.apply(arg3)));
+                    return converters.convertResult(this.raw.newInstance(
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2),
+                            converters.arg3.apply(arg3)));
                 }
             }
 
@@ -1300,16 +1244,16 @@ public class Template {
              * @return converted created instance
              */
             public final T newInstance(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-                verifyArgumentCount(5);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.newInstance(arg0, arg1, arg2, arg3, arg4));
+                ParamsConverterList<T> converters = prepare(5);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.newInstance(arg0, arg1, arg2, arg3, arg4));
                 } else {
-                    return convertResult(this.raw.newInstance(
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2),
-                            argConverter3.apply(arg3),
-                            argConverter4.apply(arg4)));
+                    return converters.convertResult(this.raw.newInstance(
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2),
+                            converters.arg3.apply(arg3),
+                            converters.arg4.apply(arg4)));
                 }
             }
         }
@@ -1410,10 +1354,10 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invokeVA(Object... arguments) {
-                verifyArgumentCount(arguments.length);
-                Object[] convertedArgs = convertArgs(arguments);
+                ParamsConverterList<T> converters = prepare(arguments.length);
+                Object[] convertedArgs = converters.convertArgs(arguments);
                 Object rawResult = this.raw.invoker.invokeVA(null, convertedArgs);
-                return convertResult(rawResult);
+                return converters.convertResult(rawResult);
             }
 
             /**
@@ -1423,7 +1367,8 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke() {
-                return convertResult(this.raw.invoker.invoke(null));
+                ParamsConverterList<T> converters = prepare(0);
+                return converters.convertResult(this.raw.invoker.invoke(null));
             }
 
             /**
@@ -1434,13 +1379,13 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke(Object arg0) {
-                verifyArgumentCount(1);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(null, arg0));
+                ParamsConverterList<T> converters = prepare(1);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(null, arg0));
                 } else {
                     this.raw.invoker.initializeInvoker();
-                    return convertResult(this.raw.invoker.invoke(null,
-                            argConverter0.apply(arg0)));
+                    return converters.convertResult(this.raw.invoker.invoke(null,
+                            converters.arg0.apply(arg0)));
                 }
             }
 
@@ -1453,13 +1398,13 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke(Object arg0, Object arg1) {
-                verifyArgumentCount(2);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1));
+                ParamsConverterList<T> converters = prepare(2);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(null, arg0, arg1));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(null,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1)));
+                    return converters.convertResult(this.raw.invoker.invoke(null,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1)));
                 }
             }
 
@@ -1473,14 +1418,14 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke(Object arg0, Object arg1, Object arg2) {
-                verifyArgumentCount(3);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2));
+                ParamsConverterList<T> converters = prepare(3);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(null,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2)));
+                    return converters.convertResult(this.raw.invoker.invoke(null,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2)));
                 }
             }
 
@@ -1495,15 +1440,15 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke(Object arg0, Object arg1, Object arg2, Object arg3) {
-                verifyArgumentCount(4);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2, arg3));
+                ParamsConverterList<T> converters = prepare(4);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2, arg3));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(null,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2),
-                            argConverter3.apply(arg3)));
+                    return converters.convertResult(this.raw.invoker.invoke(null,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2),
+                            converters.arg3.apply(arg3)));
                 }
             }
 
@@ -1519,16 +1464,16 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invoke(Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-                verifyArgumentCount(5);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2, arg3, arg4));
+                ParamsConverterList<T> converters = prepare(5);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(null, arg0, arg1, arg2, arg3, arg4));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(null,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2),
-                            argConverter3.apply(arg3),
-                            argConverter4.apply(arg4)));
+                    return converters.convertResult(this.raw.invoker.invoke(null,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2),
+                            converters.arg3.apply(arg3),
+                            converters.arg4.apply(arg4)));
                 }
             }
         }
@@ -1641,10 +1586,10 @@ public class Template {
              * @return return value, null for void methods
              */
             public final T invokeVA(Object instance, Object... arguments) {
-                verifyArgumentCount(arguments.length);
-                Object[] convertedArgs = convertArgs(arguments);
+                ParamsConverterList<T> converters = prepare(arguments.length);
+                Object[] convertedArgs = converters.convertArgs(arguments);
                 Object rawResult = this.raw.invoker.invokeVA(instance, convertedArgs);
-                return convertResult(rawResult);
+                return converters.convertResult(rawResult);
             }
 
             /**
@@ -1655,8 +1600,8 @@ public class Template {
              * @return return value, null for void methods
              */
             public T invoke(Object instance) {
-                verifyArgumentCount(0);
-                return convertResult(this.raw.invoker.invoke(instance));
+                ParamsConverterList<T> converters = prepare(0);
+                return converters.convertResult(this.raw.invoker.invoke(instance));
             }
 
             /**
@@ -1668,12 +1613,12 @@ public class Template {
              * @return return value, null for void methods
              */
             public T invoke(Object instance, Object arg0) {
-                verifyArgumentCount(1);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(instance, arg0));
+                ParamsConverterList<T> converters = prepare(1);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(instance, arg0));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(instance,
-                            argConverter0.apply(arg0)));
+                    return converters.convertResult(this.raw.invoker.invoke(instance,
+                            converters.arg0.apply(arg0)));
                 }
             }
 
@@ -1687,13 +1632,13 @@ public class Template {
              * @return return value, null for void methods
              */
             public T invoke(Object instance, Object arg0, Object arg1) {
-                verifyArgumentCount(2);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1));
+                ParamsConverterList<T> converters = prepare(2);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(instance, arg0, arg1));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(instance,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1)));
+                    return converters.convertResult(this.raw.invoker.invoke(instance,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1)));
                 }
             }
 
@@ -1708,14 +1653,14 @@ public class Template {
              * @return return value, null for void methods
              */
             public T invoke(Object instance, Object arg0, Object arg1, Object arg2) {
-                verifyArgumentCount(3);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2));
+                ParamsConverterList<T> converters = prepare(3);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(instance,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2)));
+                    return converters.convertResult(this.raw.invoker.invoke(instance,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2)));
                 }
             }
 
@@ -1731,15 +1676,15 @@ public class Template {
              * @return return value, null for void methods
              */
             public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3) {
-                verifyArgumentCount(4);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2, arg3));
+                ParamsConverterList<T> converters = prepare(4);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2, arg3));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(instance,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2),
-                            argConverter3.apply(arg3)));
+                    return converters.convertResult(this.raw.invoker.invoke(instance,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2),
+                            converters.arg3.apply(arg3)));
                 }
             }
 
@@ -1756,16 +1701,16 @@ public class Template {
              * @return return value, null for void methods
              */
             public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
-                verifyArgumentCount(5);
-                if (this.argConverters == null) {
-                    return convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4));
+                ParamsConverterList<T> converters = prepare(5);
+                if (converters.args == null) {
+                    return converters.convertResult(this.raw.invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4));
                 } else {
-                    return convertResult(this.raw.invoker.invoke(instance,
-                            argConverter0.apply(arg0),
-                            argConverter1.apply(arg1),
-                            argConverter2.apply(arg2),
-                            argConverter3.apply(arg3),
-                            argConverter4.apply(arg4)));
+                    return converters.convertResult(this.raw.invoker.invoke(instance,
+                            converters.arg0.apply(arg0),
+                            converters.arg1.apply(arg1),
+                            converters.arg2.apply(arg2),
+                            converters.arg3.apply(arg3),
+                            converters.arg4.apply(arg4)));
                 }
             }
         }
@@ -2004,7 +1949,7 @@ public class Template {
             public final T get() {
                 Object value = raw.get();
                 try {
-                    return converter.convert(value);
+                    return converter.get().convert(value);
                 } catch (RuntimeException t) {
                     failNoConverter();
                     throw t;
@@ -2019,7 +1964,7 @@ public class Template {
             public final void set(T value) {
                 Object rawValue;
                 try {
-                    rawValue = converter.convertReverse(value);
+                    rawValue = converter.get().convertReverse(value);
                 } catch (RuntimeException t) {
                     raw.field.checkInit();
                     failNoConverter();
@@ -2253,7 +2198,7 @@ public class Template {
             public final T get(Object instance) {
                 Object rawValue = raw.get(instance);
                 try {
-                    return converter.convert(rawValue);
+                    return converter.get().convert(rawValue);
                 } catch (RuntimeException t) {
                     failNoConverter();
                     throw t;
@@ -2269,7 +2214,7 @@ public class Template {
             public final void set(Object instance, T value) {
                 Object rawValue;
                 try {
-                    rawValue = converter.convertReverse(value);
+                    rawValue = converter.get().convertReverse(value);
                 } catch (RuntimeException t) {
                     raw.field.checkInit();
                     failNoConverter();
@@ -2387,6 +2332,29 @@ public class Template {
             public final void setBoolean(Object instance, boolean value) {
                 field.setBoolean(instance, value);
             }
+        }
+    }
+
+    /**
+     * Helper class to provide context information when a field template element
+     * converter fails to be initialized.
+     */
+    private static class FailFieldConverterNotFound {
+        private final NameDeclaration name;
+        private final TypeDeclaration input;
+        private final TypeDeclaration output;
+
+        public FailFieldConverterNotFound(NameDeclaration name, TypeDeclaration input, TypeDeclaration output) {
+            this.name = name;
+            this.input = input;
+            this.output = output;
+        }
+
+        public void fail(TemplateElement<?> element, boolean reverse) {
+            TypeDeclaration a = reverse ? output : input;
+            TypeDeclaration b = reverse ? input : output;
+            element.initFail("Converter for field " + name.toString() + 
+                   " not found: " + a.toString(true) + " -> " + b.toString(true));
         }
     }
 
