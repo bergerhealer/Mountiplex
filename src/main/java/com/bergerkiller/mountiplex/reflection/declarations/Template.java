@@ -2,14 +2,15 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
-import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.type.DisabledConverter;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
+import com.bergerkiller.mountiplex.conversion.type.LazyConverter;
 import com.bergerkiller.mountiplex.conversion.util.ParamsConverterList;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
@@ -160,6 +161,25 @@ public class Template {
                         element.forceInitialization();
                     }
                 }
+
+                // Make sure all static (hidden) member variables are initialized too
+                if (this.getClass() != this.getSelfClassType()) {
+                    for (java.lang.reflect.Field field : this.getClass().getDeclaredFields()) {
+                        if (Modifier.isStatic(field.getModifiers())) {
+                            Object staticFieldValue;
+                            try {
+                                field.setAccessible(true);
+                                staticFieldValue = field.get(null);
+                                field.setAccessible(false);
+                            } catch (Throwable t) {
+                                continue; // ignore
+                            }
+                            if (staticFieldValue instanceof LazyInitializedObject) {
+                                ((LazyInitializedObject) staticFieldValue).forceInitialization();
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -175,7 +195,7 @@ public class Template {
 
             // Create duplex converter between handle type and instance type
             if (this.classType != null && this.handleType != null) {
-                this.handleConverter = new DuplexHandleConverter<H>(this, classType);
+                this.handleConverter = new DuplexHandleConverter<H>(this);
                 Conversion.registerConverter(this.handleConverter);
             }
 
@@ -513,8 +533,8 @@ public class Template {
     public static final class DuplexHandleConverter<H extends Handle> extends DuplexConverter<Object, H> {
         public final Class<H> handleClass;
 
-        public DuplexHandleConverter(Class<H> handleClass, java.lang.Class<?> type) {
-            super(TypeDeclaration.fromClass(type), TypeDeclaration.fromClass(handleClass.handleType), null);
+        public DuplexHandleConverter(Class<H> handleClass) {
+            super(TypeDeclaration.fromClass(handleClass.getType()), TypeDeclaration.fromClass(handleClass.getHandleType()), null);
             this.handleClass = handleClass;
             this.reverse = new DuplexHandleConverterReverse<H>(this);
         }
@@ -800,23 +820,22 @@ public class Template {
 
     public static class AbstractFieldConverter<F extends AbstractField<?>, T> extends TemplateElement<FieldDeclaration> {
         public final F raw;
-        protected DuplexConverter.Supplier<?, T> converter = DuplexConverter.Supplier.none();
+        protected LazyConverter<?, T> converter = LazyConverter.uninitialized();
+        protected LazyConverter<T, ?> reverse = LazyConverter.uninitialized();
 
         protected AbstractFieldConverter(F raw) {
             this.raw = raw;
         }
 
-        // throws an exception when the converter was not initialized
-        protected final void failNoConverter() {
-            if (!converter.available()) {
-                throw new UnsupportedOperationException("Field converter for " + this.getElementName() + " was not found");
-            }
-        }
-
         @Override
         public void forceInitialization() {
             raw.forceInitialization();
-            failNoConverter();
+            if (!converter.isAvailable()) {
+                throw new UnsupportedOperationException("Field get() converter for " + this.getElementName() + " was not found");
+            }
+            if (!reverse.isAvailable()) {
+                throw new UnsupportedOperationException("Field set() converter for " + this.getElementName() + " was not found");
+            }
         }
 
         @Override
@@ -825,53 +844,36 @@ public class Template {
             raw.initElementName(elementName);
         }
 
+        private void initFailConverter(NameDeclaration name, TypeDeclaration input, TypeDeclaration output) {
+            initFail("Converter for field " + name.toString() + 
+                    " not found: " + input.toString(true) + " -> " + output.toString(true));
+        }
+
         @Override
-        @SuppressWarnings("unchecked")
         protected FieldDeclaration init(ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
             FieldDeclaration fDec = this.raw.init(dec, name);
             if (fDec != null) {
-                // Future suppliers for the field converters
-                final Converter.Supplier<?, T> sup_conv_a;
-                final Converter.Supplier<T, ?> sup_conv_b;
                 if (this.isReadonly()) {
-                    sup_conv_a = (Converter.Supplier<?, T>) Conversion.findSupplier(fDec.type, fDec.type.cast);
-                    sup_conv_b = Converter.Supplier.of(new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly"));
+                    this.converter = LazyConverter.create(fDec.type, fDec.type.cast);
+                    this.reverse = LazyConverter.of(new DisabledConverter<T, Object>(fDec.type.cast, fDec.type, "Field " + name + " is readonly"));
                 } else {
-                    sup_conv_a = (Converter.Supplier<?, T>) Conversion.findSupplier(fDec.type, fDec.type.cast);
-                    sup_conv_b = (Converter.Supplier<T, ?>) Conversion.findSupplier(fDec.type.cast, fDec.type);
+                    this.converter = LazyConverter.create(fDec.type, fDec.type.cast);
+                    this.reverse = LazyConverter.create(fDec.type.cast, fDec.type);
                 }
 
-                // Error handler when a converters cannot be found
-                final FailFieldConverterNotFound fail_conv = new FailFieldConverterNotFound(fDec.name, fDec.type, fDec.type.cast);
-
-                // When the converter is needed, resolves the converter to use (lazy)
-                // Refreshes the converter field so that multiple lookup isn't needed
-                converter = () -> {
-                    DuplexConverter<?, T> result;
-                    Converter<?, T> conv_a = sup_conv_a.get();
-                    Converter<T, ?> conv_b = sup_conv_b.get();
-                    if (conv_a == null) {
-                        fail_conv.fail(this, false);
-                        result = null;
-                    } else if (conv_b == null) {
-                        fail_conv.fail(this, true);
-                        result = null;
-                    } else {
-                        result = DuplexConverter.pair(conv_a, conv_b);
-                    }
-                    converter = DuplexConverter.Supplier.of(result);
-                    return (DuplexConverter<Object, T>) result;
-                };
+                final NameDeclaration fName = fDec.name;
+                this.converter.whenFailing((input, output) -> initFailConverter(fName, input, output));
+                this.reverse.whenFailing((input, output) -> initFailConverter(fName, input, output));
             }
             return fDec;
         }
 
         @Override
         public boolean isAvailable() {
-            return raw.isAvailable() && converter.available();
+            return raw.isAvailable() && converter.isAvailable() && reverse.isAvailable();
         }
 
         @Override
@@ -888,7 +890,7 @@ public class Template {
         public TranslatorFieldAccessor<T> toFieldAccessor() {
             DuplexConverter<?, T> converter;
             if (this.isAvailable()) {
-                converter = this.converter.get();
+                converter = DuplexConverter.pair(this.converter, this.reverse);
             } else {
                 // This is here so it doesn't error out in the constructor
                 converter = DuplexConverter.createNull(TypeDeclaration.fromClass(Object.class));
@@ -1948,12 +1950,7 @@ public class Template {
              */
             public final T get() {
                 Object value = raw.get();
-                try {
-                    return converter.get().convert(value);
-                } catch (RuntimeException t) {
-                    failNoConverter();
-                    throw t;
-                }
+                return converter.converter.convert(value);
             }
 
             /**
@@ -1962,14 +1959,7 @@ public class Template {
              * @param value to convert and set the static field to
              */
             public final void set(T value) {
-                Object rawValue;
-                try {
-                    rawValue = converter.get().convertReverse(value);
-                } catch (RuntimeException t) {
-                    raw.field.checkInit();
-                    failNoConverter();
-                    throw t;
-                }
+                Object rawValue = reverse.converter.convert(value);
                 raw.set(rawValue);
             }
         }
@@ -2197,12 +2187,7 @@ public class Template {
              */
             public final T get(Object instance) {
                 Object rawValue = raw.get(instance);
-                try {
-                    return converter.get().convert(rawValue);
-                } catch (RuntimeException t) {
-                    failNoConverter();
-                    throw t;
-                }
+                return converter.converter.convert(rawValue);
             }
 
             /**
@@ -2212,14 +2197,7 @@ public class Template {
              * @param value to convert and set the field to
              */
             public final void set(Object instance, T value) {
-                Object rawValue;
-                try {
-                    rawValue = converter.get().convertReverse(value);
-                } catch (RuntimeException t) {
-                    raw.field.checkInit();
-                    failNoConverter();
-                    throw t;
-                }
+                Object rawValue = reverse.converter.convert(value);
                 raw.set(instance, rawValue);
             }
 
@@ -2336,34 +2314,21 @@ public class Template {
     }
 
     /**
-     * Helper class to provide context information when a field template element
-     * converter fails to be initialized.
-     */
-    private static class FailFieldConverterNotFound {
-        private final NameDeclaration name;
-        private final TypeDeclaration input;
-        private final TypeDeclaration output;
-
-        public FailFieldConverterNotFound(NameDeclaration name, TypeDeclaration input, TypeDeclaration output) {
-            this.name = name;
-            this.input = input;
-            this.output = output;
-        }
-
-        public void fail(TemplateElement<?> element, boolean reverse) {
-            TypeDeclaration a = reverse ? output : input;
-            TypeDeclaration b = reverse ? input : output;
-            element.initFail("Converter for field " + name.toString() + 
-                   " not found: " + a.toString(true) + " -> " + b.toString(true));
-        }
-    }
-
-    /**
      * Indicates what instance class name the  {@link Handle} and/or {@link Class}  is for
      */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface InstanceType {
         String value();
+    }
+
+    /**
+     * Defines a generated field, method or constructor inside a
+     * {@link Handle} or {@link Class}. At runtime the class is extended to
+     * implement these methods.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Generated {
+        String value() default "";
     }
 
     /**

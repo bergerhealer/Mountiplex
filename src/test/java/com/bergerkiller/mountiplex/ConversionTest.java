@@ -400,7 +400,42 @@ public class ConversionTest {
         List<String> outputs = output_stream.collect(Collectors.toList());
         assertCollectionSame(outputs, "hello, world");
     }
-    
+
+    @Test
+    public void testWildCardRawTypes() {
+        Conversion.registerConverter(new Converter<String, TestWildCardType<?>>(String.class, TestWildCardType.class) {
+            @Override
+            public TestWildCardType<?> convertInput(String value) {
+                return new TestWildCardType<String>(value);
+            }
+        });
+        Conversion.registerConverter(new Converter<TestWildCardType<?>, String>(TestWildCardType.class, String.class) {
+            @Override
+            public String convertInput(TestWildCardType<?> value) {
+                return value.value;
+            }
+        });
+
+        TypeDeclaration t_wildCardRaw = TypeDeclaration.fromClass(TestWildCardType.class);
+        TypeDeclaration t_wildCardAny = TypeDeclaration.parse(TestWildCardType.class.getName().replace('$', '.') + "<?>");
+        TypeDeclaration t_string = TypeDeclaration.fromClass(String.class);
+
+        assertNotNull(Conversion.find(t_string, t_wildCardRaw));
+        assertNotNull(Conversion.find(t_string, t_wildCardAny));
+        assertNotNull(Conversion.find(t_wildCardRaw, t_string));
+        assertNotNull(Conversion.find(t_wildCardAny, t_string));
+        assertNotNull(Conversion.find(t_wildCardRaw, t_wildCardAny));
+        assertNotNull(Conversion.find(t_wildCardAny, t_wildCardRaw));
+    }
+
+    public static class TestWildCardType<T> {
+        public String value;
+
+        public TestWildCardType(String value) {
+            this.value = value;
+        }
+    }
+
     private static enum Day {
         SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
         THURSDAY, FRIDAY, SATURDAY 

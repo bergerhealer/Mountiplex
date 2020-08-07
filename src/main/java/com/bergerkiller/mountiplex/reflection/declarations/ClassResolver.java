@@ -297,6 +297,16 @@ public class ClassResolver {
     }
 
     /**
+     * Sets multiple environment variables in one go, which are
+     * used during parsing of template sources
+     * 
+     * @param variables The variables to add
+     */
+    public void setAllVariables(Map<String, String> variables) {
+        this.variables = this.variables.putAll(variables);
+    }
+
+    /**
      * Evaluates a simple logical expression using the variables set
      *
      * @param expression to evaluate
@@ -698,6 +708,12 @@ public class ClassResolver {
         public VariablesMap put(String key, String value) {
             Map<String, String> new_map = new HashMap<String, String>(this._map);
             new_map.put(key, value);
+            return new VariablesMap(new_map);
+        }
+
+        public VariablesMap putAll(Map<String, String> variables) {
+            Map<String, String> new_map = new HashMap<String, String>(this._map);
+            new_map.putAll(variables);
             return new VariablesMap(new_map);
         }
 

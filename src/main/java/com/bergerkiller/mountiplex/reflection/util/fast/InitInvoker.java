@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import java.lang.reflect.Field;
+
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
@@ -162,6 +164,21 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
      */
     public static <T> InitInvoker<T> forMethod(Object fieldInstance, String fieldName, MethodDeclaration method) {
         return forMethod(fieldInstance, new ReflectionFieldAccessor<T>(fieldInstance.getClass(), fieldName), method);
+    }
+
+    /**
+     * Creates an init invoker that invokes a method defined by a method declaration. The static invoker field is updated
+     * using reflection by setting a field declared in the class by the name specified. Meant to be used
+     * with generated code, when the declaring class name is not yet known.
+     * 
+     * @param classLoader The ClassLoader to use to find the Class again
+     * @param fieldDeclaringClass Class in which the field to update is stored
+     * @param fieldName The name of the invoker field in the declaring class
+     * @param method The method to create an invoker for
+     * @return init invoker
+     */
+    public static <T> InitInvoker<T> forMethodLate(ClassLoader classLoader, String fieldDeclaringClass, String fieldName, MethodDeclaration method) {
+        return forMethod(null, new ReflectionFieldAccessorLate<T>(classLoader, fieldDeclaringClass, fieldName), method);
     }
 
     /**
@@ -369,23 +386,66 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
     }
 
     /**
+     * Similar to {@link ReflectionFieldAccessor} but loads the class by name at the time it is needed.
+     * This way the field of a not-yet generated class can be used.
+     * 
+     * @param <T>
+     */
+    private static final class ReflectionFieldAccessorLate<T> extends ReflectionFieldAccessorBase<T> {
+        private final ClassLoader classLoader;
+        private final String declaringClassName;
+        private final String fieldName;
+        private java.lang.reflect.Field field = null;
+
+        public ReflectionFieldAccessorLate(ClassLoader classLoader, String declaringClassName, String fieldName) {
+            this.classLoader = classLoader;
+            this.declaringClassName = declaringClassName;
+            this.fieldName = fieldName;
+        }
+
+        @Override
+        public java.lang.reflect.Field getField() {
+            if (field == null) {
+                try {
+                    Class<?> declaringClass = classLoader.loadClass(this.declaringClassName);
+                    field = findField(declaringClass, fieldName);
+                } catch (Throwable t) {
+                    throw MountiplexUtil.uncheckedRethrow(t);
+                }
+            }
+            return field;
+        }
+    }
+
+    /**
      * Helper class for changing a field using reflection. Not making use of SafeField or Generated Field
      * logic because this logic only has to occur once, and generating code for that is a waste of time.
      *
      * @param <T>
      */
-    private static final class ReflectionFieldAccessor<T> implements FieldAccessor<Invoker<T>> {
+    private static final class ReflectionFieldAccessor<T> extends ReflectionFieldAccessorBase<T> {
         private final java.lang.reflect.Field field;
 
         public ReflectionFieldAccessor(Class<?> declaringClass, String fieldName) {
             try {
-                this.field = findField(declaringClass, fieldName);
+                field = findField(declaringClass, fieldName);
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);
             }
         }
 
-        private static java.lang.reflect.Field findField(Class<?> type, String fieldName) throws Throwable {
+        @Override
+        public Field getField() {
+            return field;
+        }
+    }
+
+    // Base implementation for accessing the field using reflection
+    private static abstract class ReflectionFieldAccessorBase<T> implements FieldAccessor<Invoker<T>> {
+
+        public abstract java.lang.reflect.Field getField();
+
+        protected static java.lang.reflect.Field findField(Class<?> type, String fieldName) throws Throwable {
             try {
                 return type.getDeclaredField(fieldName);
             } catch (NoSuchFieldException err) {
@@ -402,9 +462,10 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         @SuppressWarnings("unchecked")
         public Invoker<T> get(Object instance) {
             try {
-                this.field.setAccessible(true);
-                Object value = this.field.get(instance);
-                this.field.setAccessible(false);
+                java.lang.reflect.Field field = getField();
+                field.setAccessible(true);
+                Object value = field.get(instance);
+                field.setAccessible(false);
                 return (Invoker<T>) value;
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);
@@ -414,9 +475,10 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         @Override
         public boolean set(Object instance, Invoker<T> value) {
             try {
-                this.field.setAccessible(true);
-                this.field.set(instance, value);
-                this.field.setAccessible(false);
+                java.lang.reflect.Field field = getField();
+                field.setAccessible(true);
+                field.set(instance, value);
+                field.setAccessible(false);
                 return true;
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);

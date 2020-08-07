@@ -7,6 +7,7 @@ import static org.junit.Assert.*;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -45,6 +46,10 @@ public class TemplateSpeedTest {
                     return SourceDeclaration.parse(template).classes[0];
                 }
                 return null;
+            }
+
+            @Override
+            public void resolveClassVariables(String classPath, Class<?> classType, Map<String, String> variables) {
             }
         });
     }

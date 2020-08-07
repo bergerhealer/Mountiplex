@@ -9,5 +9,5 @@ public interface FieldNameResolver {
      * @param fieldName of the field to be resolved
      * @return resolved field name. Should return the same as the input if not resolved.
      */
-    public String resolveFieldName(Class<?> declaredClass, String fieldName);
+    String resolveFieldName(Class<?> declaredClass, String fieldName);
 }

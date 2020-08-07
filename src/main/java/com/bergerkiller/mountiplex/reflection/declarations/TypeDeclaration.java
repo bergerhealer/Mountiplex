@@ -25,10 +25,17 @@ import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
  * </ul>
  */
 public class TypeDeclaration extends Declaration {
+    /** A type declaration that has no type information */
     public static final TypeDeclaration INVALID = new TypeDeclaration(ClassResolver.DEFAULT, (Type) null);
+    /** Object Class type */
     public static final TypeDeclaration OBJECT = fromClass(Object.class);
+    /** Enum Class type */
     public static final TypeDeclaration ENUM = fromClass(Enum.class);
+    /** Represents any type (that extends Object), which basically makes it the '?' type */
+    public static final TypeDeclaration ANY = parse("?");
+    /** Whether this TypeDeclaration starts with '? extends <type>', and the type field refers to what it extends */
     public final boolean isWildcard;
+    /** Whether this TypeDeclaration refers to a primitive type, such as int/long/etc. */
     public final boolean isPrimitive;
     public final String variableName;
     public final String typeName;
@@ -497,41 +504,44 @@ public class TypeDeclaration extends Declaration {
     }
 
     public boolean isInstanceOf(TypeDeclaration other) {
-        if (other != null && other.type != null && this.type != null && other.type.isAssignableFrom(this.type)) {
-            if (other.genericTypes.length == 0) {
-                return true;
-            }
+        // Make sure the class itself is assignable
+        if (other == null || other.type == null || this.type == null || !other.type.isAssignableFrom(this.type)) {
+            return false;
+        }
 
-            TypeDeclaration selfType = this.castAsType(other.type);
-            if (selfType == null || other.genericTypes.length != selfType.genericTypes.length) {
-                return false; // should never happen!
-            }
-
-            for (int i = 0; i < selfType.genericTypes.length; i++) {
-                TypeDeclaration s = selfType.genericTypes[i];
-                TypeDeclaration t = other.genericTypes[i];
-                if (t.type == null) {
-                    return false; // unresolved.
-                }
-                if (t.isWildcard) {
-                    // ? extends TYPE
-                    if (!s.isInstanceOf(t)) {
-                        return false;
-                    }
-                } else if ((t.variableName != null) && (s.isInstanceOf(t))) {
-                    // T matches all other generic types
-                    continue;
-                } else {
-                    // TYPE must be exactly the same
-                    if (!t.equals(s)) {
-                        return false;
-                    }
-                }
-            }
-
+        // List<String> instanceof List == true
+        if (other.genericTypes.length == 0) {
             return true;
         }
-        return false;
+
+        TypeDeclaration selfType = this.castAsType(other.type);
+        if (selfType == null || other.genericTypes.length != selfType.genericTypes.length) {
+            return false; // should never happen!
+        }
+
+        for (int i = 0; i < selfType.genericTypes.length; i++) {
+            TypeDeclaration s = selfType.genericTypes[i];
+            TypeDeclaration t = other.genericTypes[i];
+            if (t.type == null) {
+                return false; // unresolved.
+            }
+            if (t.isWildcard) {
+                // ? extends TYPE
+                if (!s.isInstanceOf(t)) {
+                    return false;
+                }
+            } else if ((t.variableName != null) && (s.isInstanceOf(t))) {
+                // T matches all other generic types
+                continue;
+            } else {
+                // TYPE must be exactly the same
+                if (!t.equals(s)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /**

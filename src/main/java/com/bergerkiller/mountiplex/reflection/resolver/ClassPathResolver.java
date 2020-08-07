@@ -8,5 +8,5 @@ public interface ClassPathResolver {
      * @param classPath
      * @return resolved class path. Should return the same as the input if not resolved.
      */
-    public String resolveClassPath(String classPath);
+    String resolveClassPath(String classPath);
 }

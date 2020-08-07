@@ -5,6 +5,7 @@ import java.lang.reflect.MalformedParameterizedTypeException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -287,8 +288,8 @@ public class Resolver {
      * Discovers the Class Declaration registered for a Class, specifying both
      * the path that loads the class, and the loaded Class Type itself.
      * 
-     * @param classPath
-     * @param classType
+     * @param classPath of classType
+     * @param classType to resolve
      * @return Class Declaration, null if not found
      */
     public static ClassDeclaration resolveClassDeclaration(String classPath, Class<?> classType) {
@@ -299,6 +300,22 @@ public class Resolver {
             }
         }
         return null;
+    }
+
+    /**
+     * Resolves the environment variables that apply while resolving a class declaration.
+     * This is used when parsing generated template declarations.
+     * 
+     * @param classPath of classType
+     * @param classType to resolve
+     * @return map of variables that apply for this Class
+     */
+    public static Map<String, String> resolveClassVariables(String classPath, Class<?> classType) {
+        Map<String, String> variables = new HashMap<String, String>();
+        for (ClassDeclarationResolver resolver : Resolver.resolver.classDeclarationResolvers) {
+            resolver.resolveClassVariables(classPath, classType, variables);
+        }
+        return variables;
     }
 
     /**

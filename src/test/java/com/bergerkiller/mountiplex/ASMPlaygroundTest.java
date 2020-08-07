@@ -7,11 +7,9 @@ import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
-import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.types.TestObject;
-import com.bergerkiller.mountiplex.types.TestObjectHandle;
 
 /**
  * This class contains no tests but offers room to play around with ASM utilities
@@ -22,35 +20,15 @@ public class ASMPlaygroundTest {
         void theMethod(TestObject instance, int value1, int value2);
     }
 
-    public static class Handle {
-        public static final Class T = new Class();
-        public TestObject instance;
-
-        public void theMethod(int value1, int value2) {
-            TestObjectHandle.T.testFunc.invoker.invoke(instance, value1, value2);
-        }
-
-        public java.lang.Class<?> getSelfClassType() {
-            return getClass().getSuperclass();
-        }
-
-        public static class Class {
-            public Template.Method<Integer> theMethod;
-        }
+    public static abstract class HandleBase {
+        public abstract String someMethod(int k, int w, int c, int bb, int bbb, int bbbb);
     }
 
-    public static class TheCoolThing extends InitInvoker<Object> {
-        @Override
-        protected Invoker<Object> create() {
-            return null;
-        }
-        
-        public Class<?> getInterface() {
-            return TestInterface.class;
-        }
-        
-        public char aaa() {
-            return 0;
+    public static class Handle {
+        public static final Invoker<Integer> invoker = null;
+
+        public int haha(int arg0, String arg1) {
+            return ((Integer) invoker.invokeVA(null, arg0, arg1)).intValue();
         }
     }
 

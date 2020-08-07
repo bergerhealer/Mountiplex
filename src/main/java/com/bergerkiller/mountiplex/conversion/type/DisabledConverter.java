@@ -5,7 +5,10 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 /**
  * A disabled converter that throws a {@link UnsupportedOperationException} when called,
- * showing the message passed through in the constructor.
+ * showing the message passed through in the constructor.<br>
+ * <br>
+ * This differs from the {@link FailingConverter} because it does not mean a fail condition
+ * when this converter is used.
  * 
  * @param <I> input type
  * @param <O> output type

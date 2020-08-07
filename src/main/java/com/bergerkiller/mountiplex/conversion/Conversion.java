@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -185,17 +186,6 @@ public class Conversion {
         return (InputConverter<T>) find(TypeDeclaration.fromClass(output));
     }
 
-    /**
-     * Returns a Supplier for a Converter from input to output. The actual converter is searched once get() is called.
-     * 
-     * @param input Input type
-     * @param output Output type
-     * @return Converter Supplier
-     */
-    public static <I, O> Converter.Supplier<I, O> findSupplier(final Class<I> input, final Class<O> output) {
-        return () -> find(input, output);
-    }
-
     @SuppressWarnings("unchecked")
     public static <I, O> Converter<I, O> find(Class<I> input, Class<O> output) {
         return (Converter<I, O>) find(TypeDeclaration.fromClass(input), TypeDeclaration.fromClass(output));
@@ -205,17 +195,6 @@ public class Conversion {
         synchronized (lock) {
             return OutputConverterTree.get(output).converter;
         }
-    }
-
-    /**
-     * Returns a Supplier for a Converter from input to output. The actual converter is searched once get() is called.
-     * 
-     * @param input Input type
-     * @param output Output type
-     * @return Converter Supplier
-     */
-    public static Converter.Supplier<Object, Object> findSupplier(final TypeDeclaration input, final TypeDeclaration output) {
-        return () -> find(input, output);
     }
 
     /**
@@ -330,14 +309,35 @@ public class Conversion {
     }
 
     // registers a converter (implementation, called from elsewhere)
-    @SuppressWarnings("unchecked")
     private static void registerConverterImpl(Converter<?, ?> converter) {
         synchronized (lock) {
-            OutputConverterList.get(converter.output).addConverter(converter);
-            OutputConverterTree.resetTypeChange(converter.input);
-            OutputConverterTree.resetTypeChange(converter.output);
-            converters.put(new TypeTuple(converter), (Converter<Object, Object>) converter);
+            addConverterToMapping(converter);
+
+            // When registering a raw type output when in actuality it has a generic type,
+            // register the same converter for all the unset rawtypes. For example,
+            // when converter is 'String -> List', it also registers 'String -> List<?>'
+            if (converter.output.genericTypes.length == 0) {
+                int num_typeVariables = converter.output.type.getTypeParameters().length;
+                if (num_typeVariables > 0) {
+                    TypeDeclaration[] genericTypes = new TypeDeclaration[num_typeVariables];
+                    Arrays.fill(genericTypes, TypeDeclaration.ANY);
+                    TypeDeclaration any_output = converter.output.setGenericTypes(genericTypes);
+                    addConverterToMapping(new ChainConverter<Object, Object>(
+                            Arrays.asList(converter,
+                            new NullConverter(converter.output, any_output))));
+                }
+            }
         }
+    }
+
+    // Resets cached mappings for an input and output, then adds a new converter for doing the conversion
+    // Note: not possible to specify input/output types, they must match what the converter says
+    @SuppressWarnings("unchecked")
+    private static void addConverterToMapping(Converter<?, ?> converter) {
+        OutputConverterList.get(converter.output).addConverter(converter);
+        OutputConverterTree.resetTypeChange(converter.input);
+        OutputConverterTree.resetTypeChange(converter.output);
+        converters.put(new TypeTuple(converter), (Converter<Object, Object>) converter);
     }
 
     private static void initType(TypeDeclaration type) {

@@ -10,5 +10,5 @@ public interface MethodNameResolver {
      * @param parameterTypes for the method
      * @return resolved method name. Should return the same as the input if not resolved.
      */
-    public String resolveMethodName(Class<?> declaredClass, String methodName, Class<?>[] parameterTypes);
+    String resolveMethodName(Class<?> declaredClass, String methodName, Class<?>[] parameterTypes);
 }

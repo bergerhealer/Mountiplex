@@ -9,13 +9,17 @@ import java.util.List;
 import java.util.WeakHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 import javassist.CannotCompileException;
 import javassist.CtClass;
 import javassist.NotFoundException;
 
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 
 /**
@@ -30,6 +34,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     private final String internalName;
     private final String typeDescriptor;
     private final GeneratorClassLoader loader;
+    private final List<StaticFieldInit> pendingStaticFields = new ArrayList<StaticFieldInit>();
     private CtClass ctClass = null;
 
     static {
@@ -142,6 +147,39 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
+     * Gets the ClassLoader which will be used to turn bytecode into a generated Class
+     * 
+     * @return ClassLoader
+     */
+    public final ClassLoader getClassLoader() {
+        return this.loader;
+    }
+
+    // Completes the class, initializes any pending static fields before doing so
+    private void closeASM() {
+        if (!this.pendingStaticFields.isEmpty()) {
+            MethodVisitor mv;
+
+            // Write static initializer block sections for all static fields added
+            mv = this.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
+            mv.visitCode();
+            for (StaticFieldInit init : this.pendingStaticFields) {
+                visitPushInt(mv, init.record);
+                mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(GeneratorArgumentStore.class),
+                        "fetch", "(I)Ljava/lang/Object;", false);
+                if (init.fieldType != Object.class) {
+                    mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(init.fieldType));
+                }
+                mv.visitFieldInsn(PUTSTATIC, getInternalName(), init.fieldName, MPLType.getDescriptor(init.fieldType));
+            }
+            mv.visitInsn(RETURN);
+            mv.visitMaxs(1, 0);
+            mv.visitEnd();
+        }
+        this.visitEnd();
+    }
+
+    /**
      * Takes the current ByteCode already generated and finishes it, turning it into
      * a JavaAssist CtClass ready for further modifications. The return CtClass
      * can be further changed, such as adding methods or fields. When done, the
@@ -155,7 +193,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      */
     public CtClass getCtClass() {
         if (this.ctClass == null) {
-            this.visitEnd();
+            this.closeASM();
 
             // Convert the current byte representation into a ByteArray, and then into a CtClass
             // Next time generate() is called, we instead generate using JavaAssist
@@ -173,7 +211,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     @SuppressWarnings("unchecked")
     public Class<T> generate() {
         if (this.ctClass == null) {
-            this.visitEnd();
+            this.closeASM();
             return (Class<T>) this.loader.defineClass(this.name, this.toByteArray());
         } else {
             try {
@@ -222,16 +260,21 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
-     * Pushes an int value onto the stack, making use of the optimized 0-5 values
+     * Includes instructions to push an int constant onto the stack. The right instruction for the size
+     * of the number if selected.
      * 
-     * @param mv
-     * @param value
+     * @param mv method visitor
+     * @param value Value to push onto the stack
      */
     public static void visitPushInt(MethodVisitor mv, int value) {
-        if (value < 0 || value > 5) {
-            mv.visitIntInsn(BIPUSH, value);
-        } else {
+        if (value >= 0 && value <= 5) {
             mv.visitInsn(ICONST_0 + value);
+        } else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE) {
+            mv.visitIntInsn(BIPUSH, value);
+        } else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) {
+            mv.visitIntInsn(SIPUSH, value);
+        } else {
+            mv.visitLdcInsn(new Integer(value));
         }
     }
 
@@ -306,6 +349,61 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     public static void visitInit(MethodVisitor mv, Class<?> instanceType, java.lang.reflect.Constructor<?> constructor) {
         final String instanceName = MPLType.getInternalName(instanceType);
         mv.visitMethodInsn(INVOKESPECIAL, instanceName, "<init>", MPLType.getConstructorDescriptor(constructor), false);
+    }
+
+    /**
+     * Implements a method with a body that throws an UnsupportedOperationException
+     * with a given message when called.
+     * 
+     * @param method
+     * @param message
+     */
+    public void visitMethodUnsupported(Method method, String message) {
+        MethodVisitor mv;
+
+        mv = this.visitMethod(ACC_PUBLIC, method.getName(), MPLType.getMethodDescriptor(method), null, null);
+        mv.visitCode();
+        mv.visitTypeInsn(NEW, "java/lang/UnsupportedOperationException");
+        mv.visitInsn(DUP);
+        mv.visitLdcInsn(message);
+        mv.visitMethodInsn(INVOKESPECIAL, "java/lang/UnsupportedOperationException", "<init>", "(Ljava/lang/String;)V", false);
+        mv.visitInsn(ATHROW);
+        mv.visitMaxs(3, 1 + method.getParameterCount());
+        mv.visitEnd();
+    }
+
+    /**
+     * Adds a public static Invoker field to this Class definition, which will be initialized
+     * to call the method by the MethodDeclaration specified.
+     * 
+     * @param fieldName The field name where the invoker will be stored
+     * @param methodDec MethodDeclaration of the method to call
+     */
+    public void visitStaticInvokerField(String fieldName, MethodDeclaration methodDec) {
+        visitStaticField(fieldName, Invoker.class, InitInvoker.forMethodLate(
+                getClassLoader(),
+                getName(),
+                fieldName, methodDec));
+    }
+
+    /**
+     * Adds a public static field to this Class definition with the initial value
+     * as specified. The {@link GeneratorArgumentStore} is used to initialize the field
+     * at class construction.
+     * 
+     * @param fieldName Name of the static field
+     * @param fieldType Type of the field, which is the public facing field type
+     * @param value Value the field will have during first-time class initialization
+     */
+    public void visitStaticField(String fieldName, Class<?> fieldType, Object value) {
+        StaticFieldInit field = new StaticFieldInit(fieldName, fieldType, value);
+        this.pendingStaticFields.add(field);
+
+        // Write the field definition
+        FieldVisitor fv;
+        fv = this.visitField(ACC_PUBLIC | ACC_STATIC, fieldName,
+                MPLType.getDescriptor(field.fieldType), null, null);
+        fv.visitEnd();
     }
 
     private static final class GeneratorClassLoader extends ClassLoader {
@@ -395,6 +493,18 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         @SuppressWarnings("unchecked")
         public <TO> ExtendedClassWriter<TO> build() {
             return (ExtendedClassWriter<TO>) new ExtendedClassWriter<T>(this);
+        }
+    }
+
+    private static class StaticFieldInit {
+        public final String fieldName;
+        public final Class<?> fieldType;
+        public final int record;
+
+        public StaticFieldInit(String fieldName, Class<?> fieldType, Object value) {
+            this.fieldName = fieldName;
+            this.fieldType = fieldType;
+            this.record = GeneratorArgumentStore.store(value);
         }
     }
 }

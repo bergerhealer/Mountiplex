@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex;
 import static org.junit.Assert.*;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -39,6 +40,10 @@ public class MethodSpeedTest {
                     return SourceDeclaration.parse(template).classes[0];
                 }
                 return null;
+            }
+
+            @Override
+            public void resolveClassVariables(String classPath, Class<?> classType, Map<String, String> variables) {
             }
         });
     }

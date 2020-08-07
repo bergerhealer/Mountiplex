@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.types;
 
+import java.util.Map;
+
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
@@ -141,6 +143,10 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
             return source.classes[3];
         }
         return null;
+    }
+
+    @Override
+    public void resolveClassVariables(String classPath, Class<?> classType, Map<String, String> variables) {
     }
 
     @Override
