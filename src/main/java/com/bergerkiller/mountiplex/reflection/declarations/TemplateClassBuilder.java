@@ -150,7 +150,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
             // First-time initialization of ClassResolver used while loading declarations
             if (resolver == null) {
                 resolver = new ClassResolver();
-                resolver.setDeclaredClass(this.instanceType);
+                resolver.setDeclaredClass(this.instanceType, this.instanceClassPath);
                 resolver.setAllVariables(Resolver.resolveClassVariables(this.instanceClassPath, this.instanceType));
 
                 //TODO: Import declarations on recursive Class level

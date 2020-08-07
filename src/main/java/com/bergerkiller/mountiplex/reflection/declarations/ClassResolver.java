@@ -131,7 +131,7 @@ public class ClassResolver {
 
     public void setDeclaredClassName(String typeName) {
         this.declaredClassName = typeName;
-        this.setDeclaredClass(this.resolveClass(typeName));
+        this.setDeclaredClass(this.resolveClass(typeName), typeName);
     }
 
     /**
@@ -140,15 +140,37 @@ public class ClassResolver {
      * @param type to set as the declared class
      */
     public void setDeclaredClass(Class<?> type) {
+        if (type != null) {
+            setDeclaredClass(type, type.getName());
+        }
+    }
+
+    /**
+     * Sets a declared class, from which other subclasses and classes in the same package can be found
+     * 
+     * @param type to set as the declared class
+     * @param typeName the name of the class, which makes up the package path information
+     */
+    public void setDeclaredClass(Class<?> type, String typeName) {
         if (type == null) {
             return;
         }
-        Package pkg = type.getPackage();
-        if (pkg != null) {
-            this.packagePath = pkg.getName();
-        }
+
+        //Package pkg = type.getPackage();
+        //if (pkg != null) {
+        //    this.packagePath = pkg.getName();
+        //}
+
         this.declaredClass = type;
-        this.declaredClassName = type.getName();
+        this.declaredClassName = typeName;
+
+        // Compute package path from the type namee
+        // We rely on people not being idiots with the class names
+        String packageName = MountiplexUtil.getPackagePathFromClassPath(typeName);
+        if (!packageName.isEmpty()) {
+            this.packagePath = packageName;
+        }
+
         this.regenImports();
     }
 
@@ -398,7 +420,7 @@ public class ClassResolver {
 
             // Parse the signature
             ClassResolver resolver = new ClassResolver(this);
-            resolver.setDeclaredClass(declaredClass);
+            resolver.setDeclaredClass(declaredClass, classPath);
             resolver.setLogErrors(false);
             Declaration declaration = Declaration.parseDeclaration(resolver, signatureStr);
             if (declaration == null) {

@@ -21,4 +21,14 @@ public class MountiplexUtilTest {
         assertEquals(long[][][][].class, MountiplexUtil.getArrayType(long[][].class, 2));
         assertEquals(String[][][][].class, MountiplexUtil.getArrayType(String[][].class, 2));
     }
+
+    @Test
+    public void testPackagePathFromClassPath() {
+        assertEquals("com.somepackage", MountiplexUtil.getPackagePathFromClassPath("com.somepackage.SomeClass"));
+        assertEquals("com.somepackage", MountiplexUtil.getPackagePathFromClassPath("com.somepackage.lowercaseclass"));
+        assertEquals("com.somepackage", MountiplexUtil.getPackagePathFromClassPath("com.somepackage.SomeClass.SomeSubClass"));
+        assertEquals("com.somepackage", MountiplexUtil.getPackagePathFromClassPath("com.somepackage.SomeClass$SomeSubClass"));
+        assertEquals("com.somepackage", MountiplexUtil.getPackagePathFromClassPath("com.somepackage.lowerclass$SomeSubClass"));
+        assertEquals("com.somepackage.v1_13_2_R1", MountiplexUtil.getPackagePathFromClassPath("com.somepackage.v1_13_2_R1.SomeClass"));
+    }
 }

@@ -109,7 +109,7 @@ public class ClassDeclaration extends Declaration {
         }
 
         // This makes sure all parsed sub-declaration are subtyped to this class
-        this.getResolver().setDeclaredClass(type.type);
+        this.getResolver().setDeclaredClass(type.type, type.typePath);
 
         // If starts with 'extends', parse base type
         postfix = getPostfix();

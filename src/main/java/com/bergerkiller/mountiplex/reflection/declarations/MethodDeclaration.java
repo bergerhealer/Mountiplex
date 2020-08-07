@@ -567,6 +567,11 @@ public class MethodDeclaration extends Declaration {
             return this;
         }
 
+        // If the method in which it is declared cannot be found, fail right away
+        if (this.getResolver().getDeclaredClass() == null) {
+            return null;
+        }
+
         // Resolve the Class Declaration of the Class where this method is declared
         // Then try to find the method in there
         {

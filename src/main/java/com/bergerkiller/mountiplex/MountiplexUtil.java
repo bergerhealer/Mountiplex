@@ -535,4 +535,24 @@ public class MountiplexUtil {
         }
         return Arrays.asList(valuesArr);
     }
+
+    /**
+     * Decodes the most likely package path given a class path. Assumes a traditional
+     * naming convention with first-char-capitalized Class names and first-char-lowercase packages.
+     * 
+     * @param classPath
+     * @return package path
+     */
+    public static String getPackagePathFromClassPath(String classPath) {
+        int lastDotIndex = -100;
+        for (int i = 0; i < classPath.length(); i++) {
+            char c = classPath.charAt(i);
+            if (c == '.') {
+                lastDotIndex = i;
+            } else if (i == (lastDotIndex+1) && (c == '$' || Character.isUpperCase(c))) {
+                break;
+            }
+        }
+        return (lastDotIndex == -100) ? "" : classPath.substring(0, lastDotIndex);
+    }
 }
