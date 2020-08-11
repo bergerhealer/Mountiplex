@@ -6,6 +6,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Wraps around the java.lang.reflect.Method class to provide an error-free
@@ -72,7 +73,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         // try to find the method
         this.method.init(findRaw(source, fixedName, parameterTypes));
         if (!this.method.isAvailable()) {
-            MountiplexUtil.LOGGER.warning("Method '" + dispName + "' could not be found in class " + source.getName());
+            MountiplexUtil.LOGGER.warning("Method '" + dispName + "' could not be found in class " + MPLType.getName(source));
         }
     }
 
@@ -98,7 +99,8 @@ public class SafeMethod<T> implements MethodAccessor<T> {
             if (sm == null) {
                 return false;
             }
-            Method m = type.getDeclaredMethod(sm.getName(), sm.getParameterTypes());
+            String name = MPLType.getName(sm);
+            Method m = MPLType.getDeclaredMethod(type, name, sm.getParameterTypes());
             return m.getDeclaringClass() != sm.getDeclaringClass();
         } catch (Throwable t) {
             return false;
@@ -169,7 +171,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         }
 
         // Check if the signatures of the two methods match up
-        if (!sm.getName().equals(method.getName())) {
+        if (!MPLType.getName(sm).equals(MPLType.getName(method))) {
             return false;
         }
         if (!sm.getReturnType().equals(method.getReturnType())) {

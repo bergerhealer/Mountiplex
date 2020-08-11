@@ -71,7 +71,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             {
                 String postfix_original = postfix;
                 for (int i = 1;; i++) {
-                    String tmpClassPath = options.superClass.getName() + postfix;
+                    String tmpClassPath = MPLType.getName(options.superClass) + postfix;
                     boolean classExists = false;
 
                     try {
@@ -116,7 +116,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
                 }
             }
 
-            this.name = options.superClass.getName() + postfix;
+            this.name = MPLType.getName(options.superClass) + postfix;
             this.internalName = MPLType.getInternalName(options.superClass) + postfix;
             this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
             this.visit(V1_8, options.access, this.internalName, signature, superName, interfaceNames);
@@ -222,6 +222,15 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         }
     }
 
+    /**
+     * Generates a new instance by calling the empty constructor
+     * 
+     * @return constructed instance of the generated class
+     */
+    public T generateInstance() {
+        return generateInstance(new Class<?>[0], new Object[0]);
+    }
+
     public T generateInstance(Class<?>[] parameterTypes, Object[] initArgs) {
         Class<T> type = this.generate();
         try {
@@ -310,7 +319,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             if (boxedType != null) {
                 mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(boxedType));
                 mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(boxedType),
-                        outType.getName() + "Value", "()" + MPLType.getDescriptor(outType), false);
+                        MPLType.getName(outType) + "Value", "()" + MPLType.getDescriptor(outType), false);
             }
         } else if (outType.isArray()) {
             mv.visitTypeInsn(CHECKCAST, MPLType.getDescriptor(outType));
@@ -331,11 +340,11 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         final String instanceName = MPLType.getInternalName(instanceType);
         final boolean isInterface = instanceType.isInterface();
         if (Modifier.isStatic(method.getModifiers())) {
-            mv.visitMethodInsn(INVOKESTATIC, instanceName, method.getName(), MPLType.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKESTATIC, instanceName, MPLType.getName(method), MPLType.getMethodDescriptor(method), isInterface);
         } else if (instanceType.isInterface()) {
-            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, method.getName(), MPLType.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKEINTERFACE, instanceName, MPLType.getName(method), MPLType.getMethodDescriptor(method), isInterface);
         } else {
-            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, method.getName(), MPLType.getMethodDescriptor(method), isInterface);
+            mv.visitMethodInsn(INVOKEVIRTUAL, instanceName, MPLType.getName(method), MPLType.getMethodDescriptor(method), isInterface);
         }
     }
 
@@ -361,7 +370,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     public void visitMethodUnsupported(Method method, String message) {
         MethodVisitor mv;
 
-        mv = this.visitMethod(ACC_PUBLIC, method.getName(), MPLType.getMethodDescriptor(method), null, null);
+        mv = this.visitMethod(ACC_PUBLIC, MPLType.getName(method), MPLType.getMethodDescriptor(method), null, null);
         mv.visitCode();
         mv.visitTypeInsn(NEW, "java/lang/UnsupportedOperationException");
         mv.visitInsn(DUP);

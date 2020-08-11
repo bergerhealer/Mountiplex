@@ -1,6 +1,5 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import org.objectweb.asm.Type;
 import net.sf.cglib.core.Signature;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -11,6 +10,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -281,7 +281,7 @@ public class ClassTemplate<T> {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder(500);
-        builder.append("Class path: ").append(this.getType().getName()).append('\n');
+        builder.append("Class path: ").append(MPLType.getName(this.getType())).append('\n');
         builder.append("Fields (").append(this.getFields().size()).append("):");
         for (FieldAccessor<?> field : this.getFields()) {
             builder.append("\n    ").append(field.toString());
@@ -406,13 +406,13 @@ public class ClassTemplate<T> {
     }
 
     private void logFieldWarning(String declaration, String message) {
-        String cname = (this.type == null) ? "null" : this.type.getName();
+        String cname = (this.type == null) ? "null" : MPLType.getName(this.type);
         MountiplexUtil.LOGGER.warning("Field '" + declaration + "' in class " +
                 cname + " " + message);
     }
 
     private void logMethodWarning(String declaration, String message) {
-        String cname = (this.type == null) ? "null" : this.type.getName();
+        String cname = (this.type == null) ? "null" : MPLType.getName(this.type);
         MountiplexUtil.LOGGER.warning("Method '" + declaration + "' in class " +
                 cname + " " + message);
     }
@@ -494,7 +494,9 @@ public class ClassTemplate<T> {
                     String o1r = resolveClassName(o1.getReturnType());
                     String o2r = resolveClassName(o2.getReturnType());
                     if (o1r.equals(o2r)) {
-                        return o1.getName().compareTo(o2.getName());
+                        String o1name = MPLType.getName(o1);
+                        String o2name = MPLType.getName(o2);
+                        return o1name.compareTo(o2name);
                     } else {
                         return o1r.compareTo(o2r);
                     }
@@ -506,7 +508,7 @@ public class ClassTemplate<T> {
 
         // Add while checking for duplicates using the hashset, ignoring those
         for (Method m : declMethods) {
-            Signature sig = new Signature(m.getName(), Type.getReturnType(m), Type.getArgumentTypes(m));
+            Signature sig = MPLType.createSignature(m);
             if (((HashSet<Signature>) addedSignatures).add(sig)) {
                 typeMethods.add(new MethodDeclaration(resolver, m));
             }
@@ -531,7 +533,7 @@ public class ClassTemplate<T> {
             }
 
             /*
-            System.out.println(this.getType().getName() + ":");
+            System.out.println(ReflectionInfoHelper.INSTANCE.getClassName(this.getType()) + ":");
             for (Method m : typeMethods) {
                 System.out.println("  - " + m.toString());
             }

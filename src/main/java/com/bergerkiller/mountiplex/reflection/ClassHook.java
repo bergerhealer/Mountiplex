@@ -16,6 +16,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
@@ -76,7 +77,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                     }
                 }
                 MountiplexUtil.LOGGER.warning("Hooked method " + method.toString() +
-                        " was not found in " + baseType.getName());
+                        " was not found in " + MPLType.getName(baseType));
             }
         }
     }
@@ -154,7 +155,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                     EnhancedObject enhanced = (EnhancedObject) enhancedInstance;
                     Method m = findMethodIn(TypeDeclaration.fromClass(enhanced.CI_getBaseType()));
                     if (m == null) {
-                        throw new UnsupportedOperationException("Class " + enhanced.CI_getBaseType().getName() + 
+                        throw new UnsupportedOperationException("Class " + MPLType.getName(enhanced.CI_getBaseType()) + 
                                 " does not contain method " + HookMethodEntry.this.toString());
                     }
 
@@ -174,7 +175,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                 // Not an enhanced instance, find the method in the class and invoke
                 Method m = findMethodIn(TypeDeclaration.fromClass(enhancedType));
                 if (m == null) {
-                    throw new UnsupportedOperationException("Class " + enhancedType.getName() + 
+                    throw new UnsupportedOperationException("Class " + MPLType.getName(enhancedType) + 
                             " does not contain method " + HookMethodEntry.this.toString());
                 }
 

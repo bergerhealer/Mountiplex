@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Represents a (generic) Type declaration and allows for type matching.
@@ -111,7 +112,23 @@ public class TypeDeclaration extends Declaration {
             // Example: T
             TypeVariable<?> vtype = (TypeVariable<?>) type;
             Type varType = vtype.getBounds()[0];
-            Class<?> bound =  (varType instanceof Class) ? (Class<?>) varType : Object.class;
+
+            // Turn varType into a Class. We must have a Class. Handle special types.
+            Class<?> bound;
+            while (true) {
+                if (varType instanceof Class) {
+                    bound = (Class<?>) varType;
+                    break;
+                } else if (varType instanceof ParameterizedType) {
+                    varType = ((ParameterizedType) varType).getRawType();
+                } else if (varType instanceof TypeVariable) {
+                    varType = ((TypeVariable<?>) varType).getBounds()[0];
+                } else {
+                    bound = Object.class;
+                    break;
+                }
+            }
+
             this.type = MountiplexUtil.getArrayType(bound, arrayLevels);
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
@@ -289,8 +306,27 @@ public class TypeDeclaration extends Declaration {
         if (rawType != null && rawType.length() == 1 && typeVarName == null) {
             typeVarName = rawType;
             rawType = "Object";
+
+            // Figure out the upper bound of this generic type variable.
+            // We can do so if it refers to a type variable of the declaring Class.
+            // If this fails, we assume Object as fallback.
+            if (resolver.getDeclaredClass() != null) {
+                typeVariableLoop:
+                for (TypeVariable<?> tVar : resolver.getDeclaredClass().getTypeParameters()) {
+                    if (typeVarName.equals(tVar.getName())) {
+                        for (Type bound : tVar.getBounds()) {
+                            // Figure out, at runtime, what Class this is
+                            TypeDeclaration tDec = fromType(resolver, bound);
+                            if (tDec.isValid() && tDec.isResolved()) {
+                                rawType = tDec.typePath;
+                                break typeVariableLoop;
+                            }
+                        }
+                    }
+                }
+            }
         }
-        
+
         this.variableName = typeVarName;
 
         if (postfix.length() > 0 && postfix.charAt(0) == '<') {
@@ -354,17 +390,12 @@ public class TypeDeclaration extends Declaration {
         }
 
         // Resolve the raw type
+        ClassResolver.ResolveResult resolveResult = resolver.resolve(rawType);
         this.cast = castType;
-        this.type = resolver.resolveClass(rawType);
-        if (this.type == null) {
-            this.typePath = resolver.resolvePath(rawType);
-            this.typeName = rawType;
-            this.isPrimitive = false;
-        } else {
-            this.typePath = resolver.resolvePath(this.type);
-            this.typeName = rawType;
-            this.isPrimitive = this.type.isPrimitive();
-        }
+        this.type = resolveResult.classType;
+        this.typePath = resolveResult.classPath;
+        this.typeName = rawType;
+        this.isPrimitive = (this.type != null) && this.type.isPrimitive();
     }
 
     private TypeDeclaration(TypeDeclaration mainType, TypeDeclaration[] genericTypes) {
@@ -737,7 +768,7 @@ public class TypeDeclaration extends Declaration {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        String typeInfo = identity ? this.typePath : this.typeName;
+        String typeInfo = identity ? ((this.type == null) ? this.typePath : MPLType.getName(this.type)) : this.typeName;
         int arrIdx = typeInfo.indexOf('[');
         String arrPart = "";
         if (arrIdx != -1) {

@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 public class ReflectionAccessor<T> implements Reader<T>, Writer<T>, Copier {
     private final java.lang.reflect.Field f;
@@ -18,16 +19,16 @@ public class ReflectionAccessor<T> implements Reader<T>, Writer<T>, Copier {
         if (Modifier.isStatic(f.getModifiers())) {
             if (instance != null) {
                 return new IllegalArgumentException("Instance should be null for static fields, but was " +
-                        instance.getClass().getName() + " instead");
+                        MPLType.getName(instance.getClass()) + " instead");
             }
         } else {
             if (instance == null) {
                 return new IllegalArgumentException("Instance can not be null for member fields declared in " +
-                        f.getDeclaringClass().getName());
+                        MPLType.getName(f.getDeclaringClass()));
             }
             if (!f.getDeclaringClass().isAssignableFrom(instance.getClass())) {
-                return new IllegalArgumentException("Instance of type " + instance.getClass().getName() +
-                        " does not contain the field declared in " + f.getDeclaringClass().getName());
+                return new IllegalArgumentException("Instance of type " + MPLType.getName(instance.getClass()) +
+                        " does not contain the field declared in " + MPLType.getName(f.getDeclaringClass()));
             }
         }
         return null;
@@ -63,13 +64,13 @@ public class ReflectionAccessor<T> implements Reader<T>, Writer<T>, Copier {
 
             java.lang.Class<?> valueType = BoxedType.getUnboxedType(value.getClass());
             if (valueType == null || !fieldType.isAssignableFrom(valueType)) {
-                return new IllegalArgumentException("value type " + value.getClass().getName() +
+                return new IllegalArgumentException("value type " + MPLType.getName(value.getClass()) +
                         " can not be assigned to primitive field type " + fieldType.getName());
             }
         } else {
             if (value != null && !fieldType.isAssignableFrom(value.getClass())) {
-                return new IllegalArgumentException("value type " + value.getClass().getName() +
-                        " can not be assigned to field type " + fieldType.getName());
+                return new IllegalArgumentException("value type " + MPLType.getName(value.getClass()) +
+                        " can not be assigned to field type " + MPLType.getName(fieldType));
             }
         }
 

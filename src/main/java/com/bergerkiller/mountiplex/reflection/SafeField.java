@@ -9,6 +9,7 @@ import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Wraps around the java.lang.reflect.Field class to provide an error-free
@@ -86,12 +87,12 @@ public class SafeField<T> implements FieldAccessor<T> {
             }
 
             MountiplexUtil.LOGGER.log(Level.WARNING, "Field '" + name + "'" +
-                    " in class " + source.getName() +
+                    " in class " + MPLType.getName(source) +
                     " is of type " + realType.getSimpleName() +
                     " while we expect type " + fieldType.getSimpleName());
             this.field.initUnavailable(fieldType.getSimpleName() + "[?] " + source.getSimpleName() + "::" + name);
         }
-        MountiplexUtil.LOGGER.warning("Field '" + dispName + "' could not be found in class " + source.getName());
+        MountiplexUtil.LOGGER.warning("Field '" + dispName + "' could not be found in class " + MPLType.getName(source));
     }
 
     @Override
@@ -157,7 +158,9 @@ public class SafeField<T> implements FieldAccessor<T> {
         if (Modifier.isStatic(mod)) {
             text.append("static ");
         }
-        return text.append(f.getType().getName()).append(" ").append(f.getName()).toString();
+        String fieldTypeName = MPLType.getName(f.getType());
+        String fieldName = MPLType.getName(f);
+        return text.append(fieldTypeName).append(" ").append(fieldName).toString();
     }
 
     /**

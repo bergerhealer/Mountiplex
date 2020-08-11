@@ -108,7 +108,8 @@ public class NameDeclaration extends Declaration {
     }
 
     /**
-     * Gets the name value
+     * Gets the name value. This is the actual, current name
+     * of the declaration, and is likely obfuscated.
      * 
      * @return name
      */
@@ -118,6 +119,7 @@ public class NameDeclaration extends Declaration {
 
     /**
      * Gets the alias used for this name. Is null if no alias is used.
+     * This is a more human-readable version of the name, if available.
      * 
      * @return name alias
      */
@@ -126,7 +128,8 @@ public class NameDeclaration extends Declaration {
     }
 
     /**
-     * Returns the {@link #alias} if an alias is specified, otherwise returns the normal {@link #value()}
+     * Returns the {@link #alias} if an alias is specified, otherwise returns the normal {@link #value()}.
+     * Only useful for debugging and logging!
      * 
      * @return real name
      */
@@ -196,24 +199,32 @@ public class NameDeclaration extends Declaration {
     @Override
     public boolean match(Declaration declaration) {
         if (declaration instanceof NameDeclaration) {
-            // When both specify an alias, we check against the alias instead.
-            // When an alias-only name is used ('clear:???'), we allow comparing between alias and name.
-            // Runtime-created declarations (from Reflection methods) never have aliases
-            // This allows for matching two declarations both referring to the same, renamed method
             NameDeclaration other = (NameDeclaration) declaration;
-            if (this.hasAlias() && other.hasAlias()) {
-                return other._alias.equals(this._alias);
-            } else if (this.isAliasOnly()) {
+
+            // When an alias-only name is used ('clear:???'), we allow comparing between aliases.
+            // This allows for matching two declarations both referring to the same, renamed method
+            // Runtime-created declarations (from Reflection methods) can have aliases too because of remapping!
+            // matchAlias takes care of that by looking for the 'top' alias, denoted by a ':' when remapped.
+            if (this.isAliasOnly()) {
                 // getName() == getName:???
-                return other._name.equals(this._alias);
+                return other.matchAlias(this._alias);
             } else if (other.isAliasOnly()) {
                 // getName() == getName:???
-                return this._name.equals(other._alias);
+                return this.matchAlias(other._alias);
             } else {
                 return other._name.equals(this._name);
             }
         }
         return false;
+    }
+
+    private boolean matchAlias(String otherAlias) {
+        String self_name = this.real();
+        int top_alias_end = self_name.indexOf(':');
+        if (top_alias_end != -1) {
+            self_name = self_name.substring(0, top_alias_end);
+        }
+        return self_name.equals(otherAlias);
     }
 
     @Override
@@ -255,7 +266,7 @@ public class NameDeclaration extends Declaration {
         if (newName.equals(this.value())) {
             return this;
         } else if (this.hasAlias()) {
-            return new NameDeclaration(this.getResolver(), newName, this.alias());
+            return new NameDeclaration(this.getResolver(), newName, this.alias() + ":" + this.value());
         } else {
             return new NameDeclaration(this.getResolver(), newName, this.value());
         }

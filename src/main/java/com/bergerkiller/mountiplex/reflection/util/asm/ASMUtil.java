@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex.reflection.util;
+package com.bergerkiller.mountiplex.reflection.util.asm;
 
 import java.io.InputStream;
 import java.util.Collection;
@@ -17,24 +17,10 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
-import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ASMUtil {
     private static final int ASM_VERSION = Opcodes.ASM6;
-
-    /**
-     * Gets an array of types using an array of classes
-     * 
-     * @param classes
-     * @return types
-     */
-    public static Type[] getTypes(Class<?>... classes) {
-        Type[] types = new Type[classes.length];
-        for (int i = 0; i < classes.length; i++) {
-            types[i] = Type.getType(classes[i]);
-        }
-        return types;
-    }
 
     /**
      * Rewrites class data to remove the signatures of methods defined in the class
@@ -637,7 +623,7 @@ public class ASMUtil {
         }
 
         public StackTraceElement toTrace() {
-            return new StackTraceElement(method.getDeclaringClass().getName(), method.getName(), source, lineNumber);
+            return new StackTraceElement(MPLType.getName(method.getDeclaringClass()), MPLType.getName(method), source, lineNumber);
         }
     }
 
@@ -668,7 +654,7 @@ public class ASMUtil {
                             return 1;
                         }
                     }
-                    return o1.getName().compareTo(o2.getName());
+                    return MPLType.getName(o1).compareTo(MPLType.getName(o2));
                 }
             });
             this.loader = loader;

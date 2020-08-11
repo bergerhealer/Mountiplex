@@ -4,6 +4,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+
 import javassist.CtField;
 
 /**
@@ -29,7 +31,7 @@ public class GeneratorArgumentStore {
 
         // TODO: This is ew. Is there no more efficient way to do it?
         int record = store(value);
-        return CtField.Initializer.byExpr("(" + value.getClass().getName() + ") "+
+        return CtField.Initializer.byExpr("(" + MPLType.getName(value.getClass()) + ") "+
             GeneratorArgumentStore.class.getName() + ".fetch(" + record + ");");
     }
 

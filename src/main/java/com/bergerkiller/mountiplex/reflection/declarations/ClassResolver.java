@@ -10,6 +10,7 @@ import java.util.Map;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 
 /**
@@ -130,8 +131,8 @@ public class ClassResolver {
     }
 
     public void setDeclaredClassName(String typeName) {
-        this.declaredClassName = typeName;
-        this.setDeclaredClass(this.resolveClass(typeName), typeName);
+        ResolveResult result = this.resolve(typeName);
+        this.setDeclaredClass(result.classType, result.classPath);
     }
 
     /**
@@ -141,7 +142,7 @@ public class ClassResolver {
      */
     public void setDeclaredClass(Class<?> type) {
         if (type != null) {
-            setDeclaredClass(type, type.getName());
+            setDeclaredClass(type, MPLType.getName(type));
         }
     }
 
@@ -465,50 +466,30 @@ public class ClassResolver {
      * @return resolved class path (never fails)
      */
     public String resolvePath(String name) {
-        // first try to resolve the class from the name
-        // note that this only succeeds when the class actually exists
-        Class<?> type = resolveClass(name);
-        if (type != null) {
-            return resolvePath(type);
-        }
-
-        // Handle array types proper.
-        if (name.endsWith("[]")) {
-            return resolvePath(name.substring(0, name.length() - 2)) + "[]";
-        }
-
-        // retrieve the first word of the class, before the .
-        int nameFirstEnd = name.indexOf('.');
-        String nameFirst = (nameFirstEnd == -1) ? name : name.substring(0, nameFirstEnd);
-        String nameAfter = (nameFirstEnd == -1) ? "" : name.substring(nameFirstEnd);
-
-        // check if this is one of our imports
-        for (String imp : this.manualImports) {
-            String impName = imp.substring(imp.lastIndexOf('.') + 1);
-            if (impName.equals(nameFirst)) {
-                return imp + nameAfter;
-            }
-        }
-
-        // 'assume' the class can be found at the package path
-        // only do this when no package path portion is declared
-        if (packagePath.isEmpty() || (Character.isLowerCase(name.charAt(0)) && name.contains("."))) {
-            return name;
-        } else {
-            return packagePath + "." + name;
-        }
+        return resolve(name).classPath;
     }
 
     /**
-     * Resolves a class name to a class.
+     * Resolves a class name to a class. Returns null if the name
+     * could not be resolved to an existing Class type.
      * 
      * @param name of the class (generic names not supported)
-     * @return resolved class, or null if not found
+     * @return resolved class (null if not found)
      */
     public Class<?> resolveClass(String name) {
+        return resolve(name).classType;
+    }
+
+    /**
+     * Resolves a class name to a class and class path.
+     * 
+     * @param name of the class (generic names not supported)
+     * @return resolve result, which always has a name, but may not have a class type
+     */
+    public ResolveResult resolve(String name) {
         // Return Object for generic typings (T, K, etc.)
         if (name.length() == 1) {
-            return Object.class;
+            return new ResolveResult(name, Object.class);
         }
 
         // Array types
@@ -519,33 +500,68 @@ public class ClassResolver {
                 name = name.substring(0, name.length() - 2);
             } while (name.endsWith("[]"));
 
-            Class<?> componentType = resolveClass(name);
-            if (componentType != null) {
-                return MountiplexUtil.getArrayType(componentType, arrayLevels);
+            // Resolve the component
+            ResolveResult componentResult = resolve(name);
+
+            // Generate new class path with same number of array levels
+            StringBuilder newPath = new StringBuilder(componentResult.classPath);
+            for (int i = 0; i < arrayLevels; i++) {
+                newPath.append("[]");
+            }
+
+            // Turn into ResolveResult
+            if (componentResult.classType != null) {
+                return new ResolveResult(newPath.toString(), MountiplexUtil.getArrayType(componentResult.classType, arrayLevels));
             } else {
-                return null;
+                return new ResolveResult(newPath.toString(), null) ;
             }
         }
 
-        Class<?> fieldType = Resolver.loadClass(name, false);
+        // Directly by name
+        Class<?> byAbsoluteName = Resolver.loadClass(name, false);
+        if (byAbsoluteName != null) {
+            return new ResolveResult(name, byAbsoluteName);
+        }
 
-        if (fieldType == null) {
-            String dotName = "." + name;
-            for (String imp : this.imports) {
-                if (imp.endsWith(".*")) {
-                    fieldType = Resolver.loadClass(imp.substring(0, imp.length() - 1) + name, false);
-                } else if (imp.endsWith(dotName)) {
-                    fieldType = Resolver.loadClass(imp, false);
-                } else {
-                    continue;
-                }
-                if (fieldType != null) {
-                    break;
-                }
+        // Try imports
+        String classPath;
+        String bestImport = null;
+        String dotName = "." + name;
+        for (String imp : this.imports) {
+            if (imp.endsWith(".*")) {
+                classPath = imp.substring(0, imp.length() - 1) + name;
+            } else if (imp.endsWith(dotName)) {
+                classPath = imp;
+                bestImport = imp;
+            } else {
+                continue;
+            }
+
+            Class<?> byImport = Resolver.loadClass(classPath, false);
+            if (byImport != null) {
+                return new ResolveResult(classPath, byImport);
             }
         }
 
-        return fieldType;
+        // Try package path
+        if (!packagePath.isEmpty() && !(Character.isLowerCase(name.charAt(0)) && name.contains("."))) {
+            classPath = packagePath + "." + name;
+            Class<?> byPackage = Resolver.loadClass(classPath, false);
+            if (byPackage != null) {
+                return new ResolveResult(classPath, byPackage);
+            }
+        } else {
+            classPath = name;
+        }
+
+        // If it could not be loaded here, and we found a matching import, prefer that
+        // This makes sure that during code generation nothing goes wrong
+        if (bestImport != null) {
+            classPath = bestImport;
+        }
+
+        // Failed
+        return new ResolveResult(classPath, null);
     }
 
     /**
@@ -558,7 +574,7 @@ public class ClassResolver {
         if (type.isArray()) {
             return resolvePath(type.getComponentType()) + "[]";
         } else {
-            return type.getName().replace('$', '.');
+            return MPLType.getName(type).replace('$', '.');
         }
     }
 
@@ -580,7 +596,7 @@ public class ClassResolver {
         }
 
         // See if the class type was imported
-        String name = type.getName().replace('$', '.');
+        String name = MPLType.getName(type).replace('$', '.');
         for (String imp : this.imports) {
             if (imp.equals(name)) {
                 return type.getSimpleName();
@@ -622,6 +638,30 @@ public class ClassResolver {
         }
         if (this.packagePath != null && this.packagePath.length() > 0) {
             this.imports.add(this.packagePath + ".*");
+        }
+    }
+
+    /**
+     * Stores the result of resolving a name into a Class Type and Class Path at runtime
+     */
+    public static class ResolveResult {
+        /** Best-matching Class Path deduced using the resolver environment */
+        public final String classPath;
+        /** Found Class Type for Class Path, null if the Class could not be found */
+        public final Class<?> classType;
+
+        public ResolveResult(String classPath, Class<?> classType) {
+            this.classPath = classPath;
+            this.classType = classType;
+        }
+
+        /**
+         * Gets whether resolving was successful, and a Class could be found
+         * 
+         * @return True if successful
+         */
+        public boolean success() {
+            return classType != null;
         }
     }
 

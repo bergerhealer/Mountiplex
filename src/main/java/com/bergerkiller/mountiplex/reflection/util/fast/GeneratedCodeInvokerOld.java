@@ -10,6 +10,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -62,7 +63,7 @@ public abstract class GeneratedCodeInvokerOld<T> implements GeneratedInvoker<T> 
     private static final CtClass getClass(Class<?> type) throws NotFoundException {
         ClassPool pool = ClassPool.getDefault();
         pool.insertClassPath(new ClassClassPath(type));
-        return pool.getCtClass(type.getName());
+        return pool.getCtClass(MPLType.getName(type));
     }
 
     private static final CtClass getExtendedClass(ClassPool pool, Class<?> type) throws NotFoundException {
@@ -198,7 +199,7 @@ public abstract class GeneratedCodeInvokerOld<T> implements GeneratedInvoker<T> 
 
                     // Reset and use a different invoke method, that has an unboxed return type
                     invokeBody = new StringBuilder();
-                    invokeBody.append("private final ").append(declaration.returnType.type.getName());
+                    invokeBody.append("private final ").append(MPLType.getName(declaration.returnType.type));
                     invokeBody.append(" invoke_ub(Object instance_raw, Object[] args_raw) {");
                 }
             } else {
@@ -248,7 +249,7 @@ public abstract class GeneratedCodeInvokerOld<T> implements GeneratedInvoker<T> 
 
                     // Reset and use a different invoke method, that has an unboxed return type
                     invokeBody = new StringBuilder();
-                    invokeBody.append("private final ").append(declaration.returnType.type.getName());
+                    invokeBody.append("private final ").append(MPLType.getName(declaration.returnType.type));
                     invokeBody.append(" invoke_ub(");
                     invokeBody.append("Object instance_raw");
                     for (ParameterDeclaration param : declaration.parameters.parameters) {
@@ -264,8 +265,8 @@ public abstract class GeneratedCodeInvokerOld<T> implements GeneratedInvoker<T> 
                 if (instanceType == null || !Resolver.isPublic(instanceType)) {
                     invokeBody.append("Object instance = instance_raw;");
                 } else {
-                    invokeBody.append(instanceType.getName()).append(" instance = ");
-                    invokeBody.append("(").append(instanceType.getName()).append(") instance_raw;");
+                    invokeBody.append(MPLType.getName(instanceType)).append(" instance = ");
+                    invokeBody.append("(").append(MPLType.getName(instanceType)).append(") instance_raw;");
                 }
             }
 

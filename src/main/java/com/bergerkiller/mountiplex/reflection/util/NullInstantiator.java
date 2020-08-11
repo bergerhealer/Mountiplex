@@ -4,6 +4,7 @@ import org.objenesis.ObjenesisHelper;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Creates Class instances without calling any constructors, leaving all member
@@ -33,7 +34,7 @@ public class NullInstantiator<T> {
                     }
                     this.instantiator = ObjenesisHelper.getInstantiatorOf(this.type);
                     if (this.instantiator == null) {
-                        throw new IllegalStateException("Class of type " + this.type.getName() + " could not be instantiated");
+                        throw new IllegalStateException("Class of type " + MPLType.getName(this.type) + " could not be instantiated");
                     }
                 }
             }

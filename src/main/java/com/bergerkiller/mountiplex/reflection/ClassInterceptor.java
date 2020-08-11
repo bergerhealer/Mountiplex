@@ -15,10 +15,10 @@ import org.objenesis.instantiator.ObjectInstantiator;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
-import org.objectweb.asm.Type;
 import net.sf.cglib.core.Signature;
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
@@ -280,7 +280,7 @@ public abstract class ClassInterceptor {
         }
 
         // Slower way of instantiating a new MethodProxy for this type
-        Signature sig = new Signature(method.getName(), Type.getReturnType(method), Type.getArgumentTypes(method));
+        Signature sig = MPLType.createSignature(method);
         MethodProxy proxy = null;
         try {
             proxy = MethodProxy.find(instance.getClass(), sig);
@@ -290,7 +290,7 @@ public abstract class ClassInterceptor {
         // Dont allow this!
         if (proxy == null) {
             throw new UnsupportedOperationException("Proxy for super method " + method.toGenericString() + 
-                    " does not exist in class " + instance.getClass().getName());
+                    " does not exist in class " + MPLType.getName(instance.getClass()));
         }
         return proxy;
     }
@@ -474,7 +474,7 @@ public abstract class ClassInterceptor {
             // Properties are returned as Fixed Value types for quick access
             for (int i = 0; i < callbacks.length; i++) {
                 if (callbacks[i] instanceof EnhancedObjectProperty &&
-                        ((EnhancedObjectProperty) callbacks[i]).getName().equals(method.getName())) {
+                        ((EnhancedObjectProperty) callbacks[i]).getName().equals(MPLType.getName(method))) {
                     return i;
                 }
             }
@@ -515,9 +515,9 @@ public abstract class ClassInterceptor {
             this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
             this.enhancedInstantiator = ObjenesisHelper.getInstantiatorOf(enhancedType);
             if (this.baseInstantiator == null)
-                throw new RuntimeException("Base Class " + baseType.getName() + " has no instantiator");
+                throw new RuntimeException("Base Class " + MPLType.getName(baseType) + " has no instantiator");
             if (this.enhancedInstantiator == null)
-                throw new RuntimeException("Enhanced Class " + enhancedType.getName() + " has no instantiator");
+                throw new RuntimeException("Enhanced Class " + MPLType.getName(enhancedType) + " has no instantiator");
         
             // This method is cached to reduce performance overhead when constructing new enhanced classes
             try {
@@ -562,7 +562,7 @@ public abstract class ClassInterceptor {
         public <T> T createBase(T enhanced) {
             Object base = this.baseInstantiator.newInstance();
             if (base == null)
-                throw new RuntimeException("Class " + baseType.getName() + " could not be instantiated (newInstance failed)");
+                throw new RuntimeException("Class " + MPLType.getName(baseType) + " could not be instantiated (newInstance failed)");
 
             for (FastField<?> ff : this.baseTypeFields) {
                 ff.copy(enhanced, base);
@@ -583,12 +583,12 @@ public abstract class ClassInterceptor {
                     constructor = enhancedType.getConstructor(paramTypes);
                     enhanced = constructor.newInstance(params);
                 } catch (Throwable t) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct " + enhancedType.getName(), t);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to construct " + MPLType.getName(enhancedType), t);
                 }
             }
 
             if (enhanced == null)
-                throw new RuntimeException("Class " + enhancedType.getName() + " could not be instantiated (newInstance failed)");
+                throw new RuntimeException("Class " + MPLType.getName(enhancedType) + " could not be instantiated (newInstance failed)");
 
             if (base != null) {
                 for (FastField<?> ff : this.baseTypeFields) {

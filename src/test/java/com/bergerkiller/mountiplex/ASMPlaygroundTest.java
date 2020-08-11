@@ -2,6 +2,9 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -25,10 +28,24 @@ public class ASMPlaygroundTest {
     }
 
     public static class Handle {
-        public static final Invoker<Integer> invoker = null;
+        public String getClassName(Class<?> clazz) {
+            return clazz.getName();
+        }
 
-        public int haha(int arg0, String arg1) {
-            return ((Integer) invoker.invokeVA(null, arg0, arg1)).intValue();
+        public String getMethodName(Method method) {
+            return method.getName();
+        }
+
+        public String getFieldName(Field field) {
+            return field.getName();
+        }
+        
+        public Method getDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) throws NoSuchMethodException, SecurityException {
+            return clazz.getDeclaredMethod(name, parameterTypes);
+        }
+
+        public Field getDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException, SecurityException {
+            return clazz.getDeclaredField(name);
         }
     }
 

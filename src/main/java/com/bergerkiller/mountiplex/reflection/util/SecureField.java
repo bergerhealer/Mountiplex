@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex.reflection.util;
 
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+
 public final class SecureField {
     private java.lang.reflect.Field field;
     private boolean canGet, canSet;
@@ -74,7 +76,7 @@ public final class SecureField {
                 try {
                     field.setAccessible(true);
                 } catch (Throwable t) {
-                    throw new RuntimeException("Failed to make field " + field.getName() + " accessible");
+                    throw new RuntimeException("Failed to make field " + MPLType.getName(field) + " accessible");
                 }
             }
             this.canGet = true;
@@ -97,7 +99,7 @@ public final class SecureField {
                 try {
                     field.setAccessible(true);
                 } catch (Throwable t) {
-                    throw new RuntimeException("Failed to make field " + field.getName() + " accessible");
+                    throw new RuntimeException("Failed to make field " + MPLType.getName(field) + " accessible");
                 }
             }
             this.canGet = true;
@@ -135,8 +137,8 @@ public final class SecureField {
             throw new IllegalArgumentException("Field primitive type " + valueType.getName() + " can not be assigned null");
         }
         if (value != null && valueType.isAssignableFrom(value.getClass())) {
-            throw new IllegalArgumentException("value type " + value.getClass().getName() +
-                    " can not be assigned to field type " + valueType.getName());
+            throw new IllegalArgumentException("value type " + MPLType.getName(value.getClass()) +
+                    " can not be assigned to field type " + MPLType.getName(valueType));
         }
     }
 
@@ -160,7 +162,7 @@ public final class SecureField {
             }
             java.lang.Class<?> type = this.field.getDeclaringClass();
             if (!type.isAssignableFrom(instance.getClass())) {
-                throw new IllegalArgumentException("Failed to get field: instance is not an instance of " + type.getName());
+                throw new IllegalArgumentException("Failed to get field: instance is not an instance of " + MPLType.getName(type));
             }
         }
     }

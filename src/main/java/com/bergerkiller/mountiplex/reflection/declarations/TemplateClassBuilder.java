@@ -159,12 +159,12 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
             // Use the resolver to decode the declaration in the annotation
             Declaration parsedDeclaration = Declaration.parseDeclaration(resolver, generatedAnnot.value());
             if (parsedDeclaration == null || !parsedDeclaration.isValid()) {
-                MountiplexUtil.LOGGER.warning("Declaration for method " + method.getName() +
+                MountiplexUtil.LOGGER.warning("Declaration for method " + MPLType.getName(method) +
                         " could not be parsed: " + generatedAnnot.value());
                 cw.visitMethodUnsupported(method, "Declaration for this generated method could not be parsed");
                 continue;
             } else if (!parsedDeclaration.isResolved()) {
-                MountiplexUtil.LOGGER.warning("Declaration for method " + method.getName() +
+                MountiplexUtil.LOGGER.warning("Declaration for method " + MPLType.getName(method) +
                         " could not be resolved: " + parsedDeclaration);
                 cw.visitMethodUnsupported(method, "Declaration for this generated method could not be resolved (missing types)");
                 continue;
@@ -211,7 +211,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                 
 
                 if (methodDec.body == null && Modifier.isPublic(methodDec.method.getModifiers()) && Resolver.isPublic(this.instanceType)) {
-                    mv = cw.visitMethod(ACC_PUBLIC, method.getName(), MPLType.getMethodDescriptor(method), null, null);
+                    mv = cw.visitMethod(ACC_PUBLIC, MPLType.getName(method), MPLType.getMethodDescriptor(method), null, null);
                     mv.visitCode();
 
                     // static method can be called from within the method body just fine
@@ -222,7 +222,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     }
 
                     // call static method directly and proxy-return the return value
-                    mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), method.getName(),
+                    mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), MPLType.getName(method),
                             MPLType.getMethodDescriptor(method), false);
                     mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
                     mv.visitMaxs(varIdx, varIdx);
@@ -235,7 +235,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     cw.visitStaticInvokerField(invoker_name, methodDec);
 
                     // Add a method body that calls the invoker's invoke() method
-                    mv = cw.visitMethod(ACC_PUBLIC, method.getName(), MPLType.getMethodDescriptor(method), null, null);
+                    mv = cw.visitMethod(ACC_PUBLIC, MPLType.getName(method), MPLType.getMethodDescriptor(method), null, null);
                     mv.visitCode();
 
                     // Store the static invoker field instance onto the stack

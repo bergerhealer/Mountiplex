@@ -12,6 +12,7 @@ import com.bergerkiller.mountiplex.reflection.util.FastConvertedField;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -38,11 +39,20 @@ public class FieldDeclaration extends Declaration {
 
     public FieldDeclaration(ClassResolver resolver, Field field) {
         super(resolver);
+
+        // If classloader loading this class altered the bytecode, the result of alias will differ from name
+        // In that case, store the name the classloader gives the field as an alias
+        String name = MPLType.getName(field);
+        String alias = field.getName();
+        if (alias.equals(name)) {
+            alias = null;
+        }
+
         this.isEnum = field.isEnumConstant();
         this.field = field;
         this.modifiers = new ModifierDeclaration(resolver, field.getModifiers());
         this.type = TypeDeclaration.fromType(resolver, field.getGenericType());
-        this.name = new NameDeclaration(resolver, field.getName(), null);
+        this.name = new NameDeclaration(resolver, name, alias);
     }
 
     public FieldDeclaration(ClassResolver resolver, String declaration) {
@@ -223,8 +233,9 @@ public class FieldDeclaration extends Declaration {
 
         // Modifiers for checking public, if missing (0), none of the modifiers match
         // When the class in which the field is declared is not accessible, force field as unavailable
+        Class<?> fieldDeclaringClass = (this.field == null) ? null : this.field.getDeclaringClass();
         int modifiers = 0;
-        if (this.field != null && Resolver.isPublic(this.field.getDeclaringClass())) {
+        if (fieldDeclaringClass != null && Resolver.isPublic(fieldDeclaringClass)) {
             modifiers = this.field.getModifiers();
         }
 
@@ -237,12 +248,12 @@ public class FieldDeclaration extends Declaration {
                 StringBuilder replacement = new StringBuilder();
                 if (Modifier.isStatic(modifiers)) {
                     // Replace with ClassName.fieldName
-                    replacement.append(this.field.getDeclaringClass().getName());
+                    replacement.append(MPLType.getName(fieldDeclaringClass));
                 } else {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
                 }
-                replacement.append('.').append(this.field.getName());
+                replacement.append('.').append(MPLType.getName(this.field));
                 body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
                 return;
             }
@@ -292,12 +303,12 @@ public class FieldDeclaration extends Declaration {
                 // Get the field directly, not using the requirements
                 if (Modifier.isStatic(modifiers)) {
                     // Replace with ClassName.fieldName
-                    replacement.append(this.field.getDeclaringClass().getName());
+                    replacement.append(MPLType.getName(fieldDeclaringClass));
                 } else {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
                 }
-                replacement.append('.').append(this.field.getName());
+                replacement.append('.').append(MPLType.getName(this.field));
             } else {
                 // Modify the original body to use the field getter method instead
                 if (fieldType.isPrimitive) {
@@ -379,6 +390,6 @@ public class FieldDeclaration extends Declaration {
      * @return accessed name
      */
     protected String getAccessedName() {
-        return field != null ? field.getName() : this.name.value();
+        return field != null ? MPLType.getName(field) : this.name.value();
     }
 }

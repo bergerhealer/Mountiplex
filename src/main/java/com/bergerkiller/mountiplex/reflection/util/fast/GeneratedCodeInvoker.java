@@ -12,6 +12,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -45,13 +46,13 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
     }
 
     private static final CtClass getExtendedClass(ClassPool pool, Class<?> type, Class<?> interfaceClass) throws NotFoundException {
-        CtClass origClazz = pool.getCtClass(Resolver.resolveClassName(type));
+        CtClass origClazz = pool.getCtClass(MPLType.getName(type));
         String newClassName = origClazz.getName() + ExtendedClassWriter.getNextPostfix();
         newClassName = ExtendedClassWriter.getAvailableClassName(newClassName);
 
         CtClass extendedClass = pool.makeClass(newClassName, origClazz);
         if (interfaceClass != null) {
-            extendedClass.addInterface(pool.makeInterface(Resolver.resolveClassName(interfaceClass)));
+            extendedClass.addInterface(pool.makeInterface(MPLType.getName(interfaceClass)));
         }
         return extendedClass;
     }
@@ -186,23 +187,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
         }
 
         @Override
-        public CtClass[] get(String[] classnames) throws NotFoundException {
-            if (classnames == null) {
-                return super.get((String[]) null);
-            }
-            String[] names = classnames.clone();
-            for (int i = 0; i < names.length; i++) {
-                names[i] = resolveClassName(names[i]);
-            }
-            return super.get(names);
-        }
-
-        @Override
-        public CtClass getCtClass(String classname) throws NotFoundException {
-            return super.getCtClass(resolveClassName(classname));
-        }
-
-        @Override
         public URL find(String classname) {
             // First try to find the classname without further resolving.
             // If it exists, skip resolveClassPath
@@ -213,7 +197,14 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
                 //System.out.println("[MPL] FIND " + classname + " UNCHANGED_URI");
                 return url;
             } else {
-                return super.find(Resolver.resolveClassPath(classname));
+                // Try to resolve. If no difference is found, fail right away
+                String newClassName = Resolver.resolveClassPath(classname);
+                if (newClassName.equals(classname)) {
+                    return null;
+                }
+
+                // Try to find at the alternative path
+                return super.find(newClassName);
             }
         }
 
@@ -255,7 +246,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
                 } else {
                     // Decode the package path from class name ourselves
                     // This might fail :(
-                    String package_path = Resolver.resolveClassName(decClass);
+                    String package_path = MPLType.getName(decClass);
                     int lastDot;
                     while ((lastDot = package_path.lastIndexOf('.')) != -1) {
                         String lastPart = package_path.substring(lastDot+1);

@@ -4,9 +4,14 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 public class TypeDeclarationTest {
+
+    public static class TestClassWithGenerics<T extends Comparable<?>> {
+        
+    }
 
     @Test
     public void testComponentType() {
@@ -91,5 +96,19 @@ public class TypeDeclarationTest {
         a = TypeDeclaration.parse("java.util.List");
         b = TypeDeclaration.parse("java.util.List<?>");
         assertFalse(a.isInstanceOf(b));
+    }
+
+    @Test
+    public void testDiscoverGenericType() {
+        // Create two types that refer to the generic 'T' variable of the Class
+        ClassResolver resolver = new ClassResolver();
+        resolver.setDeclaredClass(TestClassWithGenerics.class);
+        TypeDeclaration type_a = TypeDeclaration.parse(resolver, "T");
+        TypeDeclaration type_b = TypeDeclaration.parse(resolver, "(Comparable) T");
+
+        // Verify that it has managed to figure out 'T' is Comparable, not Object, based on the
+        // class definition.
+        assertEquals(Comparable.class, type_a.type);
+        assertEquals(Comparable.class, type_b.type);
     }
 }

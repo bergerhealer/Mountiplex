@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 public class ReflectionConstructor<T> implements Constructor<T> {
     private static final Object[] NO_ARGS = new Object[0];
@@ -30,14 +31,14 @@ public class ReflectionConstructor<T> implements Constructor<T> {
                 }
                 Class<?> boxed = BoxedType.getBoxedType(paramTypes[i]);
                 if (boxed != null && !boxed.isAssignableFrom(args[i].getClass())) {
-                    return new IllegalArgumentException("Value of type " + args[i].getClass().getName() +
+                    return new IllegalArgumentException("Value of type " + MPLType.getName(args[i].getClass()) +
                             " can not be assigned to primitive " + paramTypes[i].getSimpleName() +
                             " method parameter #" + i);
                 }
             } else if (args[i] != null) {
                 if (!paramTypes[i].isAssignableFrom(args[i].getClass())) {
-                    return new IllegalArgumentException("Value of type " + args[i].getClass().getName() +
-                            " can not be assigned to " + paramTypes[i].getName() +
+                    return new IllegalArgumentException("Value of type " + MPLType.getName(args[i].getClass()) +
+                            " can not be assigned to " + MPLType.getName(paramTypes[i]) +
                             " method parameter #" + i);
                 }
             }

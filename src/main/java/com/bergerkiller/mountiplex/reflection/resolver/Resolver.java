@@ -16,6 +16,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Resolves class, field and method names into Class, Fields and Methods.
@@ -24,7 +25,6 @@ import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 public class Resolver {
     private static Resolver resolver = new Resolver();
     private final ArrayList<ClassPathResolver> classPathResolvers = new ArrayList<ClassPathResolver>();
-    private final ArrayList<ClassNameResolver> classNameResolvers = new ArrayList<ClassNameResolver>();
     private final ArrayList<FieldNameResolver> fieldNameResolvers = new ArrayList<FieldNameResolver>();
     private final ArrayList<MethodNameResolver> methodNameResolvers = new ArrayList<MethodNameResolver>();
     private final ArrayList<ClassDeclarationResolver> classDeclarationResolvers = new ArrayList<ClassDeclarationResolver>();
@@ -191,10 +191,11 @@ public class Resolver {
      * @param classType to initialize
      */
     public static void initializeClass(Class<?> classType) {
+        String className = MPLType.getName(classType);
         try {
-            Class.forName(classType.getName());
+            Class.forName(className);
         } catch (ExceptionInInitializerError e) {
-            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + classType.getName() + "':", e.getCause());
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + className + "':", e.getCause());
         } catch (ClassNotFoundException e) {
         } catch (Throwable t) {
             t.printStackTrace();
@@ -210,10 +211,6 @@ public class Resolver {
         Resolver.resolver.classCache.clear();
     }
 
-    public static void registerClassNameResolver(ClassNameResolver resolver) {
-        Resolver.resolver.classNameResolvers.add(resolver);
-    }
-
     public static void registerMethodResolver(MethodNameResolver resolver) {
         Resolver.resolver.methodNameResolvers.add(resolver);
     }
@@ -227,25 +224,6 @@ public class Resolver {
             classPath = resolver.resolveClassPath(classPath);
         }
         return classPath;
-    }
-
-    /**
-     * Resolves the class name of a particular Class. This might be different if the environment we are running in
-     * alters the output of getName().
-     * 
-     * @param clazz Class to get the name of
-     * @return Class name
-     */
-    public static String resolveClassName(Class<?> clazz) {
-        if (!Resolver.resolver.classNameResolvers.isEmpty()) {
-            for (ClassNameResolver resolver : Resolver.resolver.classNameResolvers) {
-                String name = resolver.resolveClassName(clazz);
-                if (name != null) {
-                    return name;
-                }
-            }
-        }
-        return clazz.getName();
     }
 
     public static String resolveFieldName(Class<?> declaredClass, String fieldName) {
@@ -281,7 +259,7 @@ public class Resolver {
      * @return Class Declaration, null if not found
      */
     public static ClassDeclaration resolveClassDeclaration(Class<?> classType) {
-        return resolveClassDeclaration(classType.getName(), classType);
+        return resolveClassDeclaration(MPLType.getName(classType), classType);
     }
 
     /**

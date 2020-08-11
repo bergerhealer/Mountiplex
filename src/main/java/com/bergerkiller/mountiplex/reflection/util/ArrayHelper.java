@@ -3,6 +3,8 @@ package com.bergerkiller.mountiplex.reflection.util;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+
 /**
  * Utility helper class for array operations
  */
@@ -30,7 +32,7 @@ public class ArrayHelper {
         // Optimization for common Object-type single-dim arrays
         if (num_dimensions == 1 && !componentType.isPrimitive()) {
             try {
-                return Class.forName("[L" + componentType.getName() + ";");
+                return Class.forName("[L" + MPLType.getName(componentType) + ";");
             } catch (ClassNotFoundException e) {}
         }
 

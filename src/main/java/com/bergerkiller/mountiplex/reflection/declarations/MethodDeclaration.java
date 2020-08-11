@@ -36,10 +36,19 @@ public class MethodDeclaration extends Declaration {
 
     public MethodDeclaration(ClassResolver resolver, Method method) {
         super(resolver);
+
+        // If classloader loading this class altered the bytecode, the result of alias will differ from name
+        // In that case, store the name the classloader gives the method as an alias
+        String name = MPLType.getName(method);
+        String alias = method.getName();
+        if (alias.equals(name)) {
+            alias = null;
+        }
+
         this.method = method;
         this.modifiers = new ModifierDeclaration(resolver, method.getModifiers());
         this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
-        this.name = new NameDeclaration(resolver, method.getName(), null);
+        this.name = new NameDeclaration(resolver, name, alias);
         this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
         this.body = null;
         this.bodyRequirements = new Requirement[0];
@@ -824,6 +833,6 @@ public class MethodDeclaration extends Declaration {
      * @return accessed name
      */
     protected String getAccessedName() {
-        return method != null ? method.getName() : this.name.value();
+        return method != null ? MPLType.getName(method) : this.name.value();
     }
 }

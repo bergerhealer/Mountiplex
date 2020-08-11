@@ -6,6 +6,7 @@ import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Declares the full contents of a Class
@@ -319,7 +320,7 @@ public class ClassDeclaration extends Declaration {
                 if (mDec.method == null || Modifier.isPrivate(mDec.method.getModifiers())) {
                     continue;
                 }
-                if (!mDec.method.getName().equals(method.getName())) {
+                if (!MPLType.getName(mDec.method).equals(MPLType.getName(method))) {
                     continue;
                 }
 

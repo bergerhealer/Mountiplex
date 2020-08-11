@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
  * Matches fields to methods
@@ -26,7 +27,7 @@ public class MethodMatchResolver {
                 realRefMethods.add(decMethod);
             }
         } catch (Throwable t) {
-            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to identify methods of class " + declaringClass.getName(), t);
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to identify methods of class " + MPLType.getName(declaringClass), t);
             return;
         }
 

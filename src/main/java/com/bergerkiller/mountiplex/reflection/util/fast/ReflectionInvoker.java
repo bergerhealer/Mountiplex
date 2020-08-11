@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 public class ReflectionInvoker<T> implements Invoker<T> {
     private static final Object[] NO_ARGS = new Object[0];
@@ -18,16 +19,16 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         if (Modifier.isStatic(m.getModifiers())) {
             if (instance != null) {
                 return new IllegalArgumentException("Instance should be null for static fields, but was " +
-                        instance.getClass().getName() + " instead");
+                        MPLType.getName(instance.getClass()) + " instead");
             }
         } else {
             if (instance == null) {
                 return new IllegalArgumentException("Instance can not be null for member fields declared in " +
-                        m.getDeclaringClass().getName());
+                        MPLType.getName(m.getDeclaringClass()));
             }
             if (!m.getDeclaringClass().isAssignableFrom(instance.getClass())) {
-                return new IllegalArgumentException("Instance of type " + instance.getClass().getName() +
-                        " does not contain the field declared in " + m.getDeclaringClass().getName());
+                return new IllegalArgumentException("Instance of type " + MPLType.getName(instance.getClass()) +
+                        " does not contain the field declared in " + MPLType.getName(m.getDeclaringClass()));
             }
         }
         return null;
@@ -55,14 +56,14 @@ public class ReflectionInvoker<T> implements Invoker<T> {
                 }
                 Class<?> boxed = BoxedType.getBoxedType(paramTypes[i]);
                 if (boxed != null && !boxed.isAssignableFrom(args[i].getClass())) {
-                    return new IllegalArgumentException("Value of type " + args[i].getClass().getName() +
+                    return new IllegalArgumentException("Value of type " + MPLType.getName(args[i].getClass()) +
                             " can not be assigned to primitive " + paramTypes[i].getSimpleName() +
                             " method parameter #" + i);
                 }
             } else if (args[i] != null) {
                 if (!paramTypes[i].isAssignableFrom(args[i].getClass())) {
-                    return new IllegalArgumentException("Value of type " + args[i].getClass().getName() +
-                            " can not be assigned to " + paramTypes[i].getName() +
+                    return new IllegalArgumentException("Value of type " + MPLType.getName(args[i].getClass()) +
+                            " can not be assigned to " + MPLType.getName(paramTypes[i]) +
                             " method parameter #" + i);
                 }
             }

@@ -408,7 +408,7 @@ public class TemplateHandleBuilder<H extends Handle> {
             try {
                 constructor = this.handleImplType.getConstructor(topInstanceType);
             } catch (Throwable t) {
-                throw new IllegalStateException("Failed to find generated handle constructor of handle for " + topInstanceType.getName(), t);
+                throw new IllegalStateException("Failed to find generated handle constructor of handle for " + MPLType.getName(topInstanceType), t);
             }
 
             this.handleConstructor.init(constructor);

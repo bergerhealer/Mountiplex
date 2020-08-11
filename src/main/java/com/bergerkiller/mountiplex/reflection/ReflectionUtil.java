@@ -9,10 +9,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 
-import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
-import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
+import com.bergerkiller.mountiplex.reflection.util.asm.ASMUtil;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.DisableFinalModifierHelper;
 
 public class ReflectionUtil {
@@ -48,7 +48,7 @@ public class ReflectionUtil {
         if (type.isPrimitive() || BoxedType.getUnboxedType(type) != null) {
             name = type.getSimpleName();
         } else {
-            name = Resolver.resolveClassName(type);
+            name = MPLType.getName(type);
         }
         for (int i = 0; i < numArrays; i++) {
             name += "[]";
@@ -147,7 +147,7 @@ public class ReflectionUtil {
     public static String stringifyMethodSignature(Method method) {
         String str = Modifier.toString(method.getModifiers());
         str += " " + stringifyType(method.getReturnType());
-        str += " " + method.getName();
+        str += " " + MPLType.getName(method);
         str += "(";
         boolean first = true;
         for (Class<?> param : method.getParameterTypes()) {
@@ -164,7 +164,8 @@ public class ReflectionUtil {
 
     private static boolean hasMethod(Class<?> type, Method method) {
         try {
-            return type.getMethod(method.getName(), method.getParameterTypes()) != null;
+            String name = MPLType.getName(method);
+            return MPLType.getDeclaredMethod(type, name, method.getParameterTypes()) != null;
         } catch (Throwable t) {
             return false;
         }

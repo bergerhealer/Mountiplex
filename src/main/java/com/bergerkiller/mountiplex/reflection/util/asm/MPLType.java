@@ -1,20 +1,27 @@
 package com.bergerkiller.mountiplex.reflection.util.asm;
 
-import static org.objectweb.asm.Opcodes.ILOAD;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
-import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.MountiplexUtil;
+
+import net.sf.cglib.core.Signature;
 
 /**
- * Re-implementation of some methods of Javassist's Type class to take into account the
- * Resolver getClassName(clazz) method.
+ * Re-implementation of some methods of ASM's Type class to make use of the
+ * {@link ReflectionInfoHelper} when resolving classes. This is to make sure that
+ * when this library is loaded using a bytecode-editing classloader, the class
+ * names stay true to the JVM.
  */
 public class MPLType {
+
     /**
      * Returns the internal name of the given class. The internal name of a class is its fully
      * qualified name, as returned by Class.getName(), where '.' are replaced by '/'.
@@ -23,7 +30,7 @@ public class MPLType {
      * @return the internal name of the given class.
      */
     public static String getInternalName(final Class<?> clazz) {
-        return Resolver.resolveClassName(clazz).replace('.', '/');
+        return helper.getClassName(clazz).replace('.', '/');
     }
 
     /**
@@ -120,7 +127,7 @@ public class MPLType {
             stringBuilder.append(descriptor);
         } else {
             stringBuilder.append('L');
-            String name = Resolver.resolveClassName(currentClass);
+            String name = helper.getClassName(currentClass);
             int nameLength = name.length();
             for (int i = 0; i < nameLength; ++i) {
                 char car = name.charAt(i);
@@ -153,5 +160,269 @@ public class MPLType {
         Type type = Type.getType(clazz);
         mv.visitVarInsn(type.getOpcode(ILOAD), register);
         return register + type.getSize();
+    }
+
+    /**
+     * Returns the {@link Type} corresponding to the return type of the given method.
+     *
+     * @param method a method.
+     * @return the {@link Type} corresponding to the return type of the given method.
+     */
+    public static Type getReturnType(final Method method) {
+      return getType(method.getReturnType());
+    }
+
+    /**
+     * Returns the {@link Type} values corresponding to the argument types of the given method.
+     *
+     * @param method a method.
+     * @return the {@link Type} values corresponding to the argument types of the given method.
+     */
+    public static Type[] getArgumentTypes(final Method method) {
+      Class<?>[] classes = method.getParameterTypes();
+      Type[] types = new Type[classes.length];
+      for (int i = classes.length - 1; i >= 0; --i) {
+        types[i] = getType(classes[i]);
+      }
+      return types;
+    }
+
+    /**
+     * Gets an array of types using an array of classes
+     * 
+     * @param classes
+     * @return types
+     */
+    public static Type[] getTypes(Class<?>... classes) {
+        Type[] types = new Type[classes.length];
+        for (int i = 0; i < classes.length; i++) {
+            types[i] = getType(classes[i]);
+        }
+        return types;
+    }
+
+    /**
+     * Returns the {@link Type} corresponding to the given class.
+     * A guarantee is made that a custom bytecode-editing classloader
+     * loading this library won't interfere.
+     *
+     * @param clazz a class.
+     * @return the {@link Type} corresponding to the given class.
+     */
+    public static Type getType(final Class<?> clazz) {
+      if (clazz.isPrimitive()) {
+        if (clazz == Integer.TYPE) {
+          return Type.INT_TYPE;
+        } else if (clazz == Void.TYPE) {
+          return Type.VOID_TYPE;
+        } else if (clazz == Boolean.TYPE) {
+          return Type.BOOLEAN_TYPE;
+        } else if (clazz == Byte.TYPE) {
+          return Type.BYTE_TYPE;
+        } else if (clazz == Character.TYPE) {
+          return Type.CHAR_TYPE;
+        } else if (clazz == Short.TYPE) {
+          return Type.SHORT_TYPE;
+        } else if (clazz == Double.TYPE) {
+          return Type.DOUBLE_TYPE;
+        } else if (clazz == Float.TYPE) {
+          return Type.FLOAT_TYPE;
+        } else if (clazz == Long.TYPE) {
+          return Type.LONG_TYPE;
+        } else {
+          throw new AssertionError();
+        }
+      } else {
+        return Type.getType(getDescriptor(clazz));
+      }
+    }
+
+    /**
+     * Creates a CGLib Signature of a method
+     * 
+     * @param method
+     * @return signature
+     */
+    public static Signature createSignature(Method method) {
+        return new Signature(helper.getMethodName(method), getReturnType(method), getArgumentTypes(method));
+    }
+
+    /**
+     * Gets the name of a Class
+     * 
+     * @param clazz
+     * @return class name
+     */
+    public static String getName(Class<?> clazz) {
+        return helper.getClassName(clazz);
+    }
+
+    /**
+     * Gets the name of a method
+     * 
+     * @param method
+     * @return method name
+     */
+    public static String getName(Method method) {
+        return helper.getMethodName(method);
+    }
+
+    /**
+     * Gets the name of a field
+     * 
+     * @param field
+     * @return field name
+     */
+    public static String getName(Field field) {
+        return helper.getFieldName(field);
+    }
+
+    /**
+     * Looks up a method declared in a Class
+     * 
+     * @param clazz Class to find the method in
+     * @param name Name of the method
+     * @param parameterTypes Parameters of the method
+     * @return the method
+     * @throws NoSuchMethodException
+     * @throws SecurityException
+     */
+    public static Method getDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) throws NoSuchMethodException, SecurityException {
+        return helper.getDeclaredMethod(clazz, name, parameterTypes);
+    }
+
+    /**
+     * Looks up a field declared in a Class
+     * 
+     * @param clazz Class to find the field in
+     * @param name Name of the field
+     * @return the field
+     * @throws NoSuchFieldException
+     * @throws SecurityException
+     */
+    public static Field getDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException, SecurityException {
+        return helper.getDeclaredField(clazz, name);
+    }
+
+    /*
+    public static Class<?> getDeclaringClass(Field field) {
+        return helper.getFieldDeclaringClass(field);
+    }
+
+    public static Class<?> getDeclaringClass(Method method) {
+        return helper.getMethodDeclaringClass(method);
+    }
+    */
+
+    private static final MPLTypeHelper helper;
+
+    // Solely used to generate the helper implementation, is then discarded
+    // Only the MPLTypeHelper generated class holds a reference to it, then
+    private static final class MPLTypeHelperClassLoader extends ClassLoader {
+        public MPLTypeHelperClassLoader(ClassLoader base) {
+            super(base);
+        }
+
+        public Class<?> defineClass(String name, byte[] b) {
+            return defineClass(name, b, 0, b.length);
+        }
+    }
+
+    static {
+        String interfaceName = MPLTypeHelper.class.getName().replace('.', '/');
+        String internalName = MPLType.class.getName().replace('.', '/') + "$HelperImpl";
+        String signature = "Ljava/lang/Object;L" + interfaceName + ";";
+        ClassWriter cw = new ClassWriter(0);
+        cw.visit(V1_8, ACC_PUBLIC | ACC_STATIC, internalName, signature, "java/lang/Object", new String[] {interfaceName});
+
+        MethodVisitor mv;
+
+        // Empty constructor
+        mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        mv.visitInsn(RETURN);
+        mv.visitMaxs(1, 1);
+        mv.visitEnd();
+
+        // getClassName
+        mv = cw.visitMethod(ACC_PUBLIC, "getClassName", "(Ljava/lang/Class;)Ljava/lang/String;", "(Ljava/lang/Class<*>;)Ljava/lang/String;", null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getName", "()Ljava/lang/String;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(1, 2);
+        mv.visitEnd();
+
+        // getMethodName
+        mv = cw.visitMethod(ACC_PUBLIC, "getMethodName", "(Ljava/lang/reflect/Method;)Ljava/lang/String;", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/reflect/Method", "getName", "()Ljava/lang/String;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(1, 2);
+        mv.visitEnd();
+
+        // getFieldName
+        mv = cw.visitMethod(ACC_PUBLIC, "getFieldName", "(Ljava/lang/reflect/Field;)Ljava/lang/String;", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/reflect/Field", "getName", "()Ljava/lang/String;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(1, 2);
+        mv.visitEnd();
+
+        // getDeclaredMethod
+        mv = cw.visitMethod(ACC_PUBLIC | ACC_VARARGS, "getDeclaredMethod", "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;", "(Ljava/lang/Class<*>;Ljava/lang/String;[Ljava/lang/Class<*>;)Ljava/lang/reflect/Method;", new String[] { "java/lang/NoSuchMethodException", "java/lang/SecurityException" });
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitVarInsn(ALOAD, 2);
+        mv.visitVarInsn(ALOAD, 3);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getDeclaredMethod", "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(3, 4);
+        mv.visitEnd();
+
+        // getDeclaredField
+        mv = cw.visitMethod(ACC_PUBLIC, "getDeclaredField", "(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/reflect/Field;", "(Ljava/lang/Class<*>;Ljava/lang/String;)Ljava/lang/reflect/Field;", new String[] { "java/lang/NoSuchFieldException", "java/lang/SecurityException" });
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitVarInsn(ALOAD, 2);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(2, 3);
+        mv.visitEnd();
+
+        /*
+        // getFieldDeclaringClass
+        mv = cw.visitMethod(ACC_PUBLIC, "getFieldDeclaringClass", "(Ljava/lang/reflect/Field;)Ljava/lang/Class;", "(Ljava/lang/reflect/Field;)Ljava/lang/Class<*>;", null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/reflect/Field", "getDeclaringClass", "()Ljava/lang/Class;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(1, 2);
+        mv.visitEnd();
+
+        // getMethodDeclaringClass
+        mv = cw.visitMethod(ACC_PUBLIC, "getMethodDeclaringClass", "(Ljava/lang/reflect/Method;)Ljava/lang/Class;", "(Ljava/lang/reflect/Method;)Ljava/lang/Class<*>;", null);
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/reflect/Method", "getDeclaringClass", "()Ljava/lang/Class;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(1, 2);
+        mv.visitEnd();
+        */
+
+        cw.visitEnd();
+
+        MPLTypeHelperClassLoader loader = new MPLTypeHelperClassLoader(MPLType.class.getClassLoader());
+        Class<?> helperImplType = loader.defineClass(MPLType.class.getName() + "$HelperImpl", cw.toByteArray());
+
+        try {
+            helper = (MPLTypeHelper) helperImplType.newInstance();
+        } catch (Throwable t) {
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
     }
 }

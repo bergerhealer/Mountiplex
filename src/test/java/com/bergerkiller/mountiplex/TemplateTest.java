@@ -11,7 +11,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
-import com.bergerkiller.mountiplex.reflection.util.ASMUtil;
+import com.bergerkiller.mountiplex.reflection.util.asm.ASMUtil;
 import com.bergerkiller.mountiplex.types.BootstrapState;
 import com.bergerkiller.mountiplex.types.PrivateTestObjectHandle;
 import com.bergerkiller.mountiplex.types.TestObject;

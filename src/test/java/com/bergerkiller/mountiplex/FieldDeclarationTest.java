@@ -17,7 +17,7 @@ public class FieldDeclarationTest {
         FieldDeclaration dec = new FieldDeclaration(ClassResolver.DEFAULT, "private double[] move_SomeArray:aI");
         assertTrue(dec.isValid());
         assertTrue(dec.isResolved());
-        assertEquals("double[]", dec.type.toString(true));
+        assertEquals("[D", dec.type.toString(true));
         assertEquals("double[]", dec.type.toString());
         assertEquals(double[].class, dec.type.type);
     }

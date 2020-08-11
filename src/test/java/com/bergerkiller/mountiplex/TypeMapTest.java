@@ -25,7 +25,7 @@ public class TypeMapTest {
         assertEquals("List", TypeDeclaration.fromClass(java.util.List.class).toString());
         assertEquals("java.text.NumberFormat", TypeDeclaration.fromClass(java.text.NumberFormat.class).toString());
         assertEquals("Map.Entry", TypeDeclaration.fromClass(java.util.Map.Entry.class).toString());
-        assertEquals("java.util.Map.Entry", TypeDeclaration.fromClass(java.util.Map.Entry.class).toString(true));
+        assertEquals("java.util.Map$Entry", TypeDeclaration.fromClass(java.util.Map.Entry.class).toString(true));
         testTypeParsing("List<Integer>");
         testTypeParsing("Map<String, Integer>");
         testTypeParsing("Map<List<String>, Map<Integer, Short>>");

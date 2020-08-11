@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.Copier;
 import com.bergerkiller.mountiplex.reflection.util.fast.Reader;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionAccessor;
@@ -104,7 +105,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
         if (this.field == null) {
             return "null";
         } else {
-            return this.field.getName();
+            return MPLType.getName(this.field);
         }
     }
 
@@ -139,7 +140,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
             try {
                 ReflectionUtil.removeFinalModifier(field);
             } catch (IllegalAccessException ex) {
-                throw new RuntimeException("Failed to make final field " + field.getName() + " accessible: " + ex.getMessage());
+                throw new RuntimeException("Failed to make final field " + MPLType.getName(field) + " accessible: " + ex.getMessage());
             }
         }
 
@@ -147,7 +148,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
         try {
             field.setAccessible(true);
         } catch (Throwable t) {
-            throw new RuntimeException("Failed to make field " + field.getName() + " accessible");
+            throw new RuntimeException("Failed to make field " + MPLType.getName(field) + " accessible");
         }
     }
 

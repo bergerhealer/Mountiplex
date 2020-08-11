@@ -26,6 +26,7 @@ import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
@@ -76,7 +77,7 @@ public class Template {
                 TemplateClassBuilder<C, H> builder = new TemplateClassBuilder<C, H>(classType, classDeclarationResolver);
                 return builder.build();
             } catch (Throwable t) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize " + classType.getName(), t);
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize " + MPLType.getName(classType), t);
                 return null;
             }
         }
@@ -466,8 +467,8 @@ public class Template {
                 return type.createHandle(this.getRaw(), false);
             } else {
                 throw new ClassCastException("Failed to cast handle of type " +
-                        this.getRaw().getClass().getName() + " to " +
-                        type.getType().getName());
+                        MPLType.getName(this.getRaw().getClass()) + " to " +
+                        MPLType.getName(type.getType()));
             }
         }
 
@@ -637,8 +638,8 @@ public class Template {
                             paramTypes[i].getName() + " argument [" + i + "]");
                 }
                 if (arguments[i] != null && !BoxedType.tryBoxType(paramTypes[i]).isAssignableFrom(arguments[i].getClass())) {
-                    throw new IllegalArgumentException("Value of type " + arguments[i].getClass().getName() +
-                            " can not be assigned to " + paramTypes[i].getName() + " argument [" + i + "]");
+                    throw new IllegalArgumentException("Value of type " + MPLType.getName(arguments[i].getClass()) +
+                            " can not be assigned to " + MPLType.getName(paramTypes[i]) + " argument [" + i + "]");
                 }
             }
         }

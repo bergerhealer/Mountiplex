@@ -128,7 +128,7 @@ public class FieldLCSResolver {
         if (!declaration.getResolver().getLogErrors()) {
             return;
         }
-        MountiplexUtil.LOGGER.warning("A class member of " + declaration.getResolver().getDeclaredClass().getName() + " was not found!");
+        MountiplexUtil.LOGGER.warning("A class member of " + declaration.getResolver().getDeclaredClassName() + " was not found!");
         if (alternatives.length == 0) {
             MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " (No alternatives)");
         } else {
