@@ -42,9 +42,9 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
         // Getter/setter makeup
         int mod = field.getModifiers();
         String className = MPLType.getInternalName(field.getDeclaringClass());
-        Type fieldType = Type.getType(field.getType());
+        Type fieldType = MPLType.getType(field.getType());
         String fieldTypeName = fieldType.getDescriptor();
-        String fieldName = field.getName();
+        String fieldName = MPLType.getName(field);
         String accessorName = null;
         if (field.getType().isPrimitive()) {
             Class<?> boxed = BoxedType.getBoxedType(field.getType());

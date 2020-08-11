@@ -159,11 +159,7 @@ public class Resolver {
         /* ===================== */
         String alterPath = resolveClassPath(path);
         try {
-            if (initialize) {
-                return Class.forName(alterPath);
-            } else {
-                return Class.forName(alterPath, false, MountiplexUtil.class.getClassLoader());
-            }
+            return MPLType.getClassByName(alterPath, initialize, Resolver.class.getClassLoader());
         } catch (ExceptionInInitializerError e) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + alterPath + "':", e.getCause());
             return null;
@@ -193,7 +189,7 @@ public class Resolver {
     public static void initializeClass(Class<?> classType) {
         String className = MPLType.getName(classType);
         try {
-            Class.forName(className);
+            MPLType.getClassByName(className, true, Resolver.class.getClassLoader());
         } catch (ExceptionInInitializerError e) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + className + "':", e.getCause());
         } catch (ClassNotFoundException e) {

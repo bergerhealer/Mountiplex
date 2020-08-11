@@ -219,6 +219,15 @@ public class ClassResolver {
     }
 
     /**
+     * Whether a package level import was defined
+     * 
+     * @return True if a package path is set
+     */
+    public boolean hasPackage() {
+        return !this.packagePath.isEmpty();
+    }
+
+    /**
      * Sets the full name or method used to obtain the class declaration resolver that
      * loads the declaration for the classes managed by this resolver.
      * This is used internally to initialize the templates for the first time.

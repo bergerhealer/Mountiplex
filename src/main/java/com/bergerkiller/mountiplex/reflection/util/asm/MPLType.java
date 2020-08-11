@@ -304,6 +304,19 @@ public class MPLType {
         return helper.getDeclaredField(clazz, name);
     }
 
+    /**
+     * See: {@link Class#forName(String, boolean, ClassLoader)}
+     * 
+     * @param name
+     * @param initialize
+     * @param classLoader
+     * @return
+     * @throws ClassNotFoundException
+     */
+    public static Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
+        return helper.getClassByName(name, initialize, classLoader);
+    }
+
     /*
     public static Class<?> getDeclaringClass(Field field) {
         return helper.getFieldDeclaringClass(field);
@@ -392,6 +405,17 @@ public class MPLType {
         mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getDeclaredField", "(Ljava/lang/String;)Ljava/lang/reflect/Field;", false);
         mv.visitInsn(ARETURN);
         mv.visitMaxs(2, 3);
+        mv.visitEnd();
+
+        // getClassByName
+        mv = cw.visitMethod(ACC_PUBLIC, "getClassByName", "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;", "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class<*>;", new String[] { "java/lang/ClassNotFoundException" });
+        mv.visitCode();
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitVarInsn(ILOAD, 2);
+        mv.visitVarInsn(ALOAD, 3);
+        mv.visitMethodInsn(INVOKESTATIC, "java/lang/Class", "forName", "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;", false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(3, 4);
         mv.visitEnd();
 
         /*

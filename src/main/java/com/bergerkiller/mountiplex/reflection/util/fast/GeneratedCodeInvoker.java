@@ -6,16 +6,17 @@ import java.util.List;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 import javassist.CannotCompileException;
-import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
@@ -178,7 +179,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
 
         public ResolvedClassPool() {
             super(true);
-            appendClassPath(new ClassClassPath(GeneratedCodeInvoker.class));
+            appendClassPath(ClassBytecodeLoader.CLASSPATH);
         }
 
         @Override
@@ -238,27 +239,24 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
         try {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getDeclaringClass();
-            Class<?> decClass = declaration.getResolver().getDeclaredClass();
-            if (decClass != null) {
-                Package p = decClass.getPackage();
-                if (p != null) {
-                    pool.importPackage(p.getName());
-                } else {
+
+            // Use the resolver to add needed imports
+            {
+                ClassResolver classResolver = declaration.getResolver();
+                if (classResolver.hasPackage()) {
+                    // Import using the predefined #package
+                    pool.importPackage(classResolver.getPackage());
+                } else if (classResolver.getDeclaredClass() != null) {
                     // Decode the package path from class name ourselves
                     // This might fail :(
-                    String package_path = MPLType.getName(decClass);
-                    int lastDot;
-                    while ((lastDot = package_path.lastIndexOf('.')) != -1) {
-                        String lastPart = package_path.substring(lastDot+1);
-                        if (lastPart.isEmpty() || !Character.isUpperCase(lastPart.charAt(0))) {
-                            break;
-                        } else {
-                            package_path = package_path.substring(0, lastDot);
-                        }
+                    String class_path = declaration.getResolver().getDeclaredClassName();
+                    String package_path = MountiplexUtil.getPackagePathFromClassPath(class_path);
+                    if (!package_path.isEmpty()) {
+                        pool.importPackage(package_path);
                     }
-                    pool.importPackage(package_path);
                 }
             }
+
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class, interfaceClass);
             CtMethod m;
             StringBuilder methodBody = new StringBuilder();

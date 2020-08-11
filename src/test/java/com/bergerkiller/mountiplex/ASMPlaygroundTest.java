@@ -47,6 +47,10 @@ public class ASMPlaygroundTest {
         public Field getDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException, SecurityException {
             return clazz.getDeclaredField(name);
         }
+
+        public Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
+            return Class.forName(name, initialize, classLoader);
+        }
     }
 
     @Ignore

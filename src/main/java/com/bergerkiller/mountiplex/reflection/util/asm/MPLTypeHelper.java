@@ -12,6 +12,7 @@ public interface MPLTypeHelper {
     String getFieldName(Field field);
     Method getDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) throws NoSuchMethodException, SecurityException;
     Field getDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException, SecurityException;
+    Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException;
     //Class<?> getFieldDeclaringClass(Field field);
     //Class<?> getMethodDeclaringClass(Method method);
 }
