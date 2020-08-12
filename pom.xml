@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.mountiplex</groupId>
     <artifactId>Mountiplex</artifactId>
-    <version>1.98</version>
+    <version>1.99</version>
     <packaging>maven-plugin</packaging>
     <name>mountiplex</name>
 
@@ -30,21 +30,12 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Required at runtime, also includes the ASM library -->
-        <dependency>
-            <groupId>cglib</groupId>
-            <artifactId>cglib</artifactId>
-            <version>3.3.0</version>
-        </dependency>
-
-        <!-- Note: transitively added when adding cglib as dependency -->
-        <!--
+        <!-- ASM library -->
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
             <version>7.0</version>
         </dependency>
-        -->
 
         <!-- https://mvnrepository.com/artifact/org.objenesis/objenesis -->
         <dependency>
@@ -96,10 +87,6 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <relocations>
                                 <relocation>
-                                    <pattern>net.sf.cglib</pattern>
-                                    <shadedPattern>com.bergerkiller.mountiplex.dep.net.sf.cglib</shadedPattern>
-                                </relocation>
-                                <relocation>
                                     <pattern>org.objectweb.asm</pattern>
                                     <shadedPattern>com.bergerkiller.mountiplex.dep.org.objectweb.asm</shadedPattern>
                                 </relocation>
@@ -115,7 +102,6 @@
                             <artifactSet>
                                 <includes>
                                     <include>org.ow2.asm</include>
-                                    <include>cglib</include>
                                     <include>org.objenesis</include>
                                     <include>org.javassist</include>
                                 </includes>

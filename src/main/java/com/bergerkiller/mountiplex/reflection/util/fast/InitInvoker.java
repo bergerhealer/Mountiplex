@@ -287,10 +287,9 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         protected Invoker<T> create() {
             if (GeneratedMethodInvoker.canCreate(method)) {
-                return (Invoker<T>) GeneratedMethodInvoker.create(method);
+                return GeneratedMethodInvoker.create(method);
             } else {
                 return ReflectionInvoker.create(method);
             }

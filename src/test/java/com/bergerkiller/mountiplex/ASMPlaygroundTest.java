@@ -2,9 +2,6 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -24,33 +21,18 @@ public class ASMPlaygroundTest {
     }
 
     public static abstract class HandleBase {
-        public abstract String someMethod(int k, int w, int c, int bb, int bbb, int bbbb);
+        public HandleBase(String as, double a, double b, double c, String cool) {
+            
+        }
     }
 
-    public static class Handle {
-        public String getClassName(Class<?> clazz) {
-            return clazz.getName();
+    public static class Handle extends HandleBase {
+
+        public Handle(String as, double a, double b, double c, String cool) {
+            super(as, a, b, c, cool);
+            // TODO Auto-generated constructor stub
         }
 
-        public String getMethodName(Method method) {
-            return method.getName();
-        }
-
-        public String getFieldName(Field field) {
-            return field.getName();
-        }
-        
-        public Method getDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) throws NoSuchMethodException, SecurityException {
-            return clazz.getDeclaredMethod(name, parameterTypes);
-        }
-
-        public Field getDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException, SecurityException {
-            return clazz.getDeclaredField(name);
-        }
-
-        public Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
-            return Class.forName(name, initialize, classLoader);
-        }
     }
 
     @Ignore

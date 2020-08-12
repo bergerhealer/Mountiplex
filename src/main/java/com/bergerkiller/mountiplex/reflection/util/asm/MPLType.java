@@ -12,8 +12,6 @@ import org.objectweb.asm.Type;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 
-import net.sf.cglib.core.Signature;
-
 /**
  * Re-implementation of some methods of ASM's Type class to make use of the
  * {@link ReflectionInfoHelper} when resolving classes. This is to make sure that
@@ -31,6 +29,25 @@ public class MPLType {
      */
     public static String getInternalName(final Class<?> clazz) {
         return helper.getClassName(clazz).replace('.', '/');
+    }
+
+    /**
+     * Turns an array of classes into an array of internal names. If the input array
+     * is null or empty, then null is returned.
+     * 
+     * @param types
+     * @return names of all the types, or null if types is null or of length 0
+     */
+    public static String[] getInternalNames(Class<?>[] types) {
+        if (types == null || types.length == 0) {
+            return null;
+        } else {
+            String[] names = new String[types.length];
+            for (int i = 0; i < types.length; i++) {
+                names[i] = getInternalName(types[i]);
+            }
+            return names;
+        }
     }
 
     /**
@@ -145,7 +162,7 @@ public class MPLType {
      * @return adapted opcode
      */
     public static int getOpcode(Class<?> clazz, int opcode) {
-        return Type.getType(clazz).getOpcode(opcode);
+        return getType(clazz).getOpcode(opcode);
     }
 
     /**
@@ -243,9 +260,9 @@ public class MPLType {
      * @param method
      * @return signature
      */
-    public static Signature createSignature(Method method) {
-        return new Signature(helper.getMethodName(method), getReturnType(method), getArgumentTypes(method));
-    }
+    //public static Signature createSignature(Method method) {
+    //    return new Signature(helper.getMethodName(method), getReturnType(method), getArgumentTypes(method));
+   // }
 
     /**
      * Gets the name of a Class

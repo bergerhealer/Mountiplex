@@ -128,24 +128,10 @@ public class ClassBytecodeLoader {
         }
     }
 
-    private static String[] toInternalNames(Class<?>[] types) {
-        if (types == null || types.length == 0) {
-            return null;
-        } else {
-            String[] names = new String[types.length];
-            for (int i = 0; i < types.length; i++) {
-                names[i] = MPLType.getInternalName(types[i]);
-            }
-            return names;
-        }
-    }
-
     private static byte[] generateMockByteCode(Class<?> clazz) {
         ClassWriter cw = new ClassWriter(0);
         FieldVisitor fv;
         MethodVisitor mv;
-
-        System.out.println("GENERATING " + MPLType.getName(clazz));
 
         // Select superclass. For interface this is null, use Object in that case.
         Class<?> superClass = clazz.getSuperclass();
@@ -159,7 +145,7 @@ public class ClassBytecodeLoader {
                 MPLType.getInternalName(clazz),
                 null, /* signature */
                 MPLType.getInternalName(superClass),
-                toInternalNames(clazz.getInterfaces()));
+                MPLType.getInternalNames(clazz.getInterfaces()));
 
         // Add all the fields
         for (Field field : clazz.getDeclaredFields()) {
@@ -177,7 +163,7 @@ public class ClassBytecodeLoader {
                     "<init>",
                     MPLType.getConstructorDescriptor(constructor),
                     null, /* signature */
-                    toInternalNames(constructor.getExceptionTypes()));
+                    MPLType.getInternalNames(constructor.getExceptionTypes()));
             mv.visitEnd();
         }
 
@@ -187,7 +173,7 @@ public class ClassBytecodeLoader {
                     MPLType.getName(method),
                     MPLType.getMethodDescriptor(method),
                     null, /* signature */
-                    toInternalNames(method.getExceptionTypes()));
+                    MPLType.getInternalNames(method.getExceptionTypes()));
             mv.visitEnd();
         }
 

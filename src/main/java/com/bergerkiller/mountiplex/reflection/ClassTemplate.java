@@ -1,13 +1,12 @@
 package com.bergerkiller.mountiplex.reflection;
 
-import net.sf.cglib.core.Signature;
-
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -467,9 +466,7 @@ public class ClassTemplate<T> {
         }
     }
 
-    // N.B.: Use rawtype otherwise IDEs complain of Signature
-    @SuppressWarnings("unchecked")
-    private void addMethods(Class<?> type, HashSet</*Signature*/ ?> addedSignatures) {
+    private void addMethods(Class<?> type, HashSet<MethodSignature> addedSignatures) {
         // Get sorted array of methods
         Method[] declMethods = type.getDeclaredMethods();
 
@@ -508,8 +505,7 @@ public class ClassTemplate<T> {
 
         // Add while checking for duplicates using the hashset, ignoring those
         for (Method m : declMethods) {
-            Signature sig = MPLType.createSignature(m);
-            if (((HashSet<Signature>) addedSignatures).add(sig)) {
+            if (addedSignatures.add(new MethodSignature(m))) {
                 typeMethods.add(new MethodDeclaration(resolver, m));
             }
         }
@@ -523,7 +519,7 @@ public class ClassTemplate<T> {
             // Load all methods top-down and then all abstract methods from the interfaces
             Class<?> currentType = this.getType();
             if (currentType != null) {
-                HashSet<Signature> addedSignatures = new HashSet<Signature>();
+                HashSet<MethodSignature> addedSignatures = new HashSet<MethodSignature>();
                 do {
                     addMethods(currentType, addedSignatures);
                 } while ((currentType = currentType.getSuperclass()) != null);

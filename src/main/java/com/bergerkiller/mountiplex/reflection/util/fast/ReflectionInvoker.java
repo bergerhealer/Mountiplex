@@ -8,7 +8,7 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 public class ReflectionInvoker<T> implements Invoker<T> {
     private static final Object[] NO_ARGS = new Object[0];
-    private final java.lang.reflect.Method m;
+    protected final java.lang.reflect.Method m;
 
     protected ReflectionInvoker(java.lang.reflect.Method method) {
         this.m = method;
@@ -34,7 +34,7 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         return null;
     }
 
-    private RuntimeException f(Object instance, Object[] args, Throwable t) {
+    protected RuntimeException f(Object instance, Object[] args, Throwable t) {
         // Check instance
         RuntimeException iex = checkInstance(instance);
         if (iex != null) {

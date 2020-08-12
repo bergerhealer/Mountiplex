@@ -13,20 +13,34 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
-public abstract class GeneratedMethodInvoker implements Invoker<Object> {
-    public final java.lang.reflect.Method m;
+/**
+ * Class is generated at runtime to invoke a method directly.
+ * The input instance and arguments are unpacked, then the method is called,
+ * without using any reflection to do so.
+ */
+public abstract class GeneratedMethodInvoker<T> implements Invoker<T> {
 
-    public GeneratedMethodInvoker(java.lang.reflect.Method method) {
-        this.m = method;
-    }
-
+    /**
+     * Checks whether a method is compatible with the GeneratedMethodInvoker.
+     * Only public methods with 5 arguments or less can be called.
+     * 
+     * @param method
+     * @return True if compatible and create() will succeed.
+     */
     public static boolean canCreate(java.lang.reflect.Method method) {
         Class<?>[] paramTypes = method.getParameterTypes();
         return paramTypes.length <= 5 && Resolver.isPublic(method);
     }
 
-    public static GeneratedMethodInvoker create(java.lang.reflect.Method method) {
-        ExtendedClassWriter<GeneratedMethodInvoker> cw = ExtendedClassWriter.builder(GeneratedMethodInvoker.class)
+    /**
+     * Generates a new method invoker. Internal use only. Method may only have 5 arguments or less,
+     * and must be public. Check using {@link #canCreate(java.lang.reflect.Method)} first.
+     * 
+     * @param method The method to invoke
+     * @return generated invoker
+     */
+    public static <T> GeneratedMethodInvoker<T> create(java.lang.reflect.Method method) {
+        ExtendedClassWriter<GeneratedMethodInvoker<T>> cw = ExtendedClassWriter.builder(GeneratedMethodInvoker.class)
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setAccess(ACC_FINAL).build();
 
@@ -42,11 +56,10 @@ public abstract class GeneratedMethodInvoker implements Invoker<Object> {
 
         // Constructor passing along the Java Reflection Method
         {
-            mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/lang/reflect/Method;)V", null, null);
+            mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);
-            mv.visitVarInsn(ALOAD, 1);
-            mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(GeneratedMethodInvoker.class), "<init>", "(Ljava/lang/reflect/Method;)V", false);
+            mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(GeneratedMethodInvoker.class), "<init>", "()V", false);
             mv.visitInsn(RETURN);
             mv.visitMaxs(2, 2);
             mv.visitEnd();
@@ -145,6 +158,6 @@ public abstract class GeneratedMethodInvoker implements Invoker<Object> {
             mv.visitEnd();
         }
 
-        return cw.generateInstance(new Class<?>[] {java.lang.reflect.Method.class}, new Object[] { method });
+        return cw.generateInstance();
     }
 }

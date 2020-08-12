@@ -2,7 +2,6 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
-import java.lang.reflect.Method;
 import java.util.Map;
 
 import org.junit.Test;
@@ -64,11 +63,7 @@ public class MethodSpeedTest {
         System.out.println("Execution time of " + testName + ": " + (endTime - startTime) + "ms");
     }
 
-    public static class CustomGenSet extends GeneratedMethodInvoker {
-
-        public CustomGenSet(Method method) {
-            super(method);
-        }
+    public static class CustomGenSet extends GeneratedMethodInvoker<Object> {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {
@@ -86,11 +81,7 @@ public class MethodSpeedTest {
         }
     }
 
-    public static class CustomGenGet extends GeneratedMethodInvoker {
-
-        public CustomGenGet(Method method) {
-            super(method);
-        }
+    public static class CustomGenGet extends GeneratedMethodInvoker<Object> {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {
@@ -111,8 +102,8 @@ public class MethodSpeedTest {
     public void testMethodSpeed() {
         final SpeedTestObject object = new SpeedTestObject();
         final SpeedTestObjectHandle objectHandle = SpeedTestObjectHandle.createHandle(object);
-        final CustomGenSet setter = new CustomGenSet(SpeedTestObjectHandle.T.setSMethod.toJavaMethod());
-        final CustomGenGet getter = new CustomGenGet(SpeedTestObjectHandle.T.getSMethod.toJavaMethod());
+        final CustomGenSet setter = new CustomGenSet();
+        final CustomGenGet getter = new CustomGenGet();
 
         // Quickly test all generated things
         assertEquals(28, objectHandle.lotsOfArgs(1, 2, 3, 4, 5, 6, 7));

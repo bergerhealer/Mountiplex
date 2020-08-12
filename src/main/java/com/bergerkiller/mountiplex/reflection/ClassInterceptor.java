@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -14,19 +15,11 @@ import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
-import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.ConstantReturningInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedHook;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
-
-import net.sf.cglib.core.Signature;
-import net.sf.cglib.proxy.Callback;
-import net.sf.cglib.proxy.CallbackFilter;
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.FixedValue;
-import net.sf.cglib.proxy.MethodInterceptor;
-import net.sf.cglib.proxy.MethodProxy;
-import net.sf.cglib.proxy.NoOp;
 
 /**
  * Base implementation for hooking other classes and intercepting method calls.
@@ -248,51 +241,7 @@ public abstract class ClassInterceptor {
      * @throws Throwable
      */
     public final Object invokeSuperMethod(Method method, Object instance, Object[] args) {
-        try {
-            if (instance instanceof EnhancedObject) {
-                return findMethodProxy(method, instance).invokeSuper(instance, args);
-            } else {
-                return method.invoke(instance, args);
-            }
-        } catch (Throwable ex) {
-            throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
-        }
-    }
-
-    /**
-     * Finds the CGLib method proxy that can be used to invoke a super method in the enhanced instance.
-     * No caching is done, so it may be preferable to cache the proxy when repeatedly used.
-     * Please note that the MethodProxy returned is only valid for objects hooked by this
-     * ClassInterceptor and Object instance type passed in.
-     * 
-     * @param method to find
-     * @param instance to find the method in
-     * @return MethodProxy
-     * @throws UnsupportedOperationException when the method can not be proxied
-     */
-    protected final MethodProxy findMethodProxy(Method method, Object instance) {
-        // Fast access: check if the last-called proxy matches the method
-        // This is a common case where a handler calls a base method
-        // Doing it this way avoids a map get/put call
-        StackInformation stack = this.stackInfo.get();
-        if (instance == stack.frame.instance && method.equals(stack.frame.method)) {
-            return stack.frame.proxy;
-        }
-
-        // Slower way of instantiating a new MethodProxy for this type
-        Signature sig = MPLType.createSignature(method);
-        MethodProxy proxy = null;
-        try {
-            proxy = MethodProxy.find(instance.getClass(), sig);
-        } catch (Throwable t) {
-        }
-
-        // Dont allow this!
-        if (proxy == null) {
-            throw new UnsupportedOperationException("Proxy for super method " + method.toGenericString() + 
-                    " does not exist in class " + MPLType.getName(instance.getClass()));
-        }
-        return proxy;
+        return GeneratedHook.createSuperInvoker(instance.getClass(), method).invokeVA(instance, args);
     }
 
     /**
@@ -340,89 +289,55 @@ public abstract class ClassInterceptor {
         // The key used to access the EnhancedClass instance for creating this instance
         final ClassPair key = new ClassPair(interceptor.getClass(), objectType);
 
-        // A list of fixed values returned by the EnhancedObject interface
-        final Callback[] callbacks = new Callback[] {
-                new EnhancedObjectProperty("CI_getInterceptor", interceptor),
-                new EnhancedObjectProperty("CI_getBaseType", objectType),
-                new EnhancedObjectProperty("CI_getEnhancedClass", null),
-                new CallbackMethodInterceptor(interceptor),
-                NoOp.INSTANCE
-        };
-
         // Try to find the CGLib-generated enhanced class that provides the needed callbacks
         // If none exists yet, generate a new one and put it into the table for future re-use
         EnhancedClass enhanced = enhancedTypes.get(key);
         if (enhanced == null) {
-            Enhancer enhancer = new Enhancer();
-            enhancer.setClassLoader(key.hookClass.getClassLoader());
+            final EnhancedClass new_enhanced = new EnhancedClass(objectType);
+            final StackInformation current_stack = interceptor.stackInfo.get();
 
-            // When its an interface, we have to implement it as opposed to extending it
-            if (objectType.isInterface()) {
-                enhancer.setSuperclass(Object.class);
-                enhancer.setInterfaces(new Class<?>[] { EnhancedObject.class, objectType } );
-            } else {
-                enhancer.setSuperclass(objectType);
-                enhancer.setInterfaces(new Class<?>[] { EnhancedObject.class } );
-            }
+            new_enhanced.setupEnhancedType(GeneratedHook.generate(objectType, Arrays.asList(EnhancedObject.class), method -> {
+                String name = MPLType.getName(method);
 
-            // Create callback filter
-            EnhancedClassCallbackFilter callbackFilter = new EnhancedClassCallbackFilter(interceptor, callbacks);
+                // Implement EnhancedObject interface
+                if (method.getParameterCount() == 0) {
+                    if (name.equals("CI_getInterceptor")) {
+                        return new_enhanced.getInterceptorCallback;
+                    } else if (name.equals("CI_getBaseType")) {
+                        return ConstantReturningInvoker.of(objectType);
+                    } else if (name.equals("CI_getEnhancedClass")) {
+                        return ConstantReturningInvoker.of(new_enhanced);
+                    }
+                }
 
-            // Initialize the callback types and callback mapping
-            enhancer.setCallbackTypes(MountiplexUtil.getTypes(callbacks));
-            enhancer.setCallbackFilter(callbackFilter);
+                // Ask interceptor what methods to intercept
+                Invoker<?> callback = interceptor.getCallback(method);
+                if (callback == null) {
+                    return null;
+                }
+
+                // Register the callback
+                current_stack.storeCallback(method, callback);
+
+                // Create callback handler for this method
+                // This interceptor will call the actual callback
+                return new CallbackMethodInterceptor(method);
+            }));
 
             // Finally create the enhanced class type and store it in the mapping for later use
-            enhanced = new EnhancedClass(objectType, enhancer.createClass(), callbackFilter);
+            enhanced = new_enhanced;
             enhancedTypes.put(key, enhanced);
             interceptor.onClassGenerated(enhanced.enhancedType);
-        } else {
-            // Set to valid values before initializing callbacks potentially
-            enhanced.callbackFilter.interceptor = interceptor;
-            enhanced.callbackFilter.callbacks = callbacks;
         }
 
-        // Update EnhancedClass property
-        for (int i = 0; i < callbacks.length; i++) {
-            if (callbacks[i] instanceof EnhancedObjectProperty) {
-                EnhancedObjectProperty prop = (EnhancedObjectProperty) callbacks[i];
-                if (prop.name.equals("CI_getEnhancedClass")) {
-                    callbacks[i] = new EnhancedObjectProperty(prop.name, enhanced);
-                }
-            }
-        }
-
-        // Register the method callbacks, and then create the enhanced object instance using Objenesis
-        // Note that since we don't call any constructors, CGLib does not update the object callback list
-        // We force an explicit internal update by calling the CI_getInterceptor() interface function
-        // After this is done, we must delete the callbacks again to prevent a memory leak
-        // This is done using disableCallbacks() and by setting filter members to null
-        // This way the interceptor instance is allowed to be garbage collected
-        enhanced.setCallbacks(callbacks);
+        // Create the enhanced object instance using Objenesis
+        // Explicitly initialize the result of CI_getInterceptor()
+        enhanced.currentInterceptor = interceptor;
         T enhancedObject = enhanced.createEnhanced(object, paramTypes, params);
         interceptor.lastHookedObject.value = enhancedObject;
         ((EnhancedObject) enhancedObject).CI_getInterceptor();
-        enhanced.disableCallbacks();
+        enhanced.currentInterceptor = null;
         return enhancedObject;
-    }
-
-    private static class EnhancedObjectProperty implements FixedValue {
-        private final String name;
-        private final Object value;
-
-        public EnhancedObjectProperty(String name, Object value) {
-            this.name = name;
-            this.value = value;
-        }
-
-        public final String getName() {
-            return name;
-        }
-
-        @Override
-        public Object loadObject() throws Exception {
-            return this.value;
-        }
     }
 
     private static final class ClassPair {
@@ -452,110 +367,37 @@ public abstract class ClassInterceptor {
     }
 
     /**
-     * When generating the CGLib proxy class, handles returning the appropriate callbacks
-     * for each method that can be overridden.
-     */
-    private static final class EnhancedClassCallbackFilter implements CallbackFilter {
-        public ClassInterceptor interceptor;
-        public Callback[] callbacks;
-
-        public EnhancedClassCallbackFilter(ClassInterceptor interceptor, Callback[] callbacks) {
-            this.interceptor = interceptor;
-            this.callbacks = callbacks;
-        }
-
-        @Override
-        public int accept(Method method) {
-            // We don't expect this to be called after the first time
-            if (callbacks == null) {
-                throw new IllegalStateException("Filter was disabled and is called too late");
-            }
-
-            // Properties are returned as Fixed Value types for quick access
-            for (int i = 0; i < callbacks.length; i++) {
-                if (callbacks[i] instanceof EnhancedObjectProperty &&
-                        ((EnhancedObjectProperty) callbacks[i]).getName().equals(MPLType.getName(method))) {
-                    return i;
-                }
-            }
-
-            // Handle callbacks/no-op
-            StackInformation stackInfo = interceptor.stackInfo.get();
-            Invoker<?> callback = stackInfo.getCallback(method);
-            if (callback == null) {
-                callback = interceptor.getCallback(method);
-                if (callback == null) {
-                    return (callbacks.length - 1); /* No callback, redirect to No Operation handler */
-                }
-                stackInfo.storeCallback(method, callback);
-            }
-            return (callbacks.length - 2); /* Has callback, redirect to CallbackMethodInterceptor */
-        }
-    }
-
-    /**
      * Maintains metadata information about a particular CGLib-enhanced class.
      * Also handles the construction of new objects during hooking/unhooking.
      */
     public static final class EnhancedClass {
-        private static final String SET_THREAD_CALLBACKS_NAME = "CGLIB$SET_THREAD_CALLBACKS";
-        public final ObjectInstantiator<?> enhancedInstantiator;
-        public final ObjectInstantiator<?> baseInstantiator;
         public final Class<?> baseType;
-        public final Class<?> enhancedType;
-        private final EnhancedClassCallbackFilter callbackFilter;
+        public final ObjectInstantiator<?> baseInstantiator;
+        public final Invoker<?> getInterceptorCallback;
         private final FastField<?>[] baseTypeFields;
-        private final FastMethod<Void> setCallbacksMethod;
-        private final Callback[] disabledCallbacks;
+        public Class<?> enhancedType;
+        public ObjectInstantiator<?> enhancedInstantiator;
+        public ClassInterceptor currentInterceptor;
 
-        public EnhancedClass(Class<?> baseType, Class<?> enhancedType, EnhancedClassCallbackFilter callbackFilter) {
+        public EnhancedClass(Class<?> baseType) {
             this.baseType = baseType;
-            this.enhancedType = enhancedType;
-            this.callbackFilter = callbackFilter;
             this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
-            this.enhancedInstantiator = ObjenesisHelper.getInstantiatorOf(enhancedType);
             if (this.baseInstantiator == null)
                 throw new RuntimeException("Base Class " + MPLType.getName(baseType) + " has no instantiator");
-            if (this.enhancedInstantiator == null)
-                throw new RuntimeException("Enhanced Class " + MPLType.getName(enhancedType) + " has no instantiator");
-        
-            // This method is cached to reduce performance overhead when constructing new enhanced classes
-            try {
-                Method m = enhancedType.getDeclaredMethod(SET_THREAD_CALLBACKS_NAME, new Class[]{ Callback[].class });
-                this.setCallbacksMethod = new FastMethod<Void>(m);
-            } catch (Throwable t) {
-                throw MountiplexUtil.uncheckedRethrow(t);
-            }
 
             // These are used for transferring all fields from one Object to another
             List<FastField<?>> fieldsList = ReflectionUtil.fillFastFields(new ArrayList<FastField<?>>(), baseType);
             this.baseTypeFields = fieldsList.toArray(new FastField<?>[fieldsList.size()]);
 
-            // These disabled callbacks are used whenever the enhanced type is created outside of here
-            // This can happen when, for example, calling a constructor on the enhanced type.
-            // Without these a random interceptor, or worse, null ends up being used
-            this.disabledCallbacks = new Callback[] {
-                    new EnhancedObjectProperty("CI_getInterceptor", null),
-                    new EnhancedObjectProperty("CI_getBaseType", baseType),
-                    new EnhancedObjectProperty("CI_getEnhancedClass", EnhancedClass.this),
-                    new CallbackMethodInterceptor(null) {
-                        @Override
-                        public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
-                            return proxy.invokeSuper(obj, args);
-                        }
-                    },
-                    NoOp.INSTANCE
-            };
+            // Initializes the CI_getInterceptor() function, stores it in a field
+            this.getInterceptorCallback = GeneratedHook.createLocalField(() -> currentInterceptor);
         }
 
-        public final void setCallbacks(Callback[] callbacks) {
-            this.setCallbacksMethod.invoke(null, callbacks);
-        }
-
-        public final void disableCallbacks() {
-            this.setCallbacksMethod.invoke(null, this.disabledCallbacks);
-            this.callbackFilter.interceptor = null;
-            this.callbackFilter.callbacks = null;
+        public void setupEnhancedType(Class<?> enhancedType) {
+            this.enhancedType = enhancedType;
+            this.enhancedInstantiator = ObjenesisHelper.getInstantiatorOf(enhancedType);
+            if (this.enhancedInstantiator == null)
+                throw new RuntimeException("Enhanced Class " + MPLType.getName(enhancedType) + " has no instantiator");
         }
 
         @SuppressWarnings("unchecked")
@@ -608,16 +450,17 @@ public abstract class ClassInterceptor {
      * <li>{@link ClassInterceptor#instance()}
      * </ul>
      */
-    private static class CallbackMethodInterceptor implements MethodInterceptor {
-        private final ClassInterceptor interceptor;
+    private static class CallbackMethodInterceptor implements Invoker<Object> {
+        private final Method method;
 
-        public CallbackMethodInterceptor(ClassInterceptor interceptor) {
-            this.interceptor = interceptor;
+        public CallbackMethodInterceptor(Method method) {
+            this.method = method;
         }
 
         @Override
-        public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
-            StackInformation stack = this.interceptor.stackInfo.get();
+        public Object invokeVA(Object instance, Object... args) {
+            ClassInterceptor interceptor = ((EnhancedObject) instance).CI_getInterceptor();
+            StackInformation stack = interceptor.stackInfo.get();
             StackFrame frame = stack.frame.next;
 
             // Push new stack element
@@ -627,9 +470,7 @@ public abstract class ClassInterceptor {
             stack.frame = frame;
 
             try {
-                frame.instance = obj;
-                frame.proxy = proxy;
-                frame.method = method;
+                frame.instance = instance;
 
                 // Find method callback delegate if we don't know yet
                 Invoker<?> callback = stack.getCallback(method);
@@ -640,7 +481,7 @@ public abstract class ClassInterceptor {
                     if (callback == null) {
                         callback = interceptor.getCallback(method);
                         if (callback == null) {
-                            callback = new SuperClassInvokable(method, proxy);
+                            callback = GeneratedHook.createSuperInvoker(instance.getClass(), method);
                         }
 
                         // Register globally if needed
@@ -656,11 +497,11 @@ public abstract class ClassInterceptor {
                 // Make sure to inline the InterceptorCallback to avoid a stack frame
                 if (callback instanceof InterceptorCallback) {
                     callback = ((InterceptorCallback) callback).interceptorCallback;
-                    obj = interceptor;
+                    instance = interceptor;
                 }
 
                 // Execute the callback
-                return callback.invokeVA(obj, args);
+                return callback.invokeVA(instance, args);
             } finally {
                 // Pop stack element
                 // Make sure to reset instance, otherwise we risk a memory leak
@@ -669,28 +510,6 @@ public abstract class ClassInterceptor {
             }
         }
     }
-
-    /**
-     * This will never be used in reality and is strictly here to deal with unexpected NULL callbacks
-     */
-    private static final class SuperClassInvokable implements Invoker<Object> {
-        private final MethodProxy proxy;
-        private final Method method;
-
-        public SuperClassInvokable(Method method, MethodProxy proxy) {
-            this.method = method;
-            this.proxy = proxy;
-        }
-
-        @Override
-        public Object invokeVA(Object instance, Object... args) {
-            try {
-                return proxy.invokeSuper(instance, args);
-            } catch (Throwable ex) {
-                throw ReflectionUtil.fixMethodInvokeException(method, instance, args, ex);
-            }
-        }
-    };
 
     /**
      * Calls a method on this interceptor when invoked. The interceptorCallback field
@@ -774,8 +593,6 @@ public abstract class ClassInterceptor {
      */
     private static final class StackFrame {
         public Object instance = null;
-        public MethodProxy proxy = null;
-        public Method method = null;
         public final StackFrame prev;
         public StackFrame next = null;
 

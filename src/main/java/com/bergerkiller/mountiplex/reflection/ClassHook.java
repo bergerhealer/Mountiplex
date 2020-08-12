@@ -17,10 +17,9 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedHook;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
-
-import net.sf.cglib.proxy.MethodProxy;
 
 public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     private static Map<Class<?>, HookMethodList> hookMethodMap = new HashMap<Class<?>, HookMethodList>();
@@ -49,7 +48,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
         for (HookMethodEntry entry : methods.entries) {
             // Check if signature matches with method
-            MethodDeclaration m = new MethodDeclaration(methodDec.getResolver(), entry.declaration);
+            MethodDeclaration m = (new MethodDeclaration(methodDec.getResolver(), entry.declaration)).resolveName();
             if (m.isValid() && m.isResolved() && m.match(methodDec)) {
                 entry.setMethod(method_type, method);
                 //System.out.println("[" + method.getDeclaringClass().getSimpleName() + "] " +
@@ -73,7 +72,12 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                 if (EnhancedObject.class.isAssignableFrom(hookedType)) {
                     baseType = hookedType.getSuperclass();
                     if (baseType.equals(Object.class) && hookedType.getInterfaces().length > 1) {
-                        baseType = hookedType.getInterfaces()[1];
+                        for (Class<?> interfaceType : hookedType.getInterfaces()) {
+                            if (interfaceType != EnhancedObject.class) {
+                                baseType = interfaceType;
+                                break;
+                            }
+                        }
                     }
                 }
                 MountiplexUtil.LOGGER.warning("Hooked method " + method.toString() +
@@ -137,7 +141,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
     private static class HookMethodEntry extends InterceptorCallback {
         public final InputTypeMap<Method> superMethodMap = new InputTypeMap<Method>();
-        public final Map<Class<?>, MethodProxy> superMethodProxyMap = new HashMap<Class<?>, MethodProxy>();
+        public final Map<Class<?>, Invoker<?>> superInvokerMap = new HashMap<Class<?>, Invoker<?>>();
         public final String declaration;
         public final boolean optional;
         public final Method method;
@@ -149,28 +153,19 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             Class<?> enhancedType = enhancedInstance.getClass();
 
             if (enhancedInstance instanceof EnhancedObject) {
-                // Find a method proxy to use for calling the super method, and cache it
-                MethodProxy proxy = superMethodProxyMap.get(enhancedType);
-                if (proxy == null) {
+                // Find a cached super-method invoker, or create one if missing
+                Invoker<?> invoker = superInvokerMap.computeIfAbsent(enhancedType, (type) -> {
                     EnhancedObject enhanced = (EnhancedObject) enhancedInstance;
                     Method m = findMethodIn(TypeDeclaration.fromClass(enhanced.CI_getBaseType()));
                     if (m == null) {
                         throw new UnsupportedOperationException("Class " + MPLType.getName(enhanced.CI_getBaseType()) + 
                                 " does not contain method " + HookMethodEntry.this.toString());
                     }
-
-                    proxy = enhanced.CI_getInterceptor().findMethodProxy(m, enhancedInstance);
-                    superMethodProxyMap.put(enhancedType, proxy);
-                }
+                    return GeneratedHook.createSuperInvoker(enhancedType, m);
+                });
 
                 // Call invokeSuper() on the MethodProxy to call the base class method
-                try {
-                    return proxy.invokeSuper(enhancedInstance, args);
-                } catch (Throwable ex) {
-                    Class<?> baseType = ((EnhancedObject) enhancedInstance).CI_getBaseType();
-                    Method m = findMethodIn(TypeDeclaration.fromClass(baseType));
-                    throw ReflectionUtil.fixMethodInvokeException(m, enhancedInstance, args, ex);
-                }
+                return invoker.invokeVA(enhancedInstance, args);
             } else {
                 // Not an enhanced instance, find the method in the class and invoke
                 Method m = findMethodIn(TypeDeclaration.fromClass(enhancedType));
