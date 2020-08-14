@@ -6,7 +6,7 @@ import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
  * Wraps a FastField in a converter
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class FastConvertedField<T> {
+public class FastConvertedField<T> implements IgnoresRemapping {
     private final FastField<Object> field;
     private final DuplexConverter<Object, T> converter;
 

@@ -24,6 +24,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -39,7 +40,7 @@ public class Template {
      *
      * @param <H> - Handle type matching this Class that is used for wrapping instances
      */
-    public static class Class<H extends Handle> implements LazyInitializedObject {
+    public static class Class<H extends Handle> implements LazyInitializedObject, IgnoresRemapping {
         private boolean valid = false;
         private boolean optional = false;
         private String classPath = null;
@@ -192,7 +193,7 @@ public class Template {
             this.classDec = builder.classDec;
             this.optional = builder.isOptional;
             this.valid = (this.classType != null && this.classDec != null);
-            this.instantiator = new NullInstantiator<Object>(classType);
+            this.instantiator = NullInstantiator.of(classType);
 
             // Create duplex converter between handle type and instance type
             if (this.classType != null && this.handleType != null) {
@@ -416,7 +417,7 @@ public class Template {
     /**
      * Wraps instances of a {@link Class} providing per-object instance methods.
      */
-    public static abstract class Handle {
+    public static abstract class Handle implements IgnoresRemapping {
         /**
          * Checks whether the backing raw type is an instance of a certain type of class
          * 
@@ -573,7 +574,7 @@ public class Template {
 
     // provides a default 'init' method to use when initializing the Template
     // all declared class element types must extend this type
-    public static abstract class TemplateElement<T extends Declaration> implements LazyInitializedObject {
+    public static abstract class TemplateElement<T extends Declaration> implements LazyInitializedObject, IgnoresRemapping {
         private boolean _optional = false;
         private boolean _readonly = false;
         protected boolean _hasClass = true;

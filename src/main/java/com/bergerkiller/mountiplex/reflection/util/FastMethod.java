@@ -5,7 +5,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
-public class FastMethod<T> implements Invoker<T>, LazyInitializedObject {
+public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, IgnoresRemapping {
     private MethodDeclaration method;
     private Invoker<T> invoker;
 

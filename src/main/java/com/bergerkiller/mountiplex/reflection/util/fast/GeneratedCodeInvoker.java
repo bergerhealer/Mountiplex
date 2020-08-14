@@ -13,20 +13,21 @@ import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLCtNewMethod;
 
 import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
-import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
 /**
  * Generates an invoker that executes a method body
  */
-public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
+public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, IgnoresRemapping {
     private static final List<ResolvedClassPool> CACHED_CLASS_POOLS = new ArrayList<ResolvedClassPool>();
 
     private static ResolvedClassPool retrieveClassPool() {
@@ -60,7 +61,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
 
     private static CtMethod makeMethodAndLog(String methodBody, CtClass invoker) {
         try {
-            return CtNewMethod.make(methodBody, invoker);
+            return MPLCtNewMethod.make(methodBody, invoker);
         } catch (CannotCompileException ex) {
             MountiplexUtil.LOGGER.severe("Failed to compile method body (" + ex.getReason() + "):");
             MountiplexUtil.LOGGER.severe(methodBody);
@@ -178,7 +179,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
     private static final class ResolvedClassPool extends ClassPool {
 
         public ResolvedClassPool() {
-            super(true);
+            super();
             appendClassPath(ClassBytecodeLoader.CLASSPATH);
         }
 

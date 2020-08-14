@@ -7,6 +7,7 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.TestObject;
 
@@ -125,6 +126,7 @@ public class MethodDeclarationTest {
     }
 
     // Tests requirements logic for a public field, which should use the field directly
+    // It should put MPLMemberResolver.IGNORE_PREFIX before the field name to avoid additional remapping
     @Test
     public void testMethodWithPublicFieldRequirements() {
         ClassResolver resolver = ClassResolver.DEFAULT.clone();
@@ -140,8 +142,8 @@ public class MethodDeclarationTest {
         assertTrue(dec.isResolved());
         assertEquals(
                 "{\n" +
-                "  instance.d = instance.d + n;\n" +
-                "  return instance.d;\n" +
+                "  instance." + MPLMemberResolver.IGNORE_PREFIX + "d = instance." + MPLMemberResolver.IGNORE_PREFIX + "d + n;\n" +
+                "  return instance." + MPLMemberResolver.IGNORE_PREFIX + "d;\n" +
                 "}\n",
                 dec.body);
         assertEquals(1, dec.bodyRequirements.length);
@@ -246,7 +248,7 @@ public class MethodDeclarationTest {
 
         assertEquals(
                 "{\n" +
-                "  return instance.publicLotsOfArgs(1, 2, 3, 4, 5, 6, n);\n" +
+                "  return instance." + MPLMemberResolver.IGNORE_PREFIX + "publicLotsOfArgs(1, 2, 3, 4, 5, 6, n);\n" +
                 "}\n",
                 dec.body);
         assertEquals(1, dec.bodyRequirements.length);

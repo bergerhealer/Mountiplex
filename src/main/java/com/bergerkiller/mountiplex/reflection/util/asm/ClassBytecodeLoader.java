@@ -17,6 +17,8 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+
 import javassist.ClassPath;
 import javassist.NotFoundException;
 
@@ -35,15 +37,18 @@ public class ClassBytecodeLoader {
         @Override
         public InputStream openClassfile(String classname) throws NotFoundException {
             // Ask ClassLoader first
+            // Check loading from .class is allowed
             String filename = '/' + classname.replace('.', '/') + ".class";
-            InputStream stream = ClassBytecodeLoader.class.getResourceAsStream(filename);
-            if (stream != null) {
-                return stream;
+            if (Resolver.canLoadClassPath(classname)) {
+                InputStream stream = ClassBytecodeLoader.class.getResourceAsStream(filename);
+                if (stream != null) {
+                    return stream;
+                }
             }
 
             // Retrieve the Class by this path
             try {
-                Class<?> clazz = MPLType.getClassByName(classname, false, ClassBytecodeLoader.class.getClassLoader());
+                Class<?> clazz = MPLType.getClassByName(classname);
                 return new ByteArrayInputStream(generateMockByteCode(clazz));
             } catch (Throwable t) {
                 return null;
@@ -53,15 +58,18 @@ public class ClassBytecodeLoader {
         @Override
         public URL find(String classname) {
             // Ask ClassLoader first
+            // Check loading from .class is allowed
             String filename = '/' + classname.replace('.', '/') + ".class";
-            URL url = ClassBytecodeLoader.class.getResource(filename);
-            if (url != null) {
-                return url;
+            if (Resolver.canLoadClassPath(classname)) {
+                URL url = ClassBytecodeLoader.class.getResource(filename);
+                if (url != null) {
+                    return url;
+                }
             }
 
             // Retrieve the Class by this path
             try {
-                Class<?> clazz = MPLType.getClassByName(classname, false, ClassBytecodeLoader.class.getClassLoader());
+                Class<?> clazz = MPLType.getClassByName(classname);
                 return generatedURL(clazz, filename);
             } catch (Throwable t) {
                 return null;
@@ -102,6 +110,20 @@ public class ClassBytecodeLoader {
         String filename = '/' + MPLType.getInternalName(clazz) + ".class";
         URL url = ClassBytecodeLoader.class.getResource(filename);
         return (url != null) ? url : generatedURL(clazz, filename);
+    }
+
+    /**
+     * Generates a mock version of the bytecode that lacks implementation,
+     * but covers all the signature methods, fields and constructors of the Class.<br>
+     * <br>
+     * The actual bytecode is only loaded/generated once the URL connection is opened.
+     * 
+     * @param clazz
+     * @return URL where the .class bytecode can be found
+     */
+    public static URL getResourceGenerated(final Class<?> clazz) {
+        String filename = '/' + MPLType.getInternalName(clazz) + ".class";
+        return generatedURL(clazz, filename);
     }
 
     private static URL generatedURL(final Class<?> clazz, String filename) {

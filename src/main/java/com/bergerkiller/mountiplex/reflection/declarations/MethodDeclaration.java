@@ -15,6 +15,7 @@ import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -360,7 +361,9 @@ public class MethodDeclaration extends Declaration {
                 // Replace with instanceName.MethodName
                 replacement.append(instanceName);
             }
-            replacement.append('.').append(MPLType.getName(this.method));
+            replacement.append('.');
+            replacement.append(MPLMemberResolver.IGNORE_PREFIX); // to prevent double-renaming
+            replacement.append(MPLType.getName(this.method));
             body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
             return;
         }

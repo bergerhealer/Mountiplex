@@ -15,7 +15,7 @@ public class NullInstantiator<T> {
     private final Class<?> type;
     private ObjectInstantiator<?> instantiator = null;
 
-    public NullInstantiator(Class<?> type) {
+    private NullInstantiator(Class<? extends T> type) {
         this.type = type;
     }
 
@@ -44,5 +44,17 @@ public class NullInstantiator<T> {
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
+    }
+
+    /**
+     * Creates a NullInstantiator for the given Class type. The NullInstantiator
+     * can be used to create new instances of the type without calling a constructor.
+     * 
+     * @param <T>
+     * @param type Class type
+     * @return NullInstantiator that can construct instances of the type
+     */
+    public static <T> NullInstantiator<T> of(Class<? extends T> type) {
+        return new NullInstantiator<T>(type);
     }
 }

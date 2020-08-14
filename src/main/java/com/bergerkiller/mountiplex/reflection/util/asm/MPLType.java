@@ -327,11 +327,22 @@ public class MPLType {
      * @param name
      * @param initialize
      * @param classLoader
-     * @return
-     * @throws ClassNotFoundException
+     * @return Class
+     * @throws ClassNotFoundException if not found
      */
     public static Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
         return helper.getClassByName(name, initialize, classLoader);
+    }
+
+    /**
+     * Gets the class by name. Does <b>not</b> initialize! Uses the class loader of this library.
+     * 
+     * @param name
+     * @return Class
+     * @throws ClassNotFoundException if not found
+     */
+    public static Class<?> getClassByName(String name) throws ClassNotFoundException {
+        return helper.getClassByName(name, false, MPLType.class.getClassLoader());
     }
 
     /*

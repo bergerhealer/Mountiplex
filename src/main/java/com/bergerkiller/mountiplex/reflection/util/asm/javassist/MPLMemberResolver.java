@@ -1,0 +1,226 @@
+package com.bergerkiller.mountiplex.reflection.util.asm.javassist;
+
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
+import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
+
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtField;
+import javassist.NotFoundException;
+import javassist.bytecode.MethodInfo;
+import javassist.compiler.CompileError;
+import javassist.compiler.MemberResolver;
+import javassist.compiler.NoFieldException;
+import javassist.compiler.ast.ASTree;
+import javassist.compiler.ast.Member;
+import javassist.compiler.ast.Symbol;
+
+/**
+ * Custom {@link MemberResolver} that overrides some methods to provide
+ * field and method remapping functionality. Class remapping is already
+ * handled by the ClassPool and is not handled here.
+ */
+public final class MPLMemberResolver extends MemberResolver {
+    /**
+     * Field and method names with this prefix are ignored when doing name remapping.
+     * The prefix is removed prior to compiling.
+     */
+    public static final String IGNORE_PREFIX = "mpl$";
+    /**
+     * This class is the super class of the type being generated. The class extending this
+     * can often not be found because it is being generated. Checking that the declaring
+     * class superclass is this type helps performance a little bit.
+     */
+    private static final String GENERATED_CODE_INVOKER_NAME = GeneratedCodeInvoker.class.getName();
+
+    public MPLMemberResolver(ClassPool cp) {
+        super(cp);
+    }
+
+    // Remaps the methodName symbol of a local or static method call
+    @Override
+    public Method lookupMethod(CtClass clazz, CtClass currentClass, MethodInfo current,
+            String methodName,
+            int[] argTypes, int[] argDims,
+            String[] argClassNames) throws CompileError
+    {
+        return super.lookupMethod(clazz, currentClass, current,
+                preprocessMethodName(clazz, methodName, argTypes, argDims, argClassNames),
+                argTypes, argDims, argClassNames);
+    }
+
+    // Remaps the fieldName symbol of a local field
+    @Override
+    public CtField lookupField(String className, Symbol fieldName)
+            throws CompileError
+    {
+        CtClass cc = lookupClass(className, false);
+
+        // Remapping happens here
+        if (fieldName instanceof Member) {
+            String newFieldName = preprocessFieldName(cc.getName(), fieldName.get());
+            if (!newFieldName.equals(fieldName.get())) {
+                fieldName = new Member(newFieldName);
+            }
+        }
+
+        try {
+            return cc.getField(fieldName.get());
+        }
+        catch (NotFoundException e) {}
+        throw new CompileError("no such field: " + fieldName.get());
+    }
+
+    // Remaps the fieldName symbol of a static field
+    @Override
+    public CtField lookupFieldByJvmName2(String jvmClassName, Symbol fieldSym,
+            ASTree expr) throws NoFieldException
+    {
+        String field = fieldSym.get();
+        CtClass cc = null;
+        try {
+            cc = lookupClass(jvmToJavaName(jvmClassName), true);
+        }
+        catch (CompileError e) {
+            // EXPR might be part of a qualified class name.
+            throw new NoFieldException(jvmClassName + "/" + field, expr);
+        }
+
+        // Do field renaming here
+        field = preprocessFieldName(cc.getName(), field);
+
+        try {
+            return cc.getField(field);
+        }
+        catch (NotFoundException e) {
+            // maybe an inner class.
+            jvmClassName = javaToJvmName(cc.getName());
+            throw new NoFieldException(jvmClassName + "$" + field, expr);
+        }
+    }
+
+    // Remaps the name of a field
+    // If it starts with the IGNORE_PREFIX, then the original field name
+    // without the IGNORE_PREFIX is returned.
+    // Otherwise, the remapper is asked to remap the field name,
+    // returning the new name if found. If the class the field is declared in
+    // could not be found, then no remapping is performed.
+    private String preprocessFieldName(String className, String fieldName) {
+        // If field name uses the ignore prefix, remove prefix and skip the rest
+        if (fieldName.startsWith(IGNORE_PREFIX)) {
+            return fieldName.substring(IGNORE_PREFIX.length());
+        }
+
+        // Resolve the class name first, only do remapping if we can identify this type
+        Class<?> declaredClass;
+        try {
+            declaredClass = MPLType.getClassByName(className);
+        } catch (ClassNotFoundException e) {
+            return fieldName;
+        }
+
+        // Ask resolver
+        String newName = Resolver.resolveFieldName(declaredClass, fieldName);
+        return (newName != null) ? newName : fieldName;
+    }
+
+    // Remaps the name of a method
+    // If it starts with the IGNORE_PREFIX, then the original method name
+    // without the IGNORE_PREFIX is returned.
+    // Otherwise, the remapper is asked to remap the method name,
+    // returning the new name if found. If the signature
+    // could not be decoded into Class types, then no remapping is performed.
+    private String preprocessMethodName(CtClass clazz, String methodName, int[] argTypes, int[] argDims, String[] argClassNames) {
+        // If method name uses the ignore prefix, remove prefix and skip the rest
+        if (methodName.startsWith(IGNORE_PREFIX)) {
+            return methodName.substring(IGNORE_PREFIX.length());
+        }
+
+        // If initializer, skip, those don't get remapped
+        if (methodName.equals("<init>")) {
+            return methodName;
+        }
+
+        // Performance: skip all java.** types
+        if (clazz.getName().startsWith("java.")) {
+            return methodName;
+        }
+
+        // Check for GeneratedCodeInvoker first, for better performance, since this one occurs all the time
+        try {
+            CtClass superClazz = clazz.getSuperclass();
+            if (superClazz != null && superClazz.getName().equals(GENERATED_CODE_INVOKER_NAME)) {
+                return methodName;
+            }
+        } catch (NotFoundException e1) { /* ignored */ }
+
+        // Figure out the actual Class. If not found, skip.
+        Class<?> declaringClass;
+        try {
+            declaringClass = MPLType.getClassByName(clazz.getName());
+        } catch (ClassNotFoundException e) {
+            return methodName;
+        }
+
+        // If the method declared is something that is generated by Mountiplex itself, skip.
+        // This offers a slight performance improvement, avoiding extra Resolver lookups
+        if (IgnoresRemapping.class.isAssignableFrom(declaringClass)) {
+            return methodName;
+        }
+
+        // Resolve parameter types
+        Class<?>[] parameterTypes = new Class[argTypes.length];
+        for (int i = 0; i < parameterTypes.length; i++) {
+            parameterTypes[i] = translateType(argTypes[i], argClassNames[i]);
+            if (parameterTypes[i] == null) {
+                return methodName; // Failed to resolve
+            }
+            parameterTypes[i] = ArrayHelper.getArrayType(parameterTypes[i], argDims[i]);
+        }
+
+        // Ask resolver
+        return Resolver.resolveMethodName(declaringClass, methodName, parameterTypes);
+    }
+
+    /**
+     * Translates type information to the appropriate Class. If the input type
+     * is of type CLASS, then the altName is decoded. If null is returned, then
+     * the type could not be deduced.
+     * 
+     * @param type Binary type code
+     * @param altName Alternative class name to decode
+     * @return type, null if not found
+     */
+    private static Class<?> translateType(int type, String altName) {
+        //TODO: Is this really not found builtin somewhere? :(
+        switch (type) {
+        case BOOLEAN:
+            return boolean.class;
+        case CHAR:
+            return char.class;
+        case BYTE:
+            return byte.class;
+        case SHORT:
+            return short.class;
+        case INT:
+            return int.class;
+        case LONG:
+            return long.class;
+        case FLOAT:
+            return float.class;
+        case DOUBLE:
+            return double.class;
+        case CLASS:
+            try {
+                return MPLType.getClassByName(altName.replace('/', '.'));
+            } catch (ClassNotFoundException e) {
+                return null;
+            }
+        default:
+            return null;
+        }
+    }
+}

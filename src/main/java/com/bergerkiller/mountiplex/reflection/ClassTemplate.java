@@ -51,7 +51,7 @@ public class ClassTemplate<T> {
      */
     protected ClassTemplate<T> setClass(Class<T> type) {
         this.type = type;
-        this.instantiator = new NullInstantiator<T>(type);
+        this.instantiator = NullInstantiator.of(type);
         this.fields = null;
         this.typeFields = null;
         this.resolver = new ClassResolver();

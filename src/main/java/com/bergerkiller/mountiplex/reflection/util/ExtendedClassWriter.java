@@ -77,7 +77,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
                     } catch (ClassNotFoundException e) {}
 
                     try {
-                        MPLType.getClassByName(tmpClassPath, false, ExtendedClassWriter.class.getClassLoader());
+                        MPLType.getClassByName(tmpClassPath);
                         classExists = true;
                     } catch (ClassNotFoundException ex) {}
 

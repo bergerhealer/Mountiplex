@@ -6,7 +6,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.fast.Constructor;
 import com.bergerkiller.mountiplex.reflection.util.fast.ReflectionConstructor;
 
-public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject {
+public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject, IgnoresRemapping {
     private Constructor<T> constructor;
     private ConstructorDeclaration constructorDec;
     private String missingInfo = "!!UNKNOWN!!"; // stored info for when constructor is null

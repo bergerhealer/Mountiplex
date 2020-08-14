@@ -17,7 +17,7 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Writer;
  * 
  * @param <T> type of fast field
  */
-public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyInitializedObject {
+public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyInitializedObject, IgnoresRemapping {
     private Reader<T> reader;
     private Writer<T> writer;
     private Copier copier;

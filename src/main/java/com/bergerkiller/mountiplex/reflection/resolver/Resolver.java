@@ -222,16 +222,25 @@ public class Resolver {
         return classPath;
     }
 
-    public static String resolveFieldName(Class<?> declaredClass, String fieldName) {
+    public static boolean canLoadClassPath(String classPath) {
+        for (ClassPathResolver resolver : Resolver.resolver.classPathResolvers) {
+            if (!resolver.canLoadClassPath(classPath)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static String resolveFieldName(Class<?> declaringClass, String fieldName) {
         for (FieldNameResolver resolver : Resolver.resolver.fieldNameResolvers) {
-            fieldName = resolver.resolveFieldName(declaredClass, fieldName);
+            fieldName = resolver.resolveFieldName(declaringClass, fieldName);
         }
         return fieldName;
     }
 
-    public static String resolveMethodName(Class<?> declaredClass, String methodName, Class<?>[] parameterTypes) {
+    public static String resolveMethodName(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {
         for (MethodNameResolver resolver : Resolver.resolver.methodNameResolvers) {
-            methodName = resolver.resolveMethodName(declaredClass, methodName, parameterTypes);
+            methodName = resolver.resolveMethodName(declaringClass, methodName, parameterTypes);
         }
         return methodName;
     }

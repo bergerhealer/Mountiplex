@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -218,7 +219,9 @@ public class FieldDeclaration extends Declaration {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
                 }
-                replacement.append('.').append(MPLType.getName(this.field));
+                replacement.append('.');
+                replacement.append(MPLMemberResolver.IGNORE_PREFIX); // to prevent double-renaming
+                replacement.append(MPLType.getName(this.field));
                 body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
                 return;
             }
@@ -276,7 +279,10 @@ public class FieldDeclaration extends Declaration {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
                 }
-                replacement.append('.').append(MPLType.getName(this.field));
+
+                replacement.append('.');
+                replacement.append(MPLMemberResolver.IGNORE_PREFIX); // to prevent double-renaming
+                replacement.append(MPLType.getName(this.field));
             } else {
                 // Modify the original body to use the field getter method instead
                 if (fieldType.isPrimitive) {
