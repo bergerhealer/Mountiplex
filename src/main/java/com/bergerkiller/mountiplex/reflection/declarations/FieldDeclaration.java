@@ -168,42 +168,7 @@ public class FieldDeclaration extends Declaration {
     }
 
     @Override
-    public void addAsRequirement(CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
-        if (this.type.cast != null) {
-            DuplexConverter<Object, Object> converter = Conversion.findDuplex(this.type, this.type.cast);
-            if (converter == null) {
-                throw new RuntimeException("Failed to find converter from " +
-                        this.type.toString(true) + " <> " + this.type.cast.toString(true));
-            }
-
-            FastField<?> f = new FastField<Object>();
-            f.init(this.field);
-            FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
-
-            ClassPool tmp_pool = new ClassPool();
-            tmp_pool.insertClassPath(new ClassClassPath(FastConvertedField.class));
-            CtClass fastFieldClass = tmp_pool.get(FastConvertedField.class.getName());
-
-            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
-            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
-        } else {
-            // No conversion, we can use a simple FastField
-            FastField<?> f = new FastField<Object>();
-            f.init(this.field);
-
-            ClassPool tmp_pool = new ClassPool();
-            tmp_pool.insertClassPath(new ClassClassPath(FastField.class));
-            CtClass fastFieldClass = tmp_pool.get(FastField.class.getName());
-
-            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
-            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
-        }
-    }
-
-    @Override
-    public void modifyBodyRequirement(StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+    public void modifyBodyRequirement(Requirement requirement, StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
         TypeDeclaration fieldType = this.type;
         if (fieldType.cast != null) {
             fieldType = fieldType.cast;
@@ -235,7 +200,7 @@ public class FieldDeclaration extends Declaration {
         // When the class in which the field is declared is not accessible, force field as unavailable
         Class<?> fieldDeclaringClass = (this.field == null) ? null : this.field.getDeclaringClass();
         int modifiers = 0;
-        if (fieldDeclaringClass != null && Resolver.isPublic(fieldDeclaringClass)) {
+        if (fieldDeclaringClass != null && this.type.cast == null && Resolver.isPublic(fieldDeclaringClass)) {
             modifiers = this.field.getModifiers();
         }
 
@@ -291,6 +256,9 @@ public class FieldDeclaration extends Declaration {
             replacement.append(valueName);
             replacement.append(')');
 
+            // Mark as used so that the requirement is added to the class later
+            requirement.setProperty("generateFastField");
+
             // Replace portion in body with replacement
             body.replace(instanceStartIdx, setOperationValueEndIdx, replacement.toString());
         } else {
@@ -323,10 +291,53 @@ public class FieldDeclaration extends Declaration {
                 replacement.append('(');
                 replacement.append(instanceName);
                 replacement.append(')');
+
+                // Mark as used so that the requirement is added to the class later
+                requirement.setProperty("generateFastField");
             }
 
             // Replace portion in body with replacement
             body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
+        }
+    }
+
+    @Override
+    public void addAsRequirement(Requirement requirement, CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
+        // If the field could be accessed directly, then we don't have to generate a FastField as well
+        if (!requirement.hasProperty("generateFastField")) {
+            return;
+        }
+
+        if (this.type.cast != null) {
+            DuplexConverter<Object, Object> converter = Conversion.findDuplex(this.type, this.type.cast);
+            if (converter == null) {
+                throw new RuntimeException("Failed to find converter from " +
+                        this.type.toString(true) + " <> " + this.type.cast.toString(true));
+            }
+
+            FastField<?> f = new FastField<Object>();
+            f.init(this.field);
+            FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
+
+            ClassPool tmp_pool = new ClassPool();
+            tmp_pool.insertClassPath(new ClassClassPath(FastConvertedField.class));
+            CtClass fastFieldClass = tmp_pool.get(FastConvertedField.class.getName());
+
+            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
+            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
+        } else {
+            // No conversion, we can use a simple FastField
+            FastField<?> f = new FastField<Object>();
+            f.init(this.field);
+
+            ClassPool tmp_pool = new ClassPool();
+            tmp_pool.insertClassPath(new ClassClassPath(FastField.class));
+            CtClass fastFieldClass = tmp_pool.get(FastField.class.getName());
+
+            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
+            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
         }
     }
 

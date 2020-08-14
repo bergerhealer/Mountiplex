@@ -32,7 +32,8 @@ public abstract class SpeedTestObjectHandle extends Template.Handle {
     
     public abstract void setLocation(double x, double y, double z, float yaw, float pitch);
 
-    public abstract int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);
+    public abstract int publicLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);
+    public abstract int privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);
 
     public static class SpeedTestObjectClass extends Template.Class<SpeedTestObjectHandle> {
         public final Template.Field.Integer i = new Template.Field.Integer();
@@ -43,6 +44,7 @@ public abstract class SpeedTestObjectHandle extends Template.Handle {
         public final Template.Method<Integer> getIMethod = new Template.Method<Integer>();
         public final Template.Method<Void> setIMethod = new Template.Method<Void>();
         public final Template.Method<Void> setLocation = new Template.Method<Void>();
-        public final Template.Method<Integer> lotsOfArgs = new Template.Method<Integer>();
+        public final Template.Method<Integer> publicLotsOfArgs = new Template.Method<Integer>();
+        public final Template.Method<Integer> privateLotsOfArgs = new Template.Method<Integer>();
     }
 }

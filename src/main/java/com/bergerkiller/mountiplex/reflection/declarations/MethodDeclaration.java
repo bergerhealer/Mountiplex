@@ -327,7 +327,95 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
-    public void addAsRequirement(CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
+    public void modifyBodyRequirement(Requirement requirement, StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+        // Modifiers for checking public, if missing (0), none of the modifiers match
+        // When the class in which the method is declared is not accessible, force field as unavailable
+        Class<?> methodDeclaringClass = (this.method == null) ? null : this.method.getDeclaringClass();
+        boolean canCallDirectly = false;
+        if (methodDeclaringClass != null && Resolver.isPublic(methodDeclaringClass)) {
+            canCallDirectly = Modifier.isPublic(this.method.getModifiers());
+        }
+
+        // Also check we aren't using any converters
+        if (canCallDirectly) {
+            if (this.returnType.cast != null) {
+                canCallDirectly = false;
+            } else {
+                for (ParameterDeclaration param : this.parameters.parameters) {
+                    if (param.type.cast != null) {
+                        canCallDirectly = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If method is accessible, call it directly rather than using reflection/generated code
+        if (canCallDirectly) {
+            StringBuilder replacement = new StringBuilder();
+            if (this.modifiers.isStatic()) {
+                // Replace with ClassName.MethodName
+                replacement.append(MPLType.getName(this.method.getDeclaringClass()));
+            } else {
+                // Replace with instanceName.MethodName
+                replacement.append(instanceName);
+            }
+            replacement.append('.').append(MPLType.getName(this.method));
+            body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
+            return;
+        }
+
+        // Find the first opening parenthesis after the name
+        int firstOpenIndex = nameEndIdx;
+        while (firstOpenIndex < body.length()) {
+            char c = body.charAt(firstOpenIndex);
+            if (c == ' ') {
+                firstOpenIndex++;
+            } else if (c == '(') {
+                break;
+            } else {
+                // Invalid!
+                firstOpenIndex = -1;
+                break;
+            }
+        }
+        if (firstOpenIndex == -1) {
+            // Invalid! Not a method!
+            if (this.getResolver().getLogErrors()) {
+                MountiplexUtil.LOGGER.warning("Requirement refers to method but is used as field");
+                MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + requirementName);
+            }
+        } else {
+            // Replace instanceName#name ( with our invoker
+            // For static methods, only #name ( is replaced
+            StringBuilder replacement = new StringBuilder();
+            replacement.append("this.").append(requirementName);
+            replacement.append('(').append(instanceName);
+
+            // Add a comma if there is something inside the ()
+            for (int i = firstOpenIndex + 1; i < body.length(); i++) {
+                char c = body.charAt(i);
+                if (c == ' ') continue;
+                if (c == ')') break;
+
+                replacement.append(", ");
+                break;
+            }
+
+            body.replace(instanceStartIdx, firstOpenIndex+1, replacement.toString());
+        }
+
+        // Custom method body with reflection/converters is used
+        requirement.setProperty("generateMethod");
+    }
+
+    @Override
+    public void addAsRequirement(Requirement requirement, CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
+        // If we could access the method directly, then we don't need to generate a reflection call stub
+        if (!requirement.hasProperty("generateMethod")) {
+            return;
+        }
+
         // Create a new method with the exposed parameter types and return type
         StringBuilder methodBody = new StringBuilder();
         methodBody.append("private final ");
@@ -370,7 +458,7 @@ public class MethodDeclaration extends Declaration {
             methodBody.append("  Object[] ").append(name).append("_input_args");
             methodBody.append(" = new Object[").append(this.parameters.parameters.length).append("];\n");
         }
-        
+
         for (int i = 0; i < this.parameters.parameters.length; i++) {
             ParameterDeclaration param = this.parameters.parameters[i];
 
@@ -396,7 +484,6 @@ public class MethodDeclaration extends Declaration {
                 }
                 continue;
             }
-
 
             // Generate name for the converter field
             String converterFieldName = name + "_conv_" + param.name.real();
@@ -426,11 +513,11 @@ public class MethodDeclaration extends Declaration {
                 methodBody.append(".valueOf(");
                 methodBody.append(param.name.real()).append("_conv_input)");
             } else {
-                methodBody.append(param.name.real()).append("_conv_input)");
+                methodBody.append(param.name.real()).append("_conv_input");
             }
             methodBody.append(");\n");
         }
-        
+
         // If not void, store return type, with possible cast
         // We can use Object when a converter is going to be used
         if (!this.returnType.type.equals(void.class)) {
@@ -518,50 +605,12 @@ public class MethodDeclaration extends Declaration {
         methodBody.append("}");
 
         // Create the method and add it to the class
-        CtMethod method = CtNewMethod.make(methodBody.toString(), invokerClass);
-        invokerClass.addMethod(method);
-    }
-
-    @Override
-    public void modifyBodyRequirement(StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
-        // Find the first opening parenthesis after the name
-        int firstOpenIndex = nameEndIdx;
-        while (firstOpenIndex < body.length()) {
-            char c = body.charAt(firstOpenIndex);
-            if (c == ' ') {
-                firstOpenIndex++;
-            } else if (c == '(') {
-                break;
-            } else {
-                // Invalid!
-                firstOpenIndex = -1;
-                break;
-            }
-        }
-        if (firstOpenIndex == -1) {
-            // Invalid! Not a method!
-            if (this.getResolver().getLogErrors()) {
-                MountiplexUtil.LOGGER.warning("Requirement refers to method but is used as field");
-                MountiplexUtil.LOGGER.warning("Method body: " + instanceName + "#" + requirementName);
-            }
-        } else {
-            // Replace instanceName#name ( with our invoker
-            // For static methods, only #name ( is replaced
-            StringBuilder replacement = new StringBuilder();
-            replacement.append("this.").append(requirementName);
-            replacement.append('(').append(instanceName);
-
-            // Add a comma if there is something inside the ()
-            for (int i = firstOpenIndex + 1; i < body.length(); i++) {
-                char c = body.charAt(i);
-                if (c == ' ') continue;
-                if (c == ')') break;
-
-                replacement.append(", ");
-                break;
-            }
-
-            body.replace(instanceStartIdx, firstOpenIndex+1, replacement.toString());
+        try {
+            CtMethod method = CtNewMethod.make(methodBody.toString(), invokerClass);
+            invokerClass.addMethod(method);
+        } catch (CannotCompileException ex) {
+            MountiplexUtil.LOGGER.severe("Failed to compile method: " + methodBody.toString());
+            throw ex;
         }
     }
 
@@ -581,29 +630,34 @@ public class MethodDeclaration extends Declaration {
             return null;
         }
 
-        // Resolve the Class Declaration of the Class where this method is declared
-        // Then try to find the method in there
-        {
-            ClassDeclaration cDec = Resolver.resolveClassDeclaration(
-                    this.getResolver().getDeclaredClassName(),
-                    this.getResolver().getDeclaredClass());
-            if (cDec != null) {
-                MethodDeclaration result = cDec.findMethod(this);
-                if (result != null) {
-                    return result;
-                }
-            }
-        }
-
-        // Check the superclasses of the declaring class as well
+        // Resolve the type of this declaration
         TypeDeclaration typeDec = TypeDeclaration.parse(this.getResolver().getDeclaredClassName());
-        if (typeDec != null) {
-            for (TypeDeclaration superType : typeDec.getSuperTypes()) {
-                ClassDeclaration cDec = Resolver.resolveClassDeclaration(superType.typePath, superType.type);
+
+        // Only do this when only an alias is specified, for example, inside ClassHook
+        if (this.name.isAliasOnly()) {
+            // Resolve the Class Declaration of the Class where this method is declared
+            // Then try to find the method in there
+            {
+                ClassDeclaration cDec = Resolver.resolveClassDeclaration(
+                        this.getResolver().getDeclaredClassName(),
+                        this.getResolver().getDeclaredClass());
                 if (cDec != null) {
                     MethodDeclaration result = cDec.findMethod(this);
                     if (result != null) {
                         return result;
+                    }
+                }
+            }
+
+            // Check the superclasses of the declaring class as well
+            if (typeDec != null) {
+                for (TypeDeclaration superType : typeDec.getSuperTypes()) {
+                    ClassDeclaration cDec = Resolver.resolveClassDeclaration(superType.typePath, superType.type);
+                    if (cDec != null) {
+                        MethodDeclaration result = cDec.findMethod(this);
+                        if (result != null) {
+                            return result;
+                        }
                     }
                 }
             }
@@ -688,18 +742,18 @@ public class MethodDeclaration extends Declaration {
                 }
             }
             String name = body.substring(seek + 1, nameEndIdx);
-            Declaration foundDeclaration = null;
+            Requirement foundRequirement = null;
 
             // Check name not already resolved
             for (Requirement req : result) {
                 if (req.name.equals(name)) {
-                    foundDeclaration = req.declaration;
+                    foundRequirement = req;
                     break;
                 }
             }
 
             // Find it by name
-            if (foundDeclaration == null) {
+            if (foundRequirement == null) {
                 Declaration parsedDeclaration = null;
 
                 // Find the declaration matching this name
@@ -745,7 +799,7 @@ public class MethodDeclaration extends Declaration {
                 }
 
                 // Find the Declaration object
-                foundDeclaration = parsedDeclaration.discover();
+                Declaration foundDeclaration = parsedDeclaration.discover();
                 if (foundDeclaration == null) {
                     if (this.getResolver().getLogErrors()) {
                         MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: " + declaredClassName);
@@ -755,15 +809,20 @@ public class MethodDeclaration extends Declaration {
                 }
 
                 // Add it so code invoker can include it in the code generation
-                result.add(new Requirement(name, foundDeclaration));
+                foundRequirement = new Requirement(name, foundDeclaration);
+                result.add(foundRequirement);
             }
 
             // Check static (no instance name)
             boolean isStatic = false;
-            if (foundDeclaration instanceof MethodDeclaration && ((MethodDeclaration) foundDeclaration).modifiers.isStatic()) {
+            if (foundRequirement.declaration instanceof MethodDeclaration &&
+               ((MethodDeclaration) foundRequirement.declaration).modifiers.isStatic())
+            {
                 isStatic = true;
             }
-            if (foundDeclaration instanceof FieldDeclaration && ((FieldDeclaration) foundDeclaration).modifiers.isStatic()) {
+            if (foundRequirement.declaration instanceof FieldDeclaration &&
+                ((FieldDeclaration) foundRequirement.declaration).modifiers.isStatic())
+            {
                 isStatic = true;
             }
 
@@ -800,7 +859,8 @@ public class MethodDeclaration extends Declaration {
             String instanceName = isStatic ? "null" : body.substring(instanceStartIdx, instanceEndIdx);
 
             // Alter the body to place the code that calls the requirement
-            foundDeclaration.modifyBodyRequirement(body, instanceName, name, instanceStartIdx, nameEndIdx);
+            foundRequirement.declaration.modifyBodyRequirement(
+                    foundRequirement, body, instanceName, name, instanceStartIdx, nameEndIdx);
         }
 
         return result.toArray(new Requirement[result.size()]);

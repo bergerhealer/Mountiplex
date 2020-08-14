@@ -10,6 +10,7 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
     private String b = "local_test";
     private final String b_f = "local_final_test";
     private int c = 12;
+    public int d = 5;
     public final List testRawField = new ArrayList();
     public String unusedField = "unused";
     public final OneWayConvertableType oneWay = new OneWayConvertableType();

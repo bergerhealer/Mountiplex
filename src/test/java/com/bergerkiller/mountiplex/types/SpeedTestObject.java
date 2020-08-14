@@ -37,7 +37,12 @@ public class SpeedTestObject {
     public void setLocation(double x, double y, double z, float yaw, float pitch) {
     }
 
-    public int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
+    public int publicLotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
+        return a + b + c + d + e + f + g;
+    }
+
+    @SuppressWarnings("unused")
+    private int privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
         return a + b + c + d + e + f + g;
     }
 }

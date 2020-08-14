@@ -83,7 +83,8 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
                 "    public final void setSMethod(String value);\n" +
                 "    public final String getSMethod();\n" +
                 "    public void setLocation(double x, double y, double z, float yaw, float pitch);\n" +
-                "    public int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
+                "    public int publicLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
+                "    private int privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
                 "}\n" +
                 "package com.bergerkiller.mountiplex.types;\n" +
                 "\n" +

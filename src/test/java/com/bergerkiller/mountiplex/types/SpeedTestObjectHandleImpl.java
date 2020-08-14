@@ -65,7 +65,11 @@ public class SpeedTestObjectHandleImpl extends SpeedTestObjectHandle {
         T.setLocation.invoke(instance, x, y, z, yaw, pitch);
     }
 
-    public int lotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
-        return T.lotsOfArgs.invokeVA(instance, a, b, c, d, e, f, g);
+    public int publicLotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
+        return T.publicLotsOfArgs.invoker.invokeVA(instance, a, b, c, d, e, f, g);
+    }
+
+    public int privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
+        return T.privateLotsOfArgs.invoker.invokeVA(instance, a, b, c, d, e, f, g);
     }
 }

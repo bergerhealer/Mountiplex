@@ -263,7 +263,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T> {
 
             // Add all the requirements to the class
             for (Requirement req : declaration.bodyRequirements) {
-                req.declaration.addAsRequirement(invoker, req.name);
+                req.declaration.addAsRequirement(req, invoker, req.name);
             }
 
             // If interfaceClass is null then the getInterface() is not implemented, so implement it here

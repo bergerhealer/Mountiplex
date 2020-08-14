@@ -92,8 +92,9 @@ public class MethodDeclarationTest {
         assertEquals("aaabbbccc15", method.invokeVA(null, "aaa", "bbb", "ccc", 3, 5, 7));
     }
 
+    // Tests requirements logic for a private field, which should add a FastField accessor that it uses
     @Test
-    public void testMethodWithFieldRequirements() {
+    public void testMethodWithPrivateFieldRequirements() {
         ClassResolver resolver = ClassResolver.DEFAULT.clone();
         resolver.setDeclaredClass(TestObject.class);
         MethodDeclaration dec = new MethodDeclaration(resolver, 
@@ -121,6 +122,38 @@ public class MethodDeclarationTest {
         assertEquals(12, method.invoke(testObject, 0).intValue());
         assertEquals(13, method.invoke(testObject, 1).intValue());
         assertEquals(18, method.invoke(testObject, 5).intValue());
+    }
+
+    // Tests requirements logic for a public field, which should use the field directly
+    @Test
+    public void testMethodWithPublicFieldRequirements() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(TestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public int add(int n) {\n" +
+                "  #require com.bergerkiller.mountiplex.types.TestObject private int special:d;\n" +
+                "  instance#special = instance#special + n;\n" +
+                "  return instance#special;\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+        assertEquals(
+                "{\n" +
+                "  instance.d = instance.d + n;\n" +
+                "  return instance.d;\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("private int special:d;", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Integer> method = new FastMethod<Integer>();
+        method.init(dec);
+        TestObject testObject = new TestObject();
+        assertEquals(5, method.invoke(testObject, 0).intValue());
+        assertEquals(6, method.invoke(testObject, 1).intValue());
+        assertEquals(11, method.invoke(testObject, 5).intValue());
     }
 
     @Test
@@ -197,13 +230,44 @@ public class MethodDeclarationTest {
         assertEquals(19, method.invoke(testObject, 2).intValue());
     }
 
+    // Tests requirements logic for a public method, which should translate to calling the method directly
     @Test
-    public void testMethodWithLotsaArgsMethodRequirements() {
+    public void testPublicMethodWithLotsaArgsMethodRequirements() {
         ClassResolver resolver = ClassResolver.DEFAULT.clone();
         resolver.setDeclaredClass(SpeedTestObject.class);
         MethodDeclaration dec = new MethodDeclaration(resolver, 
                 "public int add(int n) {\n" +
-                "  #require com.bergerkiller.mountiplex.types.SpeedTestObject public int test:lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
+                "  #require com.bergerkiller.mountiplex.types.SpeedTestObject public int test:publicLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
+                "  return instance#test(1, 2, 3, 4, 5, 6, n);\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        assertEquals(
+                "{\n" +
+                "  return instance.publicLotsOfArgs(1, 2, 3, 4, 5, 6, n);\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("public int test:publicLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Integer> method = new FastMethod<Integer>();
+        method.init(dec);
+        SpeedTestObject testObject = new SpeedTestObject();
+        assertEquals(21, method.invoke(testObject, 0).intValue());
+        assertEquals(23, method.invoke(testObject, 2).intValue());
+    }
+
+    // Tests requirements logic for a private method, which should generate a separate method with reflection logic to call it
+    @Test
+    public void testPrivateMethodWithLotsaArgsMethodRequirements() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public int add(int n) {\n" +
+                "  #require com.bergerkiller.mountiplex.types.SpeedTestObject private int test:privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);\n" +
                 "  return instance#test(1, 2, 3, 4, 5, 6, n);\n" +
                 "}");
 
@@ -216,7 +280,7 @@ public class MethodDeclarationTest {
                 "}\n",
                 dec.body);
         assertEquals(1, dec.bodyRequirements.length);
-        assertEquals("public int test:lotsOfArgs(int a, int b, int c, int d, int e, int f, int g);", dec.bodyRequirements[0].declaration.toString());
+        assertEquals("private int test:privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g);", dec.bodyRequirements[0].declaration.toString());
 
         // Method declaration is OK from this point. Try to invoke it.
         FastMethod<Integer> method = new FastMethod<Integer>();

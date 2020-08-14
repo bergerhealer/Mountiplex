@@ -106,7 +106,8 @@ public class MethodSpeedTest {
         final CustomGenGet getter = new CustomGenGet();
 
         // Quickly test all generated things
-        assertEquals(28, objectHandle.lotsOfArgs(1, 2, 3, 4, 5, 6, 7));
+        assertEquals(28, objectHandle.publicLotsOfArgs(1, 2, 3, 4, 5, 6, 7));
+        assertEquals(35, objectHandle.privateLotsOfArgs(2, 3, 4, 5, 6, 7, 8));
         objectHandle.setLocation(2.0, 5.0, 7.0, 2.0f, 1.0f);
 
         //TestUtil.printASM(CustomGenGet.class);

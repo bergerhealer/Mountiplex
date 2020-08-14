@@ -323,8 +323,9 @@ public class TemplateHandleBuilder<H extends Handle> {
                     mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
                     mv.visitFieldInsn(GETFIELD, templateClassName, methodName, templateElementDesc);                   
 
-                    // Is an abstract method, we can call the invoker field directly                    
-                    if (templateElement instanceof Template.AbstractMethod) {
+                    // Is an abstract method, we can call the invoker field directly
+                    boolean useInvokerField = (templateElement instanceof Template.AbstractMethod);
+                    if (useInvokerField) {
                         mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", MPLType.getDescriptor(Invoker.class));
                     }
 
@@ -341,14 +342,13 @@ public class TemplateHandleBuilder<H extends Handle> {
                         int register = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
                             register = MPLType.visitVarILoad(mv, paramTypes[i], register);
-
                             ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
                             invokeDescBldr.append("Ljava/lang/Object;");
                         }
                         invokeDescBldr.append(")Ljava/lang/Object;");
 
                         // Call invoke(instance, argn) on either the invoker interface, or the template method virtual function
-                        if (templateElement instanceof Template.AbstractMethod) {
+                        if (useInvokerField) {
                             mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Invoker.class), "invoke", invokeDescBldr.toString(), true);
                         } else {
                             mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invoke", invokeDescBldr.toString(), false);
@@ -356,12 +356,12 @@ public class TemplateHandleBuilder<H extends Handle> {
                     } else {
                         // invokeVA(...) for larger amounts of parameters
                         // Fill an array with the parameter values
-                        mv.visitIntInsn(BIPUSH, paramTypes.length);
+                        ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
                         mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
                         int register = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
                             mv.visitInsn(DUP);
-                            mv.visitIntInsn(BIPUSH, i);
+                            ExtendedClassWriter.visitPushInt(mv, i);
 
                             register = MPLType.visitVarILoad(mv, paramTypes[i], register);
 
@@ -370,8 +370,8 @@ public class TemplateHandleBuilder<H extends Handle> {
                         }
 
                         // Call invokeVA(instance, args[]) on either the invoker interface, or the template method virtual function
-                        if (templateElement instanceof Template.AbstractMethod) {
-                            mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Invoker.class), "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", false);
+                        if (useInvokerField) {
+                            mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Invoker.class), "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", true);
                         } else {
                             mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", false);
                         }

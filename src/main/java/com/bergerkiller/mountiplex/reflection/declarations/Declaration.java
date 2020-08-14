@@ -417,28 +417,32 @@ public abstract class Declaration {
     }
 
     /**
-     * Called by the code invoker as part of generating the class used to invoke a runtime-generated
-     * method. The declaration should take care to add all the details to the class required
-     * to work properly.
-     * 
-     * @param invokerClass
-     * @param name of the declaration
-     */
-    public void addAsRequirement(CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
-        throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
-    }
-
-    /**
      * Called while decoding a method body to turn the original requirement declaration into valid compilable
      * code that calls the requirements added by {@link #addAsRequirement(CtClass, String)}.
+     * Extra metadata for later use during {@link #addAsRequirement(CtClass, String)} can be stored inside
+     * the requirement parameter.
      * 
+     * @param requirement The requirement that is currently being processed that uses this declaration
      * @param body The full StringBuilder buffer of the body in which source code is being parsed
      * @param instanceName The object token on which this declaration is called
      * @param requirementName The name of the requirement, right of the #-token
      * @param startIdx Start index into the body, which is the index to the first character of the instance name
      * @param endIdx End index into the body, which is the exclusive index of the last character of the requirement name
      */
-    public void modifyBodyRequirement(StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+    public void modifyBodyRequirement(Requirement requirement, StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
+        throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
+    }
+
+    /**
+     * Called by the code invoker as part of generating the class used to invoke a runtime-generated
+     * method. The declaration should take care to add all the details to the class required
+     * to work properly.
+     * 
+     * @param requirement The requirement that is currently being processed that uses this declaration
+     * @param invokerClass
+     * @param name of the declaration
+     */
+    public void addAsRequirement(Requirement requirement, CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
         throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
     }
 

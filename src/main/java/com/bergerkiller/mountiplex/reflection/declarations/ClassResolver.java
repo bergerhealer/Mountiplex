@@ -7,8 +7,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
@@ -325,7 +327,7 @@ public class ClassResolver {
      * @param value variable value
      */
     public void setVariable(String name, String value) {
-        this.variables = this.variables.put(name, value);
+        this.variables = this.variables.modify(m -> m.put(name, value));
     }
 
     /**
@@ -335,7 +337,24 @@ public class ClassResolver {
      * @param variables The variables to add
      */
     public void setAllVariables(Map<String, String> variables) {
-        this.variables = this.variables.putAll(variables);
+        this.variables = this.variables.modify(m -> m.putAll(variables));
+    }
+
+    /**
+     * Sets multiple environment variables in one go, which are
+     * used during parsing of template sources. The variables are loaded
+     * using a ClassDeclarationResolver. This resolver must have a valid declared
+     * Class set.
+     * 
+     * @param resolver The resolver to ask for variables
+     */
+    public void setAllVariables(ClassDeclarationResolver resolver) {
+        if (this.declaredClassName == null || this.declaredClassName.isEmpty() || this.declaredClass == null) {
+            throw new IllegalStateException("Class Resolver has no declared Class");
+        }
+        this.variables = this.variables.modify(m -> {
+            resolver.resolveClassVariables(this.declaredClassName, this.declaredClass, m);
+        });
     }
 
     /**
@@ -776,15 +795,9 @@ public class ClassResolver {
             return this._map.get(key);
         }
 
-        public VariablesMap put(String key, String value) {
+        public VariablesMap modify(Consumer<Map<String, String>> modifier) {
             Map<String, String> new_map = new HashMap<String, String>(this._map);
-            new_map.put(key, value);
-            return new VariablesMap(new_map);
-        }
-
-        public VariablesMap putAll(Map<String, String> variables) {
-            Map<String, String> new_map = new HashMap<String, String>(this._map);
-            new_map.putAll(variables);
+            modifier.accept(new_map);
             return new VariablesMap(new_map);
         }
 
