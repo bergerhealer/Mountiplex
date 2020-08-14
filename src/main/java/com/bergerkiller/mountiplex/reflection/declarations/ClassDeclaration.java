@@ -289,11 +289,12 @@ public class ClassDeclaration extends Declaration {
 
     /**
      * Attempts to find the Java Reflection Method in this Class Declaration.
+     * If found, returns the alias name for the method as set in the declaration.
      * 
      * @param method to find
-     * @return method declaration for the method, <i>null</i> if not found
+     * @return alias name for the method, <i>null</i> if not found
      */
-    public MethodDeclaration findMethod(java.lang.reflect.Method method) {
+    public String resolveMethodAlias(java.lang.reflect.Method method) {
         if (Modifier.isPrivate(method.getModifiers())) {
             // Private methods are only matchable when the Class is exactly the same
             if (!this.type.type.equals(method.getDeclaringClass())) {
@@ -303,7 +304,7 @@ public class ClassDeclaration extends Declaration {
             // Go by all the methods; only match with equals()
             for (MethodDeclaration mDec : this.methods) {
                 if (mDec.method != null && mDec.method.equals(method)) {
-                    return mDec;
+                    return mDec.name.real();
                 }
             }
 
@@ -339,7 +340,7 @@ public class ClassDeclaration extends Declaration {
                     continue;
                 }
 
-                return mDec;
+                return mDec.name.real();
             }
             return null; // not found
         }

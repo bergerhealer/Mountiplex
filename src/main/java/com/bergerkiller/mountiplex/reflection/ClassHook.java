@@ -44,7 +44,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     @Override
     protected Invoker<?> getCallback(Method method) {
         TypeDeclaration method_type = TypeDeclaration.fromClass(method.getDeclaringClass());
-        MethodDeclaration methodDec = Resolver.resolveMethod(method);
+        MethodDeclaration methodDec = Resolver.resolveMethodAlias(method);
 
         for (HookMethodEntry entry : methods.entries) {
             // Check if signature matches with method

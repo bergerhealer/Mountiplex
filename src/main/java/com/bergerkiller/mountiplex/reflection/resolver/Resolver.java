@@ -302,38 +302,44 @@ public class Resolver {
     }
 
     /**
-     * Attempts to find the method in the template class declarations available.
-     * If not found, a new one is created purely for this Method, lacking metadata.
+     * Checks all class declarations that have been loaded in to see what the alias
+     * name for a method is. If none are found, then a default declaration is returned
+     * without an explicit alias set.
      * 
      * @param method to find
-     * @return method declaration matching it
+     * @return method declaration for the method with the alias name, if found
      */
-    public static MethodDeclaration resolveMethod(java.lang.reflect.Method method) {
+    public static MethodDeclaration resolveMethodAlias(java.lang.reflect.Method method) {
         TypeDeclaration type = TypeDeclaration.fromClass(method.getDeclaringClass());
-        MethodDeclaration result;
 
         // First attempt resolving it, which will provide metadata information such as aliases
-        result = resolveMethodInType(type, method);
-        if (result != null) {
-            return result;
-        }
-        for (TypeDeclaration superType : type.getSuperTypes()) {
-            result = resolveMethodInType(superType, method);
-            if (result != null) {
-                return result;
-            }
-        }
 
         // Not found. Simply return a new Method Declaration from the method.
         ClassResolver resolver = new ClassResolver();
         resolver.setDeclaredClass(method.getDeclaringClass());
-        return new MethodDeclaration(resolver, method);
+        MethodDeclaration result = new MethodDeclaration(resolver, method);
+
+        // Figure out the alias that is set
+        String alias = resolveMethodAliasInType(type, method);
+        if (alias != null) {
+            return result.setAlias(alias);
+        }
+        for (TypeDeclaration superType : type.getSuperTypes()) {
+            alias = resolveMethodAliasInType(superType, method);
+            if (alias != null) {
+                return result.setAlias(alias);
+            }
+        }
+
+        // Not found
+        return result;
     }
 
-    private static MethodDeclaration resolveMethodInType(TypeDeclaration type,
-            java.lang.reflect.Method method) {
+    private static String resolveMethodAliasInType(TypeDeclaration type,
+            java.lang.reflect.Method method)
+    {
         ClassDeclaration cDec = resolveClassDeclaration(type.type);
-        return (cDec == null) ? null : cDec.findMethod(method);
+        return (cDec == null) ? null : cDec.resolveMethodAlias(method);
     }
 
     /**

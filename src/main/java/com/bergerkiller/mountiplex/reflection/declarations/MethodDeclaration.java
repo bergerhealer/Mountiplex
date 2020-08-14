@@ -175,12 +175,12 @@ public class MethodDeclaration extends Declaration {
     }
 
     /* Hidden constructor for changing the name of the method */
-    private MethodDeclaration(MethodDeclaration original, String newName) {
+    private MethodDeclaration(MethodDeclaration original, NameDeclaration newName) {
         super(original.getResolver());
         this.method = original.method;
         this.modifiers = original.modifiers;
         this.returnType = original.returnType;
-        this.name = original.name.rename(newName);
+        this.name = newName;
         this.parameters = original.parameters;
         this.body = original.body;
         this.bodyRequirements = original.bodyRequirements;
@@ -882,9 +882,24 @@ public class MethodDeclaration extends Declaration {
         }
         String resolvedName = Resolver.resolveMethodName(this.getResolver().getDeclaredClass(), this.name.value(), this.parameters.toParamArray());
         if (resolvedName != null && !resolvedName.equals(this.name.value())) {
-            return new MethodDeclaration(this, resolvedName);
+            return new MethodDeclaration(this, this.name.rename(resolvedName));
         } else {
             return this;
+        }
+    }
+
+    /**
+     * Returns a new MethodDeclaration which refers to the same method as this one, but with an
+     * alias set exactly as specified. Any previous aliases are lost.
+     * 
+     * @param alias
+     * @return method declaration with the set alias
+     */
+    public MethodDeclaration setAlias(String alias) {
+        if (alias.equals(this.name.alias())) {
+            return this;
+        } else {
+            return new MethodDeclaration(this, new NameDeclaration(this.getResolver(), this.name.value(), alias));
         }
     }
 
