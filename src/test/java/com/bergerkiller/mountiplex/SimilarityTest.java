@@ -21,7 +21,7 @@ public class SimilarityTest {
 	@Test
 	public void testFieldSimilarity() {
 		assertFieldSorted("public Double intNumber", "public Integer intNumber");
-		assertFieldSorted("public String intNumber", "public Integer intNumber");
+		assertFieldSorted("public String intNumber", "public String name");
 		assertFieldSorted("private int m", "public int x");
 		assertFieldSorted("public Runnable r", "public Runnable runnable");
 	}

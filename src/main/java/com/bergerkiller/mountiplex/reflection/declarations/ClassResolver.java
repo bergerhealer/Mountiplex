@@ -331,6 +331,18 @@ public class ClassResolver {
     }
 
     /**
+     * Gets the value of an environment variable, returns def if not found.
+     * 
+     * @param name variable name
+     * @param def default value
+     * @return variable value, def if not found
+     */
+    public String getVariable(String name, String def) {
+        String value = this.variables.get(name);
+        return (value != null) ? value : def;
+    }
+
+    /**
      * Sets multiple environment variables in one go, which are
      * used during parsing of template sources
      * 
@@ -355,6 +367,15 @@ public class ClassResolver {
         this.variables = this.variables.modify(m -> {
             resolver.resolveClassVariables(this.declaredClassName, this.declaredClass, m);
         });
+    }
+
+    /**
+     * Gets a key-value map of all variables currently set
+     * 
+     * @return all variables mapping, unmodifiable
+     */
+    public Map<String, String> getAllVariables() {
+        return this.variables.getAll();
     }
 
     /**
@@ -789,6 +810,10 @@ public class ClassResolver {
         public VariablesMap(Map<String, String> map) {
             this._map = map;
             this._decl = null;
+        }
+
+        public Map<String, String> getAll() {
+            return Collections.unmodifiableMap(this._map);
         }
 
         public String get(String key) {

@@ -11,7 +11,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
 
@@ -494,30 +499,6 @@ public class MountiplexUtil {
     }
 
     /**
-     * Adds all classes and interfaces a type consists of
-     * 
-     * @param type to get all super classes and interfaces
-     * @param result to add the found types to
-     */
-    public static void addSuperClasses(Class<?> type, Collection<Class<?>> result) {
-    	Class<?> superClass = type.getSuperclass();
-    	if (superClass != null) {
-    		result.add(superClass);
-    		addSuperClasses(superClass, result);
-    	}
-    	addInterfaces(type, result);
-    }
-
-    private static void addInterfaces(Class<?> type, Collection<Class<?>> result) {
-    	for (Class<?> iif : type.getInterfaces()) {
-    		if (!result.contains(iif)) {
-    			result.add(iif);
-    			addInterfaces(iif, result);
-    		}
-    	}
-    }
-
-    /**
      * Stores all the values in a Collection in a new, unmodifiable List
      * 
      * @param values to store
@@ -554,5 +535,40 @@ public class MountiplexUtil {
             }
         }
         return (lastDotIndex == -100) ? "" : classPath.substring(0, lastDotIndex);
+    }
+
+    /**
+     * Produces a stream of elements, produced by repeatedly applying the
+     * function <i>f</i> to the previous value until null is reached.
+     * The seed starts the iteration. If the seed is null, then an empty
+     * stream is returned.
+     * 
+     * @param <T> Type of elements in the stream
+     * @param seed Initial value
+     * @param f Function applied to the value repeatedly
+     * @return stream
+     */
+    public static <T> Stream<T> iterateNullTerminated(final T seed, UnaryOperator<T> f) {
+        if (seed == null) {
+            return Stream.empty();
+        }
+        final Iterator<T> iterator = new Iterator<T>() {
+            T current = seed;
+
+            @Override
+            public boolean hasNext() {
+                return current != null;
+            }
+
+            @Override
+            public T next() {
+                T result = current;
+                current = f.apply(current);
+                return result;
+            }
+        };
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
+                iterator,
+                Spliterator.ORDERED | Spliterator.IMMUTABLE), false);
     }
 }

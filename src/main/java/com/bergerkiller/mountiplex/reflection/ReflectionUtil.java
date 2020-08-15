@@ -8,9 +8,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.stream.Stream;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
-import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.asm.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.DisableFinalModifierHelper;
@@ -102,36 +103,84 @@ public class ReflectionUtil {
                 Modifier.isFinal(m1) == Modifier.isFinal(m2));
     }
 
-    public static List<SafeField<?>> fillFields(List<SafeField<?>> fields, Class<?> clazz) {
-        if (clazz == null) {
-            return fields;
-        }
-        Field[] declared = clazz.getDeclaredFields();
-        ArrayList<SafeField<?>> newFields = new ArrayList<SafeField<?>>(declared.length);
-        for (Field field : declared) {
-            if (!Modifier.isStatic(field.getModifiers())) {
-                newFields.add(new SafeField<Object>(field));
-            }
-        }
-        fields.addAll(0, newFields);
-        return fillFields(fields, clazz.getSuperclass());
+    /**
+     * Gets a stream of all superclasses represented by a type.
+     * If clazz is null, an empty stream is returned.
+     * 
+     * @param clazz
+     * @return stream starting with clazz, following all superclasses in sequence
+     */
+    public static Stream<Class<?>> getAllClasses(Class<?> clazz) {
+        return MountiplexUtil.<Class<?>>iterateNullTerminated(clazz, Class::getSuperclass);
     }
 
-    public static List<FastField<?>> fillFastFields(List<FastField<?>> fields, Class<?> clazz) {
-        if (clazz == null) {
-            return fields;
-        }
-        Field[] declared = clazz.getDeclaredFields();
-        ArrayList<FastField<?>> newFields = new ArrayList<FastField<?>>(declared.length);
-        for (Field field : declared) {
-            if (!Modifier.isStatic(field.getModifiers())) {
-                FastField<Object> ff = new FastField<Object>();
-                ff.init(field);
-                newFields.add(ff);
-            }
-        }
-        fields.addAll(0, newFields);
-        return fillFastFields(fields, clazz.getSuperclass());
+    /**
+     * Gets a stream of all superclasses and interfaces represented by a type.
+     * If clazz is null, an empty stream is returned.
+     * Duplicate interfaces implemented by multiple classes are removed.
+     * 
+     * @param clazz
+     * @return stream starting with clazz, following all superclasses, then all interfaces,
+     *         in sequence.
+     */
+    public static Stream<Class<?>> getAllClassesAndInterfaces(Class<?> clazz) {
+        return Stream.concat(getAllClasses(clazz),
+                getAllClasses(clazz)
+                        .flatMap(ReflectionUtil::discoverAllInterfaces)
+                        .distinct());
+    }
+
+    // Recursively figures out all the interfaces that exist for a type
+    // Interfaces of interfaces are also included
+    private static Stream<Class<?>> discoverAllInterfaces(Class<?> type) {
+        Class<?>[] interfaces = type.getInterfaces();
+        return Stream.concat(Stream.of(interfaces), Stream.of(interfaces)
+                .flatMap(ReflectionUtil::discoverAllInterfaces));
+    }
+
+    /**
+     * Gets all methods declared in a Class, its superclasses and
+     * all its interfaces all the way down. If the input class is null,
+     * then an empty stream is returned. Duplicate method
+     * signatures are not removed.
+     * 
+     * @param clazz
+     * @return stream of methods declared in the clazz, its superclasses and interfaces
+     */
+    public static Stream<Method> getAllMethods(Class<?> clazz) {
+        return getAllClassesAndInterfaces(clazz).flatMap(c -> Stream.of(c.getDeclaredMethods()));
+    }
+
+    /**
+     * Gets all fields declared in a Class and its superclasses.
+     * If the input class is null, then an empty stream is returned.
+     * 
+     * @param clazz Type to look from
+     * @return stream of fields declared in the clazz and its superclasses
+     */
+    public static Stream<Field> getAllFields(Class<?> clazz) {
+        return MountiplexUtil.<Class<?>>iterateNullTerminated(clazz, Class::getSuperclass)
+                .flatMap(t -> Stream.of(t.getDeclaredFields()));
+    }
+
+    /**
+     * Applies a non-static modifier filter to the result of {@link #getAllFields(Class)}.
+     * 
+     * @param clazz
+     * @return stream of non-static fields declared in the clazz and its superclasses
+     */
+    public static Stream<Field> getAllNonStaticFields(Class<?> clazz) {
+        return getAllFields(clazz).filter(m -> !Modifier.isStatic(m.getModifiers()));
+    }
+
+    /**
+     * Applies a static modifier filter to the result of {@link #getAllFields(Class)}.
+     * 
+     * @param clazz
+     * @return stream of static fields declared in the clazz and its superclasses
+     */
+    public static Stream<Field> getAllStaticFields(Class<?> clazz) {
+        return getAllFields(clazz).filter(m -> Modifier.isStatic(m.getModifiers()));
     }
 
     public static String stringifyType(Class<?> type) {

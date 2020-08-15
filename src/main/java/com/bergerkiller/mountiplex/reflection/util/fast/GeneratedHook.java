@@ -2,14 +2,13 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static org.objectweb.asm.Opcodes.*;
 
@@ -18,6 +17,7 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -76,23 +76,10 @@ public class GeneratedHook {
             mv.visitEnd();
         }
 
-        // Collect all classes to operate on, in order
-        // First we go through the methods declared in the base class itself, then its
-        // superclasses, then all interfaces for the base class and all it's superclasses.
-        // TODO: Some way to maybe do this through streaming API?
-        LinkedHashSet<Class<?>> types = new LinkedHashSet<Class<?>>();
-        for (Class<?> currentClass = baseClass; currentClass != null; currentClass = currentClass.getSuperclass()) {
-            types.add(currentClass);
-        }
-        for (Class<?> currentClass = baseClass; currentClass != null; currentClass = currentClass.getSuperclass()) {
-            types.addAll(Arrays.asList(currentClass.getInterfaces()));
-        }
-        types.addAll(interfaces);
-
         // Track what methods we have already implemented to prevent multiple-implementations
         final Set<MethodSignature> implemented = new HashSet<MethodSignature>();
-        types.stream()
-                .flatMap(c -> Arrays.stream(c.getDeclaredMethods()))
+        Stream.concat(ReflectionUtil.getAllClassesAndInterfaces(baseClass), interfaces.stream())
+                .flatMap(c -> Stream.of(c.getDeclaredMethods()))
                 .filter(method -> {
                     int modifiers = method.getModifiers();
 

@@ -7,9 +7,13 @@ import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedList;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
@@ -649,97 +653,87 @@ public class TypeDeclaration extends Declaration {
 
     @Override
     public double similarity(Declaration other) {
-    	if (!(other instanceof TypeDeclaration)) {
-    		return 0.0;
-    	}
-    	TypeDeclaration t = (TypeDeclaration) other;
-    	if (!t.isValid() || !this.isValid()) {
-    		return 0.0;
-    	}
+        if (!(other instanceof TypeDeclaration)) {
+            return 0.0;
+        }
+        TypeDeclaration t = (TypeDeclaration) other;
+        if (!t.isValid() || !this.isValid()) {
+            return 0.0;
+        }
 
-    	double mainTypeSimilarity;
-    	if (!t.isResolved() || !this.isResolved()) {
-    		// All we can do is compare the type names
-    		mainTypeSimilarity = MountiplexUtil.similarity(this.typePath, t.typePath);
-    	} else if (this.type.equals(t.type)) {
-    		// Types are exactly equal
-    		mainTypeSimilarity = 1.0;
-    	} else {
-    		Class<?> t1 = BoxedType.tryBoxType(this.type);
-    		Class<?> t2 = BoxedType.tryBoxType(t.type);
-    		if (t1.isAssignableFrom(t2)) {
-    			// t2 extends t1. Check how many layers down.
-    			int n = 1;
-    			Class<?> s = t2;
-    			while ((s = s.getSuperclass()) != null && !s.equals(t1)) {
-    				n++;
-    			}
-    			mainTypeSimilarity = 1.0 / (double) n;
-    		} else if (t2.isAssignableFrom(t1)) {
-    			// t1 extends t2. Check how many layers down.
-    			int n = 1;
-    			Class<?> s = t1;
-    			while ((s = s.getSuperclass()) != null && !s.equals(t2)) {
-    				n++;
-    			}
-    			mainTypeSimilarity = 1.0 / (double) n;
-    		} else {
-    			// The types may share the same base class (exempt Object)
-    			// they may also share certain interfaces. Each adds to the similarity.
-    			ArrayList<Class<?>> t1s = new ArrayList<Class<?>>();
-    			ArrayList<Class<?>> t2s = new ArrayList<Class<?>>();
-    			MountiplexUtil.addSuperClasses(t1, t1s);
-    			MountiplexUtil.addSuperClasses(t2, t2s);
-    			t1s.remove(Object.class);
-    			t2s.remove(Object.class);
-    			ArrayList<Class<?>> combined = new ArrayList<Class<?>>(t1s);
-    			for (Class<?> c : t2s) {
-    				if (!combined.contains(c)) {
-    					combined.add(c);
-    				}
-    			}
-    			int totalSuperTypes = combined.size();
-    			if (totalSuperTypes == 0) {
-    				// Two very standalone classes. No similarity, at all.
-    				mainTypeSimilarity = 0.0;
-    			} else {
-    				// Amount of classes overlap / total defines similarity
-    				int numberOverlap = 0;
-    				for (Class<?> c : t1s) {
-    					if (t2s.contains(c)) {
-    						numberOverlap++;
-    					}
-    				}
-    				mainTypeSimilarity = (double) numberOverlap / (double) totalSuperTypes;
-    			}
-    		}
-    	}
+        double mainTypeSimilarity;
+        if (!t.isResolved() || !this.isResolved()) {
+            // All we can do is compare the type names
+            mainTypeSimilarity = MountiplexUtil.similarity(this.typePath, t.typePath);
+        } else if (this.type.equals(t.type)) {
+            // Types are exactly equal
+            mainTypeSimilarity = 1.0;
+        } else {
+            Class<?> t1 = BoxedType.tryBoxType(this.type);
+            Class<?> t2 = BoxedType.tryBoxType(t.type);
+            if (t1.isAssignableFrom(t2)) {
+                // t2 extends t1. Check how many layers down.
+                int n = 1;
+                Class<?> s = t2;
+                while ((s = s.getSuperclass()) != null && !s.equals(t1)) {
+                    n++;
+                }
+                mainTypeSimilarity = 1.0 / (double) n;
+            } else if (t2.isAssignableFrom(t1)) {
+                // t1 extends t2. Check how many layers down.
+                int n = 1;
+                Class<?> s = t1;
+                while ((s = s.getSuperclass()) != null && !s.equals(t2)) {
+                    n++;
+                }
+                mainTypeSimilarity = 1.0 / (double) n;
+            } else {
+                // The types may share the same base class (exempt Object)
+                // they may also share certain interfaces. Each adds to the similarity.
+                Collection<Class<?>> t1s = ReflectionUtil.getAllClassesAndInterfaces(t1)
+                        .filter(c -> c != Object.class)
+                        .collect(Collectors.toCollection(ArrayList::new));
+                Collection<Class<?>> t2s = ReflectionUtil.getAllClassesAndInterfaces(t2)
+                        .filter(c -> c != Object.class)
+                        .collect(Collectors.toCollection(ArrayList::new));
 
-    	// Handle generic types
-    	double genericSimilarity;
-    	if (this.genericTypes.length > 0 && t.genericTypes.length > 0) {
-    		if (this.genericTypes.length == t.genericTypes.length) {
-    			// Compare generic types
-    			genericSimilarity = 0.0;
-    			for (int i = 0; i < this.genericTypes.length; i++) {
-    				genericSimilarity += this.genericTypes[i].similarity(t.genericTypes[i]);
-    			}
-    			genericSimilarity /= this.genericTypes.length;
-    		} else {
-    			// Different number of generic types for each - dissimilar
-    			genericSimilarity = 0.0;
-    		}
-    	} else if (this.genericTypes.length == 0 && t.genericTypes.length == 0) {
-    		// No generic types are used - 100% similar
-    		genericSimilarity = 1.0;
-    	} else {
-    		// One type is generic, the other is a raw type. No real way to identify.
-    		// Use a constant 0.5
-    		genericSimilarity = 0.5;
-    	}
+                long numberOverlap = t1s.stream().filter(t2s::contains).count();
+                if (numberOverlap == 0) {
+                    // Two very standalone classes. No similarity, at all.
+                    mainTypeSimilarity = 0.0;
+                } else {
+                    // Amount of classes overlap / total defines similarity
+                    long totalSuperTypes = Stream.concat(t1s.stream(), t2s.stream()).distinct().count();
+                    mainTypeSimilarity = (double) numberOverlap / (double) totalSuperTypes;
+                }
+            }
+        }
 
-    	// Final result is 75% main type, 25% generic type
-    	return (0.75 * mainTypeSimilarity) + (0.25 * genericSimilarity);
+        // Handle generic types
+        double genericSimilarity;
+        if (this.genericTypes.length > 0 && t.genericTypes.length > 0) {
+            if (this.genericTypes.length == t.genericTypes.length) {
+                // Compare generic types
+                genericSimilarity = 0.0;
+                for (int i = 0; i < this.genericTypes.length; i++) {
+                    genericSimilarity += this.genericTypes[i].similarity(t.genericTypes[i]);
+                }
+                genericSimilarity /= this.genericTypes.length;
+            } else {
+                // Different number of generic types for each - dissimilar
+                genericSimilarity = 0.0;
+            }
+        } else if (this.genericTypes.length == 0 && t.genericTypes.length == 0) {
+            // No generic types are used - 100% similar
+            genericSimilarity = 1.0;
+        } else {
+            // One type is generic, the other is a raw type. No real way to identify.
+            // Use a constant 0.5
+            genericSimilarity = 0.5;
+        }
+
+        // Final result is 75% main type, 25% generic type
+        return (0.75 * mainTypeSimilarity) + (0.25 * genericSimilarity);
     }
 
     @Override

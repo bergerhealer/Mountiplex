@@ -267,7 +267,7 @@ public class ClassDeclaration extends Declaration {
                 }
             }
             if (!found && !constructor.modifiers.isOptional()) {
-                FieldLCSResolver.logAlternatives("constructor", realConstructors, constructor);
+                FieldLCSResolver.logAlternatives("constructor", realConstructors, constructor, false);
             }
         }
     }

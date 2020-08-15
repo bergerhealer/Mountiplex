@@ -14,13 +14,14 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Maintains a full reflection model for a class hierarchy
@@ -30,7 +31,7 @@ public class ClassTemplate<T> {
     private List<SafeField<?>> fields;
     private NullInstantiator<T> instantiator;
     private List<FieldDeclaration> typeFields;
-    private LinkedList<MethodDeclaration> typeMethods;
+    private List<MethodDeclaration> typeMethods;
     private Queue<FieldDeclaration> nextFieldQueue;
     private ClassResolver resolver;
 
@@ -111,7 +112,9 @@ public class ClassTemplate<T> {
             if (type == null) {
                 fields = Collections.emptyList();
             } else {
-                fields = Collections.unmodifiableList(ReflectionUtil.fillFields(new ArrayList<SafeField<?>>(), type));
+                fields = Collections.unmodifiableList(ReflectionUtil.getAllNonStaticFields(type)
+                            .map(SafeField::new)
+                            .collect(Collectors.toList()));
             }
         }
         return fields;
@@ -466,12 +469,8 @@ public class ClassTemplate<T> {
         }
     }
 
-    private void addMethods(Class<?> type, HashSet<MethodSignature> addedSignatures) {
-        // Get sorted array of methods
-        Method[] declMethods = type.getDeclaredMethods();
-
-        // = type.getDeclaredMethods();
-        Arrays.sort(declMethods, new Comparator<Method>() {
+    private Comparator<Method> createMethodComparator() {
+        return new Comparator<Method>() {
             String paramsStr(Method m) {
                 Class<?>[] params = m.getParameterTypes();
                 String result = "";
@@ -501,32 +500,18 @@ public class ClassTemplate<T> {
                     return o1p.compareTo(o2p);
                 }
             }
-        });
-
-        // Add while checking for duplicates using the hashset, ignoring those
-        for (Method m : declMethods) {
-            if (addedSignatures.add(new MethodSignature(m))) {
-                typeMethods.add(new MethodDeclaration(resolver, m));
-            }
-        }
+        };
     }
 
     private void loadMethods() {
         // Initialize field queue with fields if needed
         if (typeMethods == null) {
-            typeMethods = new LinkedList<MethodDeclaration>();
-
-            // Load all methods top-down and then all abstract methods from the interfaces
-            Class<?> currentType = this.getType();
-            if (currentType != null) {
-                HashSet<MethodSignature> addedSignatures = new HashSet<MethodSignature>();
-                do {
-                    addMethods(currentType, addedSignatures);
-                } while ((currentType = currentType.getSuperclass()) != null);
-                for (Class<?> interfaceClass : this.getType().getInterfaces()) {
-                    addMethods(interfaceClass, addedSignatures);
-                }
-            }
+            HashSet<MethodSignature> addedSignatures = new HashSet<MethodSignature>();
+            typeMethods = ReflectionUtil.getAllClassesAndInterfaces(this.getType())
+                    .flatMap(c -> Stream.of(c.getDeclaredMethods()).sorted(createMethodComparator()))
+                    .filter(m -> addedSignatures.add(new MethodSignature(m)))
+                    .map(m -> new MethodDeclaration(resolver, m))
+                    .collect(Collectors.toList());
 
             /*
             System.out.println(ReflectionInfoHelper.INSTANCE.getClassName(this.getType()) + ":");

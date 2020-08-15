@@ -28,6 +28,10 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
         this.init(null);
     }
 
+    public FastField(java.lang.reflect.Field field) {
+        this.init(field);
+    }
+
     /**
      * Initializes the fast field using a Java Reflection Field.
      * To deinitialize this fast field, use null.

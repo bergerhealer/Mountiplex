@@ -65,7 +65,7 @@ public class SafeField<T> implements FieldAccessor<T> {
         }
         // try to find the field
         String fixedName = Resolver.resolveFieldName(source, name);
-        String dispName = name.equals(fixedName) ? name : (name + "[" + fixedName + "]");
+        String dispName = name.equals(fixedName) ? name : (name + ":" + fixedName);
         this.field.init(findRaw(source, fixedName));
         if (this.field.getField() == null) {
             if (fieldType == null) {
@@ -307,7 +307,7 @@ public class SafeField<T> implements FieldAccessor<T> {
         // Try to find the field in the current and all Super Classes
         while (tmp != null) {
             try {
-                return tmp.getDeclaredField(fieldName);
+                return MPLType.getDeclaredField(tmp, fieldName);
             } catch (NoSuchFieldException ex) {
                 tmp = tmp.getSuperclass();
             }

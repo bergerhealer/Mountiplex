@@ -446,7 +446,7 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
 
         protected static java.lang.reflect.Field findField(Class<?> type, String fieldName) throws Throwable {
             try {
-                return type.getDeclaredField(fieldName);
+                return MPLType.getDeclaredField(type, fieldName);
             } catch (NoSuchFieldException err) {
                 Class<?> supertype = type.getSuperclass();
                 if (supertype == null) {

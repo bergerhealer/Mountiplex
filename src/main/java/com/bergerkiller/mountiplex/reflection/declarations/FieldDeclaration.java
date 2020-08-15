@@ -2,7 +2,9 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.logging.Level;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
@@ -356,21 +358,20 @@ public class FieldDeclaration extends Declaration {
         java.lang.reflect.Field javaField;
         try {
             FieldDeclaration nameResolved = this.resolveName();
-            javaField = this.getResolver().getDeclaredClass().getDeclaredField(nameResolved.name.value());
+            javaField = MPLType.getDeclaredField(this.getResolver().getDeclaredClass(), nameResolved.name.value());
+            FieldDeclaration realField = new FieldDeclaration(this.getResolver(), javaField);
 
-            FieldDeclaration[] arrField = { nameResolved };
-            FieldDeclaration[] arrRealField = { new FieldDeclaration(this.getResolver(), javaField) };
-            FieldLCSResolver.resolve(arrField, arrRealField);
-            if (nameResolved.field == null) {
+            // Check matching
+            if (!nameResolved.match(realField)) {
                 return null;
             }
 
             // Field must be public when declaration says it's public
-            if (this.modifiers.isPublic() && !Modifier.isPublic(nameResolved.field.getModifiers())) {
+            if (this.modifiers.isPublic() && !Modifier.isPublic(realField.field.getModifiers())) {
                 return null;
             }
 
-            this.copyFieldFrom(nameResolved);
+            this.copyFieldFrom(realField);
             return this;
         } catch (NoSuchFieldException ex) {
             // Not found
@@ -378,6 +379,29 @@ public class FieldDeclaration extends Declaration {
             t.printStackTrace(); // wut
         }
         return null;
+    }
+
+    @Override
+    public void discoverAlternatives() {
+        Class<?> declaringClass = this.getResolver().getDeclaredClass();
+        if (declaringClass == null) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: ??" + this.getResolver().getDeclaredClassName() + "??");
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + this.toString());
+            return;
+        }
+
+        FieldDeclaration[] alternatives;
+        if (this.modifiers.isStatic()) {
+            alternatives = ReflectionUtil.getAllStaticFields(declaringClass)
+                    .map(f -> new FieldDeclaration(getResolver(), f))
+                    .toArray(FieldDeclaration[]::new);
+        } else {
+            alternatives = ReflectionUtil.getAllNonStaticFields(declaringClass)
+                    .map(f -> new FieldDeclaration(getResolver(), f))
+                    .toArray(FieldDeclaration[]::new);
+        }
+        sortSimilarity(this, alternatives);
+        FieldLCSResolver.logAlternatives("field", alternatives, this, true);
     }
 
     /**

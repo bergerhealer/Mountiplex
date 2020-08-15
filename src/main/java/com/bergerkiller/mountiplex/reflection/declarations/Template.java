@@ -401,17 +401,14 @@ public class Template {
          */
         public void copy(Object instanceFrom, Object instanceTo) {
             if (this.fields == null) {
-                ArrayList<FastField<?>> fields = new ArrayList<FastField<?>>();
-                if (this.classType != null) {
-                    ReflectionUtil.fillFastFields(fields, this.classType);
-                }
-                this.fields = fields.toArray(new FastField<?>[fields.size()]);
+                this.fields = ReflectionUtil.getAllNonStaticFields(this.classType)
+                        .map(FastField::new)
+                        .toArray(FastField[]::new);
             }
             for (FastField<?> field : this.fields) {
                 field.copy(instanceFrom, instanceTo);
             }
         }
-
     }
 
     /**

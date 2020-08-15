@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -391,6 +392,14 @@ public abstract class Declaration {
         return this;
     }
 
+    /**
+     * When {@link #discover()} fails and we really need this declaration,
+     * this method may be called to log all the alternatives that slightly
+     * resemble this declaration.
+     */
+    public void discoverAlternatives() {
+    }
+
     @Override
     public final boolean equals(Object other) {
         if (this == other) {
@@ -454,20 +463,32 @@ public abstract class Declaration {
      * @param list to sort
      */
     public static <T extends Declaration> void sortSimilarity(final T compare, List<T> list) {
-    	Collections.sort(list, new Comparator<T>() {
-			@Override
-			public int compare(T o1, T o2) {
-				double s1 = compare.similarity(o1);
-				double s2 = compare.similarity(o2);
-				if (s1 == s2) {
-					return 0;
-				} else if (s1 > s2) {
-					return -1;
-				} else {
-					return 1;
-				}
-			}
-    	});
+        Collections.sort(list, createSimilarityComparator(compare));
+    }
+
+    /**
+     * Sorts an array of declarations based on the similarity with a compared type.
+     * The most similar declarations are sorted to the beginning of the array.
+     * 
+     * @param compare declaration to compare with
+     * @param array to sort
+     */
+    public static <T extends Declaration> void sortSimilarity(final T compare, T[] array) {
+        Arrays.sort(array, createSimilarityComparator(compare));
+    }
+
+    private static <T extends Declaration> Comparator<T> createSimilarityComparator(final T compare) {
+        return (o1, o2) -> {
+            double s1 = compare.similarity(o1);
+            double s2 = compare.similarity(o2);
+            if (s1 == s2) {
+                return 0;
+            } else if (s1 > s2) {
+                return -1;
+            } else {
+                return 1;
+            }
+        };
     }
 
     /**

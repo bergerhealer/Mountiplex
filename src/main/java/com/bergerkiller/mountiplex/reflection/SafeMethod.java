@@ -60,7 +60,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         }
         // Find real name and display name
         String fixedName = Resolver.resolveMethodName(source, name, parameterTypes);
-        String dispName = name.equals(fixedName) ? name : (name + "[" + fixedName + "]");
+        String dispName = name.equals(fixedName) ? name : (name + ":" + fixedName);
         dispName += "(";
         for (int i = 0; i < parameterTypes.length; i++) {
             if (i > 0) {
@@ -142,7 +142,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         // Try to find the method in the current and all Super Classes
         while (tmp != null) {
             try {
-                return tmp.getDeclaredMethod(name, parameterTypes);
+                return MPLType.getDeclaredMethod(tmp, name, parameterTypes);
             } catch (NoSuchMethodException ex) {
                 tmp = tmp.getSuperclass();
             }

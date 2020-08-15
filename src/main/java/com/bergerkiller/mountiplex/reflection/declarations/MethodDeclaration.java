@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -13,6 +14,7 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
+import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
@@ -673,7 +675,7 @@ public class MethodDeclaration extends Declaration {
         // First try to find the method in a quick way
         try {
             java.lang.reflect.Method method;
-            method = this.getResolver().getDeclaredClass().getDeclaredMethod(nameResolved.name.value(), nameResolved.parameters.toParamArray());
+            method = MPLType.getDeclaredMethod(this.getResolver().getDeclaredClass(), nameResolved.name.value(), nameResolved.parameters.toParamArray());
             MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
             if (result.match(nameResolved) && checkPublic(method)) {
                 this.method = method;
@@ -705,6 +707,31 @@ public class MethodDeclaration extends Declaration {
 
         // Not found
         return null;
+    }
+
+    @Override
+    public void discoverAlternatives() {
+        Class<?> declaringClass = this.getResolver().getDeclaredClass();
+        if (declaringClass == null) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: ??" + this.getResolver().getDeclaredClassName() + "??");
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + this.toString());
+            return;
+        }
+
+        MethodDeclaration[] alternatives;
+        if (this.modifiers.isStatic()) {
+            alternatives = ReflectionUtil.getAllMethods(declaringClass)
+                    .filter(m -> Modifier.isStatic(m.getModifiers()))
+                    .toArray(MethodDeclaration[]::new);
+        } else {
+            HashSet<MethodSignature> unique = new HashSet<MethodSignature>();
+            alternatives = ReflectionUtil.getAllMethods(declaringClass)
+                    .filter(m -> !Modifier.isStatic(m.getModifiers()))
+                    .filter(m -> unique.add(new MethodSignature(m)))
+                    .toArray(MethodDeclaration[]::new);
+        }
+        sortSimilarity(this, alternatives);
+        FieldLCSResolver.logAlternatives("method", alternatives, this, true);
     }
 
     private boolean checkPublic(java.lang.reflect.Method method) {
@@ -785,7 +812,7 @@ public class MethodDeclaration extends Declaration {
                 if (parsedDeclaration.getResolver().getDeclaredClass() == null) {
                     // Log this
                     if (this.getResolver().getLogErrors()) {
-                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaring class for requirement not found: " + declaredClassName);
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Requirement declaration declaring Class not found: ??" + declaredClassName + "??");
                         MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
                     }
                     continue;
@@ -795,7 +822,7 @@ public class MethodDeclaration extends Declaration {
                 if (!parsedDeclaration.isResolved()) {
                     // Log this
                     if (this.getResolver().getLogErrors()) {
-                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be resolved for: " + declaredClassName);
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Requirement declaration could not be resolved for: " + declaredClassName);
                         MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
                     }
                     continue;
@@ -805,8 +832,7 @@ public class MethodDeclaration extends Declaration {
                 Declaration foundDeclaration = parsedDeclaration.discover();
                 if (foundDeclaration == null) {
                     if (this.getResolver().getLogErrors()) {
-                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration could not be found inside: " + declaredClassName);
-                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + parsedDeclaration.toString());
+                        parsedDeclaration.discoverAlternatives();
                     }
                     continue; // Not found!
                 }

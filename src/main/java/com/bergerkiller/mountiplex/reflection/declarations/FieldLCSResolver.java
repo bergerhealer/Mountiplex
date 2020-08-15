@@ -124,11 +124,15 @@ public class FieldLCSResolver {
         return pairs;
     }
 
-    public static <T extends Declaration> void logAlternatives(String category, T[] alternatives, T declaration) {
+    public static <T extends Declaration> void logAlternatives(String category, T[] alternatives, T declaration, boolean isRequirement) {
         if (!declaration.getResolver().getLogErrors()) {
             return;
         }
-        MountiplexUtil.LOGGER.warning("A class member of " + declaration.getResolver().getDeclaredClassName() + " was not found!");
+        if (isRequirement) {
+            MountiplexUtil.LOGGER.warning("Requirement was not found in " + declaration.getResolver().getDeclaredClassName() + ":");
+        } else {
+            MountiplexUtil.LOGGER.warning("A class member of " + declaration.getResolver().getDeclaredClassName() + " was not found!");
+        }
         if (alternatives.length == 0) {
             MountiplexUtil.LOGGER.warning("Failed to find " + category + " " + declaration + " (No alternatives)");
         } else {
@@ -164,9 +168,9 @@ public class FieldLCSResolver {
         for (FieldLCSResolver.Pair failPair : pairs) {
             if (failPair.b == null && !failPair.a.modifiers.isOptional()) {
                 if (failPair.bb.length > 0) {
-                    logAlternatives("field", failPair.bb, failPair.a);
+                    logAlternatives("field", failPair.bb, failPair.a, false);
                 } else {
-                    logAlternatives("field", realFields, failPair.a);
+                    logAlternatives("field", realFields, failPair.a, false);
                 }
             }
         }

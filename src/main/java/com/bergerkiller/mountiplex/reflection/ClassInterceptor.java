@@ -2,11 +2,9 @@ package com.bergerkiller.mountiplex.reflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -386,8 +384,9 @@ public abstract class ClassInterceptor {
                 throw new RuntimeException("Base Class " + MPLType.getName(baseType) + " has no instantiator");
 
             // These are used for transferring all fields from one Object to another
-            List<FastField<?>> fieldsList = ReflectionUtil.fillFastFields(new ArrayList<FastField<?>>(), baseType);
-            this.baseTypeFields = fieldsList.toArray(new FastField<?>[fieldsList.size()]);
+            this.baseTypeFields = ReflectionUtil.getAllNonStaticFields(baseType)
+                    .map(FastField::new)
+                    .toArray(FastField[]::new);
 
             // Initializes the CI_getInterceptor() function, stores it in a field
             this.getInterceptorCallback = GeneratedHook.createLocalField(() -> currentInterceptor);

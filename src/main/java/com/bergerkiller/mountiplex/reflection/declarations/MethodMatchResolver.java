@@ -65,7 +65,7 @@ public class MethodMatchResolver {
                 }
             }
             if (!found && !method.modifiers.isOptional() && method.body == null) {
-                FieldLCSResolver.logAlternatives("method", realMethods, nameResolved);
+                FieldLCSResolver.logAlternatives("method", realMethods, nameResolved, false);
             }
         }
     }
