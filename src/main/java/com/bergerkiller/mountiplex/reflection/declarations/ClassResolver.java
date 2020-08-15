@@ -197,16 +197,31 @@ public class ClassResolver {
     }
 
     /**
-     * Adds a package path, making all Classes within visible
+     * Adds a package path, making all Classes within visible.
+     * Original imports and declared class info prior to setting the package are lost.
      * 
-     * @param path to the package to add
+     * @param path to the package to set
      */
     public void setPackage(String path) {
+        setPackage(path, true);
+    }
+
+    /**
+     * Adds a package path, making all Classes within visible.
+     * Original imports and declared class info prior to setting the package are lost
+     * when reset is true.
+     * 
+     * @param path to the package to set
+     * @param reset whether to reset declared class and imports
+     */
+    public void setPackage(String path, boolean reset) {
         this.packagePath = path;
-        this.declaredClass = null;
-        this.declaredClassName = null;
-        this.manualImports.clear();
-        this.manualImports.addAll(default_imports);
+        if (reset) {
+            this.declaredClass = null;
+            this.declaredClassName = null;
+            this.manualImports.clear();
+            this.manualImports.addAll(default_imports);
+        }
         this.regenImports();
     }
 
@@ -307,7 +322,17 @@ public class ClassResolver {
      * @param path to import
      */
     public void addImport(String path) {
-        this.manualImports.add(0, path);
+        this.manualImports.add(path);
+        this.regenImports();
+    }
+
+    /**
+     * Adds multiple import declarations. This method supports wildcard imports.
+     * 
+     * @param paths to import
+     */
+    public void addImports(Collection<String> paths) {
+        this.manualImports.addAll(paths);
         this.regenImports();
     }
 
@@ -682,10 +707,11 @@ public class ClassResolver {
     private void regenImports() {
         this.imports.clear();
         this.imports.addAll(this.manualImports);
+        Collections.reverse(this.imports);
         if (this.declaredClassName != null) {
             this.imports.add(this.declaredClassName + ".*");
         }
-        if (this.packagePath != null && this.packagePath.length() > 0) {
+        if (this.packagePath != null && !this.packagePath.isEmpty()) {
             this.imports.add(this.packagePath + ".*");
         }
     }

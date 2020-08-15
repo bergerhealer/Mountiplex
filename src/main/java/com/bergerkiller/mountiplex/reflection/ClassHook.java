@@ -1,17 +1,21 @@
 package com.bergerkiller.mountiplex.reflection;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -46,9 +50,30 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         TypeDeclaration method_type = TypeDeclaration.fromClass(method.getDeclaringClass());
         MethodDeclaration methodDec = Resolver.resolveMethodAlias(method);
 
+        // Create class-level resolver, which adds all the imports declared at class level
+        ClassResolver classLevelResolver = methodDec.getResolver();
+        if (methods.classImports.length > 0 || methods.classPackage != null) {
+            classLevelResolver = classLevelResolver.clone();
+            if (methods.classPackage != null) {
+                classLevelResolver.setPackage(methods.classPackage, false);
+            }
+            classLevelResolver.addImports(Arrays.asList(methods.classImports));
+        }
+
         for (HookMethodEntry entry : methods.entries) {
+            // Create resolver to decode the method, keep hook-level imports in mind
+            // When method doesn't declare any imports/packages, reuse the class-level resolver
+            ClassResolver resolver = classLevelResolver;
+            if (entry.hookImports.length > 0 || entry.hookPackage != null) {
+                resolver = resolver.clone();
+                if (entry.hookPackage != null) {
+                    resolver.setPackage(entry.hookPackage, false);
+                }
+                resolver.addImports(Arrays.asList(entry.hookImports));
+            }
+
             // Check if signature matches with method
-            MethodDeclaration m = (new MethodDeclaration(methodDec.getResolver(), entry.declaration)).resolveName();
+            MethodDeclaration m = (new MethodDeclaration(resolver, entry.declaration)).resolveName();
             if (m.isValid() && m.isResolved() && m.match(methodDec)) {
                 entry.setMethod(method_type, method);
                 //System.out.println("[" + method.getDeclaringClass().getSimpleName() + "] " +
@@ -86,11 +111,45 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         }
     }
 
+    /**
+     * Declares a single hook method overriding the method
+     * matching the signature defined in {@link #value()}.
+     */
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface HookMethod {
         String value();
         boolean optional() default false;
+    }
+
+    /**
+     * Defines the main package in which this hook is expected
+     * to operate. Imports are resolved using this package
+     * with top priority. Only one package can be active
+     * at one time.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface HookPackage {
+        String value();
+    }
+
+    /**
+     * Adds an import rule for resolving {@link HookMethod}
+     * signatures. Can be added to individual methods, or hook
+     * classes to add them to all methods declared inside.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Repeatable(HookImportList.class)
+    public @interface HookImport {
+        String value();
+    }
+
+    /**
+     * List of HookImport
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface HookImportList {
+        HookImport[] value();
     }
 
     private static HookMethodList loadMethodList(Class<?> hookClass) {
@@ -100,13 +159,15 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
         HookMethodList list = hookMethodMap.get(hookClass);
         if (list == null) {
-            list = new HookMethodList();
+            // Create new hook list with these imports
+            list = new HookMethodList(hookClass);
 
             // Find all methods with a @HookMethod annotation
             for (Method method : hookClass.getDeclaredMethods()) {
                 HookMethod hm = method.getAnnotation(HookMethod.class);
                 if (hm != null) {
-                    list.entries.add(new HookMethodEntry(method, hm.value(), hm.optional()));
+                    list.entries.add(new HookMethodEntry(list,
+                            method, hm.value(), hm.optional()));
                 }
             }
 
@@ -119,6 +180,23 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
     private static class HookMethodList {
         public final List<HookMethodEntry> entries = new ArrayList<HookMethodEntry>();
+        public final String[] classImports;
+        public final String classPackage;
+
+        public HookMethodList() {
+            this.classImports = new String[0];
+            this.classPackage = null;
+        }
+
+        public HookMethodList(Class<?> hookClassType) {
+            this.classImports = ReflectionUtil.getAllClassesAndInterfaces(hookClassType)
+                    .flatMap(c -> Stream.of(c.getDeclaredAnnotationsByType(HookImport.class)))
+                    .map(HookImport::value)
+                    .toArray(String[]::new);
+
+            HookPackage packageAnnot = hookClassType.getAnnotation(HookPackage.class);
+            this.classPackage = (packageAnnot == null) ? null : packageAnnot.value();
+        }
     }
 
     private static class BaseClassInterceptor extends ClassInterceptor {
@@ -142,9 +220,12 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     private static class HookMethodEntry extends InterceptorCallback {
         public final InputTypeMap<Method> superMethodMap = new InputTypeMap<Method>();
         public final Map<Class<?>, Invoker<?>> superInvokerMap = new HashMap<Class<?>, Invoker<?>>();
+        public final HookMethodList owner;
         public final String declaration;
         public final boolean optional;
         public final Method method;
+        public final String[] hookImports;
+        public final String hookPackage;
 
         // This invokable is called with the hook as an instance
         public final Invoker<?> baseInvokable = (instance, args) -> {
@@ -183,11 +264,18 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             }
         };
 
-        public HookMethodEntry(Method method, String name, boolean optional) {
+        public HookMethodEntry(HookMethodList list, Method method, String name, boolean optional) {
+            this.owner = list;
             this.method = method;
             this.declaration = name;
             this.optional = optional;
             this.interceptorCallback = InitInvoker.forMethod(this, "interceptorCallback", method);
+            this.hookImports = Stream.of(method.getDeclaredAnnotationsByType(HookImport.class))
+                    .map(HookImport::value)
+                    .toArray(String[]::new);
+
+            HookPackage hookAnnot = method.getAnnotation(HookPackage.class);
+            this.hookPackage = (hookAnnot == null) ? null : hookAnnot.value();
         }
 
         @Override
@@ -203,6 +291,20 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             superMethodMap.put(type, method);
         }
 
+        public ClassResolver createResolver(Class<?> type) {
+            ClassResolver resolver = new ClassResolver();
+            resolver.setDeclaredClass(type);
+            if (this.hookPackage != null) {
+                resolver.setPackage(this.hookPackage);
+            } else if (this.owner.classPackage != null) {
+                resolver.setPackage(this.owner.classPackage);
+            }
+            resolver.addImports(Arrays.asList(this.owner.classImports));
+            resolver.addImports(Arrays.asList(this.hookImports));
+            resolver.setLogErrors(true);
+            return resolver;
+        }
+
         public Method findMethodIn(TypeDeclaration type) {
             if (type == null || !type.isResolved()) {
                 return null;
@@ -210,7 +312,9 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
             Method m = superMethodMap.get(type);
             if (m == null) {
-                MethodDeclaration mDec = Resolver.findMethod(type.type, this.declaration);
+                ClassResolver resolver = this.createResolver(type.type);
+                MethodDeclaration mDec = new MethodDeclaration(resolver, this.declaration);
+                mDec = mDec.discover();
                 if (mDec != null) {
                     m = mDec.method;
                     if (m != null) {

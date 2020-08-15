@@ -13,7 +13,6 @@ import javassist.NotFoundException;
 import javassist.bytecode.MethodInfo;
 import javassist.compiler.CompileError;
 import javassist.compiler.MemberResolver;
-import javassist.compiler.NoFieldException;
 import javassist.compiler.ast.ASTree;
 import javassist.compiler.ast.Member;
 import javassist.compiler.ast.Symbol;
@@ -71,22 +70,26 @@ public final class MPLMemberResolver extends MemberResolver {
             return cc.getField(fieldName.get());
         }
         catch (NotFoundException e) {}
-        throw new CompileError("no such field: " + fieldName.get());
+        throw new CompileError("no such field: " + cc.getName() + " -> " + fieldName.get());
     }
 
     // Remaps the fieldName symbol of a static field
     @Override
     public CtField lookupFieldByJvmName2(String jvmClassName, Symbol fieldSym,
-            ASTree expr) throws NoFieldException
+            ASTree expr) throws javassist.compiler.NoFieldException
     {
         String field = fieldSym.get();
         CtClass cc = null;
+        String javaName = jvmToJavaName(jvmClassName);
         try {
-            cc = lookupClass(jvmToJavaName(jvmClassName), true);
+            cc = lookupClass(javaName, true);
         }
         catch (CompileError e) {
             // EXPR might be part of a qualified class name.
-            throw new NoFieldException(jvmClassName + "/" + field, expr);
+            throw new NoFieldException(
+                    jvmClassName + "/" + field,
+                    "??" + javaName + "??." + field,
+                    expr);
         }
 
         // Do field renaming here
@@ -98,7 +101,10 @@ public final class MPLMemberResolver extends MemberResolver {
         catch (NotFoundException e) {
             // maybe an inner class.
             jvmClassName = javaToJvmName(cc.getName());
-            throw new NoFieldException(jvmClassName + "$" + field, expr);
+            throw new NoFieldException(
+                    jvmClassName + "$" + field,
+                    cc.getName() + "." + field,
+                    expr);
         }
     }
 
@@ -154,7 +160,7 @@ public final class MPLMemberResolver extends MemberResolver {
         }
 
         // If initializer, skip, those don't get remapped
-        if (methodName.equals("<init>")) {
+        if (methodName.equals(MethodInfo.nameInit)) {
             return methodName;
         }
 
@@ -235,6 +241,25 @@ public final class MPLMemberResolver extends MemberResolver {
             }
         default:
             return null;
+        }
+    }
+
+    // Allows changing the printed name to include extra context
+    public static class NoFieldException extends javassist.compiler.NoFieldException {
+        private static final long serialVersionUID = -3755584273114392309L;
+        private final String replFieldName;
+
+        public NoFieldException(String symbol, String printed, ASTree e) {
+            super(printed, e);
+            this.replFieldName = symbol;
+        }
+
+        /* 
+         * The returned name should be JVM-internal representation.
+         */
+        @Override
+        public String getField() {
+            return this.replFieldName;
         }
     }
 }

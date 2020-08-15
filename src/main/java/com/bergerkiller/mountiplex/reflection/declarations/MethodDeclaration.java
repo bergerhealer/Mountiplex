@@ -903,9 +903,10 @@ public class MethodDeclaration extends Declaration {
      * @return name-resolved method declaration
      */
     public MethodDeclaration resolveName() {
-        if (!this.isResolved()) {
+        if (!this.isResolved() || this.getResolver().getDeclaredClass() == null) {
             return this;
         }
+
         String resolvedName = Resolver.resolveMethodName(this.getResolver().getDeclaredClass(), this.name.value(), this.parameters.toParamArray());
         if (resolvedName != null && !resolvedName.equals(this.name.value())) {
             return new MethodDeclaration(this, this.name.rename(resolvedName));
