@@ -19,7 +19,6 @@ import org.objectweb.asm.MethodVisitor;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 
-import javassist.ClassPath;
 import javassist.NotFoundException;
 
 /**
@@ -33,49 +32,7 @@ public class ClassBytecodeLoader {
     /**
      * Default ClassPath that uses this ClassBytecodeLoader to retrieve class data
      */
-    public static final ClassPath CLASSPATH = new ClassPath() {
-        @Override
-        public InputStream openClassfile(String classname) throws NotFoundException {
-            // Ask ClassLoader first
-            // Check loading from .class is allowed
-            String filename = '/' + classname.replace('.', '/') + ".class";
-            if (Resolver.canLoadClassPath(classname)) {
-                InputStream stream = ClassBytecodeLoader.class.getResourceAsStream(filename);
-                if (stream != null) {
-                    return stream;
-                }
-            }
-
-            // Retrieve the Class by this path
-            try {
-                Class<?> clazz = MPLType.getClassByName(classname);
-                return new ByteArrayInputStream(generateMockByteCode(clazz));
-            } catch (Throwable t) {
-                return null;
-            }
-        }
-
-        @Override
-        public URL find(String classname) {
-            // Ask ClassLoader first
-            // Check loading from .class is allowed
-            String filename = '/' + classname.replace('.', '/') + ".class";
-            if (Resolver.canLoadClassPath(classname)) {
-                URL url = ClassBytecodeLoader.class.getResource(filename);
-                if (url != null) {
-                    return url;
-                }
-            }
-
-            // Retrieve the Class by this path
-            try {
-                Class<?> clazz = MPLType.getClassByName(classname);
-                return generatedURL(clazz, filename);
-            } catch (Throwable t) {
-                return null;
-            }
-        }
-    };
+    public static final javassist.ClassPath CLASSPATH = new CBLObjectClassPath();
 
     /**
      * Loads the .class bytecode data for a Class.
@@ -202,5 +159,93 @@ public class ClassBytecodeLoader {
         // Done
         cw.visitEnd();
         return cw.toByteArray();
+    }
+
+    // Used to resolve Java's own types
+    private static final javassist.ClassPath SYSTEM = new javassist.ClassClassPath(Object.class);
+
+    private static final class CBLObjectClassPath implements javassist.ClassPath {
+        private final ClassLoader mountiplexClassLoader = ClassBytecodeLoader.class.getClassLoader();
+        private final ClassLoader fallbackClassLoader = Thread.currentThread().getContextClassLoader();
+
+        @Override
+        public InputStream openClassfile(String classname) throws NotFoundException {
+            InputStream result;
+
+            // Optimization: java types must always be loaded from the system loader
+            // This also fixes java.lang.Object being loaded using the wrong ClassLoader
+            if (classname.startsWith("java.") && (result = SYSTEM.openClassfile(classname)) != null) {
+                return result;
+            }
+
+            // Ask ClassLoader first
+            // Check loading from .class is allowed
+            if (Resolver.canLoadClassPath(classname)) {
+                String filename = classname.replace('.', '/') + ".class";
+
+                // The world!
+                if ((result = fallbackClassLoader.getResourceAsStream(filename)) != null) {
+                    return result;
+                }
+
+                // Mountiplex's own types
+                if ((result = mountiplexClassLoader.getResourceAsStream(filename)) != null) {
+                    return result;
+                }
+
+                // Just in case the check in the beginning missed it: System path
+                if ((result = SYSTEM.openClassfile(classname)) != null) {
+                    return result;
+                }
+            }
+
+            // Generate the Class Bytecode by this path
+            try {
+                Class<?> clazz = MPLType.getClassByName(classname);
+                return new ByteArrayInputStream(generateMockByteCode(clazz));
+            } catch (Throwable t) {
+                return null;
+            }
+        }
+
+        @Override
+        public URL find(String classname) {
+            URL result;
+
+            // Optimization: java types must always be loaded from the system loader
+            // This also fixes java.lang.Object being loaded using the wrong ClassLoader
+            if (classname.startsWith("java.") && (result = SYSTEM.find(classname)) != null) {
+                return result;
+            }
+
+            // Ask ClassLoader first
+            // Check loading from .class is allowed
+            String filename = classname.replace('.', '/') + ".class";
+            if (Resolver.canLoadClassPath(classname)) {
+                // The world!
+                if ((result = fallbackClassLoader.getResource(filename)) != null) {
+                    return result;
+                }
+
+                // Mountiplex's own types
+                if ((result = mountiplexClassLoader.getResource(filename)) != null) {
+                    return result;
+                }
+
+                // Just in case the check in the beginning missed it: System path
+                if ((result = SYSTEM.find(classname)) != null) {
+                    return result;
+                }
+            }
+
+            // Generate the Class Bytecode by this path
+            // Is generated when the URL is visited.
+            try {
+                Class<?> clazz = MPLType.getClassByName(classname);
+                return generatedURL(clazz, filename);
+            } catch (Throwable t) {
+                return null;
+            }
+        }
     }
 }
