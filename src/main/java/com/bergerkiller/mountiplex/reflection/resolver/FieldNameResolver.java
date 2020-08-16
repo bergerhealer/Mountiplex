@@ -1,5 +1,9 @@
 package com.bergerkiller.mountiplex.reflection.resolver;
 
+/**
+ * Resolves the name of a field, making sure it matches
+ * the name returned through {@link java.lang.reflect.Field}.
+ */
 public interface FieldNameResolver {
 
     /**

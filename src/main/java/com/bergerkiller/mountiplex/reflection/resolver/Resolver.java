@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex.reflection.resolver;
 import java.lang.reflect.GenericSignatureFormatError;
 import java.lang.reflect.MalformedParameterizedTypeException;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -24,10 +23,12 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
  */
 public class Resolver {
     private static Resolver resolver = new Resolver();
-    private final ArrayList<ClassPathResolver> classPathResolvers = new ArrayList<ClassPathResolver>();
-    private final ArrayList<FieldNameResolver> fieldNameResolvers = new ArrayList<FieldNameResolver>();
-    private final ArrayList<MethodNameResolver> methodNameResolvers = new ArrayList<MethodNameResolver>();
-    private final ArrayList<ClassDeclarationResolver> classDeclarationResolvers = new ArrayList<ClassDeclarationResolver>();
+    private ClassDeclarationResolver classDeclarationResolverChain = NoOpResolver.INSTANCE;
+    private ClassPathResolver classPathResolverChain = NoOpResolver.INSTANCE;
+    private CompiledFieldNameResolver compiledFieldNameResolverChain = NoOpResolver.INSTANCE;
+    private CompiledMethodNameResolver compiledMethodNameResolverChain = NoOpResolver.INSTANCE;
+    private FieldNameResolver fieldNameResolverChain = NoOpResolver.INSTANCE;
+    private MethodNameResolver methodNameResolverChain = NoOpResolver.INSTANCE;
     private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
     private final HashMap<Class<?>, ClassMeta> classTypeCache = new HashMap<Class<?>, ClassMeta>();
 
@@ -199,50 +200,34 @@ public class Resolver {
     }
 
     public static void registerClassDeclarationResolver(ClassDeclarationResolver resolver) {
-        Resolver.resolver.classDeclarationResolvers.add(resolver);
+        Resolver.resolver.classDeclarationResolverChain = ChainResolver.chain(
+                Resolver.resolver.classDeclarationResolverChain, resolver);
     }
 
     public static void registerClassResolver(ClassPathResolver resolver) {
-        Resolver.resolver.classPathResolvers.add(resolver);
+        Resolver.resolver.classPathResolverChain = ChainResolver.chain(
+                Resolver.resolver.classPathResolverChain, resolver);
         Resolver.resolver.classCache.clear();
     }
 
-    public static void registerMethodResolver(MethodNameResolver resolver) {
-        Resolver.resolver.methodNameResolvers.add(resolver);
+    public static void registerCompiledFieldResolver(CompiledFieldNameResolver resolver) {
+        Resolver.resolver.compiledFieldNameResolverChain = ChainResolver.chain(
+                Resolver.resolver.compiledFieldNameResolverChain, resolver);
+    }
+
+    public static void registerCompiledMethodResolver(CompiledMethodNameResolver resolver) {
+        Resolver.resolver.compiledMethodNameResolverChain = ChainResolver.chain(
+                Resolver.resolver.compiledMethodNameResolverChain, resolver);
     }
 
     public static void registerFieldResolver(FieldNameResolver resolver) {
-        Resolver.resolver.fieldNameResolvers.add(resolver);
+        Resolver.resolver.fieldNameResolverChain = ChainResolver.chain(
+                Resolver.resolver.fieldNameResolverChain, resolver);
     }
 
-    public static String resolveClassPath(String classPath) {
-        for (ClassPathResolver resolver : Resolver.resolver.classPathResolvers) {
-            classPath = resolver.resolveClassPath(classPath);
-        }
-        return classPath;
-    }
-
-    public static boolean canLoadClassPath(String classPath) {
-        for (ClassPathResolver resolver : Resolver.resolver.classPathResolvers) {
-            if (!resolver.canLoadClassPath(classPath)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static String resolveFieldName(Class<?> declaringClass, String fieldName) {
-        for (FieldNameResolver resolver : Resolver.resolver.fieldNameResolvers) {
-            fieldName = resolver.resolveFieldName(declaringClass, fieldName);
-        }
-        return fieldName;
-    }
-
-    public static String resolveMethodName(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {
-        for (MethodNameResolver resolver : Resolver.resolver.methodNameResolvers) {
-            methodName = resolver.resolveMethodName(declaringClass, methodName, parameterTypes);
-        }
-        return methodName;
+    public static void registerMethodResolver(MethodNameResolver resolver) {
+        Resolver.resolver.methodNameResolverChain = ChainResolver.chain(
+                Resolver.resolver.methodNameResolverChain, resolver);
     }
 
     /**
@@ -276,13 +261,7 @@ public class Resolver {
      * @return Class Declaration, null if not found
      */
     public static ClassDeclaration resolveClassDeclaration(String classPath, Class<?> classType) {
-        for (ClassDeclarationResolver resolver : Resolver.resolver.classDeclarationResolvers) {
-            ClassDeclaration dec = resolver.resolveClassDeclaration(classPath, classType);
-            if (dec != null) {
-                return dec;
-            }
-        }
-        return null;
+        return Resolver.resolver.classDeclarationResolverChain.resolveClassDeclaration(classPath, classType);
     }
 
     /**
@@ -295,10 +274,32 @@ public class Resolver {
      */
     public static Map<String, String> resolveClassVariables(String classPath, Class<?> classType) {
         Map<String, String> variables = new HashMap<String, String>();
-        for (ClassDeclarationResolver resolver : Resolver.resolver.classDeclarationResolvers) {
-            resolver.resolveClassVariables(classPath, classType, variables);
-        }
+        Resolver.resolver.classDeclarationResolverChain.resolveClassVariables(classPath, classType, variables);
         return variables;
+    }
+
+    public static String resolveClassPath(String classPath) {
+        return Resolver.resolver.classPathResolverChain.resolveClassPath(classPath);
+    }
+
+    public static boolean canLoadClassPath(String classPath) {
+        return Resolver.resolver.classPathResolverChain.canLoadClassPath(classPath);
+    }
+
+    public static String resolveFieldName(Class<?> declaringClass, String fieldName) {
+        return Resolver.resolver.fieldNameResolverChain.resolveFieldName(declaringClass, fieldName);
+    }
+
+    public static String resolveMethodName(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {
+        return Resolver.resolver.methodNameResolverChain.resolveMethodName(declaringClass, methodName, parameterTypes);
+    }
+
+    public static String resolveCompiledFieldName(Class<?> declaringClass, String fieldName) {
+        return Resolver.resolver.compiledFieldNameResolverChain.resolveCompiledFieldName(declaringClass, fieldName);
+    }
+
+    public static String resolveCompiledMethodName(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {
+        return Resolver.resolver.compiledMethodNameResolverChain.resolveCompiledMethodName(declaringClass, methodName, parameterTypes);
     }
 
     /**

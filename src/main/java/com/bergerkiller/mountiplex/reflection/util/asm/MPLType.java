@@ -11,6 +11,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 
 /**
  * Re-implementation of some methods of ASM's Type class to make use of the
@@ -281,7 +282,9 @@ public class MPLType {
      * @return method name
      */
     public static String getName(Method method) {
-        return helper.getMethodName(method);
+        return Resolver.resolveCompiledMethodName(method.getDeclaringClass(),
+                helper.getMethodName(method),
+                method.getParameterTypes());
     }
 
     /**
@@ -291,7 +294,8 @@ public class MPLType {
      * @return field name
      */
     public static String getName(Field field) {
-        return helper.getFieldName(field);
+        return Resolver.resolveCompiledFieldName(field.getDeclaringClass(),
+                helper.getFieldName(field));
     }
 
     /**
