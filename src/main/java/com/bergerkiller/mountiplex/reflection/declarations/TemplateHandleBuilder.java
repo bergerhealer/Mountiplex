@@ -284,10 +284,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                     // Call the method directly
                     mv.visitVarInsn(ALOAD, 0);
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                    int register = 1;
-                    for (int i = 0; i < paramTypes.length; i++) {
-                        register = MPLType.visitVarILoad(mv, paramTypes[i], register);
-                    }
+                    MPLType.visitVarILoad(mv, 1, paramTypes);
                     ExtendedClassWriter.visitInvoke(mv, instanceType, methodDec.method);
                     mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));
                 } else if (isGeneratedInvoker(templateElement)) {
@@ -301,17 +298,12 @@ public class TemplateHandleBuilder<H extends Handle> {
                     mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", MPLType.getDescriptor(Invoker.class));
                     mv.visitTypeInsn(CHECKCAST, interfaceType);
 
-                    int register = 0;
-
                     // Load instance
-                    mv.visitVarInsn(ALOAD, register);
+                    mv.visitVarInsn(ALOAD, 0);
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
-                    register += 1;
 
                     // Load parameters
-                    for (ParameterDeclaration param : methodDec.parameters.parameters) {
-                        register = MPLType.visitVarILoad(mv, param.type.type, register);
-                    }
+                    MPLType.visitVarILoad(mv, 1, methodDec.parameters);
 
                     // Call the interface method
                     mv.visitMethodInsn(INVOKEINTERFACE, interfaceType, methodName, methodDec.getASMInvokeDescriptor(), true);
@@ -339,9 +331,9 @@ public class TemplateHandleBuilder<H extends Handle> {
                         // Build a generic Object invoke descriptor at the same time
                         StringBuilder invokeDescBldr = new StringBuilder();
                         invokeDescBldr.append("(Ljava/lang/Object;");
-                        int register = 1;
+                        int varIdx = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
-                            register = MPLType.visitVarILoad(mv, paramTypes[i], register);
+                            varIdx = MPLType.visitVarILoad(mv,  varIdx, paramTypes[i]);
                             ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
                             invokeDescBldr.append("Ljava/lang/Object;");
                         }
@@ -358,13 +350,11 @@ public class TemplateHandleBuilder<H extends Handle> {
                         // Fill an array with the parameter values
                         ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
                         mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
-                        int register = 1;
+                        int varIdx = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
                             mv.visitInsn(DUP);
                             ExtendedClassWriter.visitPushInt(mv, i);
-
-                            register = MPLType.visitVarILoad(mv, paramTypes[i], register);
-
+                            varIdx = MPLType.visitVarILoad(mv, varIdx, paramTypes[i]);
                             ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
                             mv.visitInsn(AASTORE);
                         }

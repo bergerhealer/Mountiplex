@@ -53,7 +53,6 @@ public class DisableFinalModifierHelper {
         }
 
         @Override
-        @SuppressWarnings("restriction")
         public void remove(Field field) throws IllegalAccessException {
             // Set cached FieldAccessor object to null to force a re-initialization of it
             // This way, if someone else used reflection to get/set before, it won't fail

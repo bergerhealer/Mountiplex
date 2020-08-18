@@ -13,7 +13,6 @@ import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
-import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -354,21 +353,15 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
                 mv.visitMethodInsn(INVOKEVIRTUAL, cw.getInternalName(), "initializeInvoker", "()" + MPLType.getDescriptor(Invoker.class), false);
                 mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(interfaceClass));
 
-                int stackPos = 1;
+                int varIdx = 1;
 
                 // Instance field
                 if (!methodDeclaration.modifiers.isStatic()) {
-                    Type instanceType = Type.getType(methodDeclaration.getDeclaringClass());
-                    mv.visitVarInsn(instanceType.getOpcode(ILOAD), stackPos);
-                    stackPos += instanceType.getSize();
+                    varIdx = MPLType.visitVarILoad(mv, varIdx, methodDeclaration.getDeclaringClass());
                 }
 
                 // Parameters
-                for (ParameterDeclaration param : methodDeclaration.parameters.parameters) {
-                    Type paramType = Type.getType(param.type.type);
-                    mv.visitVarInsn(paramType.getOpcode(ILOAD), stackPos);
-                    stackPos += paramType.getSize();
-                }
+                varIdx = MPLType.visitVarILoad(mv, varIdx, methodDeclaration.parameters);
 
                 mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(interfaceClass), methodDeclaration.name.real(), methodDesc, true);
                 mv.visitInsn(Type.getType(methodDeclaration.returnType.type).getOpcode(IRETURN));

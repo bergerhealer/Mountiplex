@@ -11,6 +11,8 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.ParameterListDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 
 /**
@@ -170,14 +172,47 @@ public class MPLType {
      * Visits a variable ILOAD instruction for a given Class type
      * 
      * @param mv Method visitor
+     * @param registerInitial Initial register value to load into
      * @param clazz Type of variable to load
-     * @param register The register to load into
      * @return Next free register to use (register + size)
      */
-    public static int visitVarILoad(MethodVisitor mv, Class<?> clazz, int register) {
-        Type type = Type.getType(clazz);
-        mv.visitVarInsn(type.getOpcode(ILOAD), register);
-        return register + type.getSize();
+    public static int visitVarILoad(MethodVisitor mv, int registerInitial, Class<?> type) {
+        Type asm_type = Type.getType(type);
+        mv.visitVarInsn(asm_type.getOpcode(ILOAD), registerInitial);
+        return registerInitial + asm_type.getSize();
+    }
+
+    /**
+     * Visits a variable ILOAD instruction for every Class type specified, in sequence
+     * 
+     * @param mv Method visitor
+     * @param registerInitial Initial register value to load into
+     * @param types The types of variables to load
+     * @return Next free register to use (register + size after last type)
+     */
+    public static int visitVarILoad(MethodVisitor mv, int registerInitial, Class<?>... types) {
+        int register = registerInitial;
+        for (Class<?> type : types) {
+            register = visitVarILoad(mv, register, type);
+        }
+        return register;
+    }
+
+    /**
+     * Visits a variable ILOAD instruction for every Class type specified, in sequence,
+     * for the types in a parameter list declaration.
+     * 
+     * @param mv Method visitor
+     * @param registerInitial Initial register value to load into
+     * @param parameters The types of variables to load
+     * @return Next free register to use (register + size after last type)
+     */
+    public static int visitVarILoad(MethodVisitor mv, int registerInitial, ParameterListDeclaration parameters) {
+        int register = registerInitial;
+        for (ParameterDeclaration param : parameters.parameters) {
+            register = visitVarILoad(mv, register, param.type.type);
+        }
+        return register;
     }
 
     /**

@@ -54,7 +54,6 @@ public class GeneratedHook {
         MethodVisitor mv;
         for (java.lang.reflect.Constructor<?> constructor : baseClass.getDeclaredConstructors()) {
             String constructorDesc = MPLType.getConstructorDescriptor(constructor);
-            Class<?>[] parameterTypes = constructor.getParameterTypes();
 
             mv = cw.visitMethod(constructor.getModifiers(),
                     "<init>",
@@ -65,10 +64,7 @@ public class GeneratedHook {
             mv.visitVarInsn(ALOAD, 0); // this
 
             // Parameters of the constructor
-            int varIndex = 1;
-            for (Class<?> parameterType : parameterTypes) {
-                varIndex = MPLType.visitVarILoad(mv, parameterType, varIndex);
-            }
+            MPLType.visitVarILoad(mv, 1, constructor.getParameterTypes());
 
             mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(baseClass), "<init>", constructorDesc, false);
             mv.visitInsn(RETURN);
@@ -202,10 +198,7 @@ public class GeneratedHook {
             } else {
                 // super()
                 mv.visitVarInsn(ALOAD, 0); // this
-                Class<?>[] parameterTypes = method.getParameterTypes();
-                for (int i = 0; i < parameterTypes.length; i++) {
-                    mv.visitVarInsn(MPLType.getOpcode(parameterTypes[i], ILOAD), i+1);
-                }
+                MPLType.visitVarILoad(mv, 1, method.getParameterTypes());
                 mv.visitMethodInsn(INVOKESPECIAL,
                         MPLType.getInternalName(method.getDeclaringClass()),
                         MPLType.getName(method),
@@ -258,7 +251,13 @@ public class GeneratedHook {
             mv.visitFieldInsn(GETSTATIC, cw.getInternalName(), fieldSupplierFieldName, MPLType.getDescriptor(Supplier.class));
             mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Supplier.class), "get", "()Ljava/lang/Object;", true);
             ExtendedClassWriter.visitUnboxVariable(mv, method.getReturnType());
-            int varResultIdx = 1 + method.getParameterCount();
+
+            // Offset register by parameters of the method signature (those are ignored)
+            int varResultIdx = 1; 
+            for (Class<?> type : method.getParameterTypes()) {
+                varResultIdx = MPLType.getType(type).getSize();
+            }
+
             mv.visitVarInsn(ASTORE, varResultIdx);
             mv.visitVarInsn(ALOAD, 0);
             mv.visitVarInsn(ALOAD, varResultIdx);
@@ -296,7 +295,7 @@ public class GeneratedHook {
             // Load all the parameters onto the stack, box them into Objects if needed
             int varIdx = 1;
             for (Class<?> parameterType : parameterTypes) {
-                varIdx = MPLType.visitVarILoad(mv, parameterType, varIdx);
+                varIdx = MPLType.visitVarILoad(mv, varIdx, parameterType);
                 ExtendedClassWriter.visitBoxVariable(mv, parameterType);
             }
 
@@ -316,7 +315,7 @@ public class GeneratedHook {
             for (int i = 0; i < parameterTypes.length; i++) {
                 mv.visitInsn(DUP);
                 ExtendedClassWriter.visitPushInt(mv, i);
-                varIdx = MPLType.visitVarILoad(mv, parameterTypes[i], varIdx);
+                varIdx = MPLType.visitVarILoad(mv, varIdx, parameterTypes[i]);
                 ExtendedClassWriter.visitBoxVariable(mv, parameterTypes[i]);
                 mv.visitInsn(AASTORE);
             }

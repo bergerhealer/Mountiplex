@@ -216,10 +216,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
 
                     // static method can be called from within the method body just fine
                     // load all the parameters onto the stack
-                    int varIdx = 1;
-                    for (Class<?> param : method.getParameterTypes()) {
-                        mv.visitVarInsn(MPLType.getOpcode(param, ILOAD), varIdx++);
-                    }
+                    int varIdx = MPLType.visitVarILoad(mv, 1, method.getParameterTypes());
 
                     // call static method directly and proxy-return the return value
                     mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), MPLType.getName(method),
@@ -254,10 +251,9 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                         for (ParameterDeclaration param : methodDec.parameters.parameters) {
                             mv.visitInsn(DUP);
                             ExtendedClassWriter.visitPushInt(mv, varIdx-1);
-                            mv.visitVarInsn(MPLType.getOpcode(param.type.type, ILOAD), varIdx);
+                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.type);
                             ExtendedClassWriter.visitBoxVariable(mv, param.type.type);
                             mv.visitInsn(AASTORE);
-                            varIdx++;
                         }
 
                         // invokeVA
@@ -268,7 +264,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                         // Load parameters onto the stack
                         int varIdx = 1;
                         for (ParameterDeclaration param : methodDec.parameters.parameters) {
-                            mv.visitVarInsn(MPLType.getOpcode(param.type.type, ILOAD), (varIdx++));
+                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.type);
                             ExtendedClassWriter.visitBoxVariable(mv, param.type.type);
                         }
 
