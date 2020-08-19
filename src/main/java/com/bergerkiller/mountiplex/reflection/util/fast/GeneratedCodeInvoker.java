@@ -256,6 +256,16 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
                         pool.importPackage(package_path);
                     }
                 }
+                for (String importName : classResolver.getImports()) {
+                    if (importName.endsWith(".*")) {
+                        String packagePath = importName.substring(0, importName.length()-2);
+                        if (!packagePath.contains("*")) {
+                            pool.importPackage(packagePath);
+                        }
+                    } else {
+                        pool.importPackage(importName);
+                    }
+                }
             }
 
             CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class, interfaceClass);

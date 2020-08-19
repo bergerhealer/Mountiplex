@@ -104,6 +104,17 @@ public class ReflectionUtil {
     }
 
     /**
+     * Gets a stream of the class and all declaring classes it sits inside of.
+     * If clazz is null, an empty stream is returned.
+     * 
+     * @param clazz
+     * @return stream starting with clazz, following all declaring classes in sequence
+     */
+    public static Stream<Class<?>> getAllDeclaringCLasses(Class<?> clazz) {
+        return MountiplexUtil.<Class<?>>iterateNullTerminated(clazz, Class::getDeclaringClass);
+    }
+
+    /**
      * Gets a stream of all superclasses represented by a type.
      * If clazz is null, an empty stream is returned.
      * 

@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Modifier;
@@ -2342,5 +2343,35 @@ public class Template {
      */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Readonly {
+    }
+
+    /**
+     * Defines the main package in which this generated class is expected
+     * to operate. Imports are resolved using this package
+     * with top priority. Only one package can be active
+     * at one time.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Package {
+        String value();
+    }
+
+    /**
+     * Adds an import rule for resolving {@link Generated}
+     * signatures. Can be added to individual methods, or hook
+     * classes to add them to all methods declared inside.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Repeatable(ImportList.class)
+    public @interface Import {
+        String value();
+    }
+
+    /**
+     * List of HookImport
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface ImportList {
+        Import[] value();
     }
 }

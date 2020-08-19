@@ -386,6 +386,9 @@ public class ClassResolver {
      * @param resolver The resolver to ask for variables
      */
     public void setAllVariables(ClassDeclarationResolver resolver) {
+        if (resolver == null) {
+            throw new IllegalArgumentException("Resolver cannot be null");
+        }
         if (this.declaredClassName == null || this.declaredClassName.isEmpty() || this.declaredClass == null) {
             throw new IllegalStateException("Class Resolver has no declared Class");
         }

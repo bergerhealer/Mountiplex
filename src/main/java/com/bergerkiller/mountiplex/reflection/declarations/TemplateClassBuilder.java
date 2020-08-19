@@ -5,13 +5,19 @@ import static org.objectweb.asm.Opcodes.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.Template.Handle;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -25,15 +31,19 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
  * of the Class rather than the Class object itself. Of this instance, all the fields are initialized.
  */
 public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle> {
+    public final ClassDeclarationResolver classDeclarationResolver;
     public final java.lang.Class<C> classType;
     public final java.lang.Class<H> handleType;
     public final java.lang.Class<?> instanceType;
     public final String instanceClassPath;
+    public final String classPackage;
+    public final List<String> classImports;
     public final boolean isOptional;
     public final ClassDeclaration classDec;
 
     @SuppressWarnings("unchecked")
     public TemplateClassBuilder(java.lang.Class<C> classType, ClassDeclarationResolver classDeclarationResolver) {
+        this.classDeclarationResolver = classDeclarationResolver;
         this.classType = classType;
 
         // Identify the Handle type used alongside this Class
@@ -54,6 +64,17 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
         // Identify whether the Optional annotation is specified
         this.isOptional = recurseFindAnnotationValue(classType, Template.Optional.class,
                 (a) -> Boolean.TRUE, Boolean.FALSE);
+
+        // Identify package path that is used while parsing signatures
+        this.classPackage = recurseFindAnnotationValue(classType, Template.Package.class,
+                Template.Package::value, null);
+
+        // Identify all the imports that will be used by this class
+        this.classImports = ReflectionUtil.getAllDeclaringCLasses(classType)
+                .flatMap(c -> Stream.of(c.getAnnotationsByType(Template.Import.class)))
+                .map(Template.Import::value)
+                .collect(Collectors.toList());
+        Collections.reverse(this.classImports);
 
         // Resolve the Class Path to an actual Class object
         // If not found, and the Class is not meant to be optional, log an error
@@ -151,16 +172,25 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
             if (resolver == null) {
                 resolver = new ClassResolver();
                 resolver.setDeclaredClass(this.instanceType, this.instanceClassPath);
-                resolver.setAllVariables(Resolver.resolveClassVariables(this.instanceClassPath, this.instanceType));
-
-                //TODO: Import declarations on recursive Class level
+                if (this.classDeclarationResolver != null) {
+                    resolver.setAllVariables(this.classDeclarationResolver);
+                } else {
+                    resolver.setAllVariables(Resolver.resolveClassVariables(this.instanceClassPath, this.instanceType));
+                }
+                if (this.classPackage != null) {
+                    resolver.setPackage(this.classPackage, false);
+                }
+                resolver.addImports(this.classImports);
             }
 
+            // Preprocess the source declaration to handle things like #if
+            String preprocessedDeclarationStr = SourceDeclaration.preprocess(generatedAnnot.value(), resolver);
+
             // Use the resolver to decode the declaration in the annotation
-            Declaration parsedDeclaration = Declaration.parseDeclaration(resolver, generatedAnnot.value());
+            Declaration parsedDeclaration = Declaration.parseDeclaration(resolver, preprocessedDeclarationStr);
             if (parsedDeclaration == null || !parsedDeclaration.isValid()) {
                 MountiplexUtil.LOGGER.warning("Declaration for method " + MPLType.getName(method) +
-                        " could not be parsed: " + generatedAnnot.value());
+                        " could not be parsed: " + preprocessedDeclarationStr);
                 cw.visitMethodUnsupported(method, "Declaration for this generated method could not be parsed");
                 continue;
             } else if (!parsedDeclaration.isResolved()) {
@@ -320,15 +350,10 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
      * @return value
      */
     private static <A extends Annotation, V> V recurseFindAnnotationValue(java.lang.Class<?> type, java.lang.Class<A> annotationClass, Function<A, V> method, V defaultValue) {
-        java.lang.Class<?> currentType = type;
-        while (currentType != null) {
-            A annotation = currentType.getAnnotation(annotationClass);
-            if (annotation != null) {
-                return method.apply(annotation);
-            } else {
-                currentType = currentType.getDeclaringClass();
-            }
-        }
-        return defaultValue;
+        return ReflectionUtil.getAllDeclaringCLasses(type)
+            .map(t -> t.getAnnotation(annotationClass))
+            .filter(Objects::nonNull)
+            .map(method)
+            .findFirst().orElse(defaultValue);
     }
 }
