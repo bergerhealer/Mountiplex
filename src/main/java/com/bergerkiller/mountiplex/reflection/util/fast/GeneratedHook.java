@@ -94,7 +94,7 @@ public class GeneratedHook {
 
                     return true;
                 })
-                .forEach(method -> {
+                .forEachOrdered(method -> {
                     // Check not already implemented
                     MethodSignature signature = new MethodSignature(method);
                     if (!implemented.contains(signature)) {
