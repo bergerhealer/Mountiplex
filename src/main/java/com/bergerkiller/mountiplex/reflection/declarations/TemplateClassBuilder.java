@@ -70,7 +70,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                 Template.Package::value, null);
 
         // Identify all the imports that will be used by this class
-        this.classImports = ReflectionUtil.getAllDeclaringCLasses(classType)
+        this.classImports = ReflectionUtil.getAllDeclaringClasses(classType)
                 .flatMap(c -> Stream.of(c.getAnnotationsByType(Template.Import.class)))
                 .map(Template.Import::value)
                 .collect(Collectors.toList());
@@ -350,7 +350,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
      * @return value
      */
     private static <A extends Annotation, V> V recurseFindAnnotationValue(java.lang.Class<?> type, java.lang.Class<A> annotationClass, Function<A, V> method, V defaultValue) {
-        return ReflectionUtil.getAllDeclaringCLasses(type)
+        return ReflectionUtil.getAllDeclaringClasses(type)
             .map(t -> t.getAnnotation(annotationClass))
             .filter(Objects::nonNull)
             .map(method)

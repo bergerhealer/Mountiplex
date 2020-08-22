@@ -1,9 +1,8 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -14,32 +13,22 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 public class MethodMatchResolver {
 
     public static void match(Class<?> declaringClass, ClassResolver resolver, MethodDeclaration[] methods) {
-        // Merge declared and public methods as one long list
+        // Merge declared and public methods as one long array
         // Skip declared methods that are public - they are already in the list
-        ArrayList<java.lang.reflect.Method> realRefMethods = new ArrayList<java.lang.reflect.Method>();
-
+        // Skip methods that are volatile, they are duplicates of non-volatile methods
+        // declared in a base class
+        MethodDeclaration[] realMethods;
         try {
-            realRefMethods.addAll(Arrays.asList(declaringClass.getMethods()));
-            for (java.lang.reflect.Method decMethod : declaringClass.getDeclaredMethods()) {
-                if (Modifier.isPublic(decMethod.getModifiers())) {
-                    continue;
-                }
-                realRefMethods.add(decMethod);
-            }
+            realMethods = Stream.concat(
+                    Stream.of(declaringClass.getMethods()),
+                    Stream.of(declaringClass.getDeclaredMethods())
+                            .filter(m -> !Modifier.isPublic(m.getModifiers()))
+            ).filter(m -> !Modifier.isVolatile(m.getModifiers()))
+             .map(m -> new MethodDeclaration(resolver, m))
+             .toArray(MethodDeclaration[]::new);
         } catch (Throwable t) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to identify methods of class " + MPLType.getName(declaringClass), t);
             return;
-        }
-
-        MethodDeclaration[] realMethods = new MethodDeclaration[realRefMethods.size()];
-        for (int i = 0; i < realMethods.length; i++) {
-            try {
-                realMethods[i] = new MethodDeclaration(resolver, realRefMethods.get(i));
-            } catch (Throwable t) {
-                if (resolver.getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read method " + realRefMethods.get(i), t);
-                }
-            }
         }
 
         // Connect the methods together

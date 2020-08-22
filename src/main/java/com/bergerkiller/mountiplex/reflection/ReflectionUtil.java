@@ -110,7 +110,7 @@ public class ReflectionUtil {
      * @param clazz
      * @return stream starting with clazz, following all declaring classes in sequence
      */
-    public static Stream<Class<?>> getAllDeclaringCLasses(Class<?> clazz) {
+    public static Stream<Class<?>> getAllDeclaringClasses(Class<?> clazz) {
         return MountiplexUtil.<Class<?>>iterateNullTerminated(clazz, Class::getDeclaringClass);
     }
 
@@ -150,6 +150,16 @@ public class ReflectionUtil {
     }
 
     /**
+     * Gets a stream of methods declared inside a Class
+     * 
+     * @param clazz
+     * @return declared methods
+     */
+    public static Stream<Method> getDeclaredMethods(Class<?> clazz) {
+        return Stream.of(clazz.getDeclaredMethods());
+    }
+
+    /**
      * Gets all methods declared in a Class, its superclasses and
      * all its interfaces all the way down. If the input class is null,
      * then an empty stream is returned. Duplicate method
@@ -159,7 +169,7 @@ public class ReflectionUtil {
      * @return stream of methods declared in the clazz, its superclasses and interfaces
      */
     public static Stream<Method> getAllMethods(Class<?> clazz) {
-        return getAllClassesAndInterfaces(clazz).flatMap(c -> Stream.of(c.getDeclaredMethods()));
+        return getAllClassesAndInterfaces(clazz).flatMap(ReflectionUtil::getDeclaredMethods);
     }
 
     /**

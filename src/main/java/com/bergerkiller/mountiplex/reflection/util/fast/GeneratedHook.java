@@ -2,9 +2,8 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -19,7 +18,6 @@ import org.objectweb.asm.MethodVisitor;
 
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
-import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
@@ -72,37 +70,28 @@ public class GeneratedHook {
             mv.visitEnd();
         }
 
-        // Track what methods we have already implemented to prevent multiple-implementations
-        final Set<MethodSignature> implemented = new HashSet<MethodSignature>();
+        // Go by all classes/superclasses/interfaces and all the methods declared inside of them
+        // Throw away methods we cannot implement, like static/private methods. Also ignore volatile
+        // ones, those are methods from base classes with same return type represented as such.
+        // Then filter duplicate methods away, keeping the first-encountered method.
+        // Remove final methods, as we cannot implement those. For all methods that remain,
+        // try to obtain a callback function, and if present, override/implement it in the class.
         Stream.concat(ReflectionUtil.getAllClassesAndInterfaces(baseClass), interfaces.stream())
-                .flatMap(c -> Stream.of(c.getDeclaredMethods()))
+                .flatMap(ReflectionUtil::getDeclaredMethods)
                 .filter(method -> {
                     int modifiers = method.getModifiers();
-
-                    // Can't override private or static methods
-                    if (Modifier.isPrivate(modifiers) || Modifier.isStatic(modifiers)) {
-                        return false;
-                    }
-
-                    // If final, skip, can't hook, but also label as implemented
-                    // This prevents us later trying to implement it, if it is also
-                    // declared inside an interface or superclass.
-                    if (Modifier.isFinal(modifiers)) {
-                        implemented.add(new MethodSignature(method));
-                        return false;
-                    }
-
-                    return true;
+                    return !Modifier.isVolatile(modifiers) &&
+                           !Modifier.isPrivate(modifiers) &&
+                           !Modifier.isStatic(modifiers);
                 })
+                .map(MethodDistinctWrapper::new)
+                .distinct()
+                .map(MethodDistinctWrapper::getMethod)
+                .filter(method -> !Modifier.isFinal(method.getModifiers()))
                 .forEachOrdered(method -> {
-                    // Check not already implemented
-                    MethodSignature signature = new MethodSignature(method);
-                    if (!implemented.contains(signature)) {
-                        Invoker<?> callback = callbacks.apply(method);
-                        if (callback != null) {
-                            implemented.add(signature);
-                            implement(cw, method, callback, superMethodPrefix, counter);
-                        }
+                    Invoker<?> callback = callbacks.apply(method);
+                    if (callback != null) {
+                        implement(cw, method, callback, superMethodPrefix, counter);
                     }
                 });
 
@@ -336,5 +325,43 @@ public class GeneratedHook {
 
         mv.visitMaxs(0, 0);
         mv.visitEnd();
+    }
+
+    private static class MethodDistinctWrapper {
+        private final Method method;
+        private final String name;
+
+        public MethodDistinctWrapper(Method method) {
+            this.method = method;
+            this.name = MPLType.getName(method);
+        }
+
+        public Method getMethod() {
+            return method;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Class<?>[] getParameterTypes() {
+            return method.getParameterTypes();
+        }
+
+        @Override
+        public int hashCode() {
+            return name.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof MethodDistinctWrapper) {
+                MethodDistinctWrapper other = (MethodDistinctWrapper) o;
+                return getName().equals(other.getName()) &&
+                       Arrays.equals(getParameterTypes(), other.getParameterTypes());
+            } else {
+                return false;
+            }
+        }
     }
 }

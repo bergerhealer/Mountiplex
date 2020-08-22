@@ -526,6 +526,26 @@ public class TypeDeclaration extends Declaration {
         return false;
     }
 
+    /**
+     * Gets whether this type can be cast to the {@link #cast} type.
+     * If no cast type is set, this method returns true.
+     * 
+     * @return True if this type can be cast to {@link #cast}
+     */
+    public boolean canDownCast() {
+        return this.cast == null || this.cast.isAssignableFrom(this);
+    }
+
+    /**
+     * Gets whether {@link #cast} can be cast to this type.
+     * If no cast type is set, this method returns true.
+     * 
+     * @return True if {@link #cast} can be cast to this type
+     */
+    public boolean canUpCast() {
+        return this.cast == null || this.isAssignableFrom(this.cast);
+    }
+
     public boolean isAssignableFrom(Object value) {
         return value != null && this.type.isAssignableFrom(value.getClass());
     }

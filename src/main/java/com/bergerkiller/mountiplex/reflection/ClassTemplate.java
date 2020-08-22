@@ -21,7 +21,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Maintains a full reflection model for a class hierarchy
@@ -508,7 +507,7 @@ public class ClassTemplate<T> {
         if (typeMethods == null) {
             HashSet<MethodSignature> addedSignatures = new HashSet<MethodSignature>();
             typeMethods = ReflectionUtil.getAllClassesAndInterfaces(this.getType())
-                    .flatMap(c -> Stream.of(c.getDeclaredMethods()).sorted(createMethodComparator()))
+                    .flatMap(c -> ReflectionUtil.getDeclaredMethods(c).sorted(createMethodComparator()))
                     .filter(m -> addedSignatures.add(new MethodSignature(m)))
                     .map(m -> new MethodDeclaration(resolver, m))
                     .collect(Collectors.toList());

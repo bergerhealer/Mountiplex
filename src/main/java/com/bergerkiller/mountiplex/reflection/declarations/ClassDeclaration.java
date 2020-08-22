@@ -50,7 +50,9 @@ public class ClassDeclaration extends Declaration {
             fields.add(new FieldDeclaration(getResolver(), field));
         }
         for (java.lang.reflect.Method method : type.getDeclaredMethods()) {
-            methods.add(new MethodDeclaration(getResolver(), method));
+            if (!Modifier.isVolatile(method.getModifiers())) {
+                methods.add(new MethodDeclaration(getResolver(), method));
+            }
         }
         for (java.lang.Class<?> decClass : type.getDeclaredClasses()) {
             classes.add(new ClassDeclaration(getResolver(), decClass));

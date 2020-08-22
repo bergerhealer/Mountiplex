@@ -443,7 +443,7 @@ public class TemplateGenerator {
         }
 
         // If field type is boolean, use 'is' instead of 'get'
-        if (boolean.class.equals(getExposedType(fDec.type).type)) {
+        if (boolean.class.equals(fDec.type.exposed().type)) {
             return "is" + fName;
         } else {
             return "get" +  fName;
@@ -504,7 +504,7 @@ public class TemplateGenerator {
                 getParamsBody(mDec.parameters) + " {");
 
         String bodyStr = "";
-        if (!void.class.equals(getExposedType(mDec.returnType).type)) {
+        if (!void.class.equals(mDec.returnType.exposed().type)) {
             bodyStr += "return ";
         }
 
@@ -588,16 +588,8 @@ public class TemplateGenerator {
         return app;
     }
 
-    public static TypeDeclaration getExposedType(TypeDeclaration type) {
-        if (type.cast != null) {
-            return type.cast;
-        } else {
-            return type;
-        }
-    }
-
     private String getExposedTypeStr(TypeDeclaration type) {
-        return getTypeStr(getExposedType(type));
+        return getTypeStr(type.exposed());
     }
 
     private String getFieldTypeStr(FieldDeclaration fDec) {
@@ -671,7 +663,7 @@ public class TemplateGenerator {
     }
 
     private String getPrimFieldType(FieldDeclaration fDec) {
-        Class<?> fType = getExposedType(fDec.type).type;
+        Class<?> fType = fDec.type.exposed().type;
         if (fType != null) {
             if (fType.equals(byte.class)) {
                 return "Byte";

@@ -153,7 +153,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                     continue;
                 }
 
-                Class<?> fieldType = TemplateGenerator.getExposedType(fieldDec.type).type;
+                Class<?> fieldType = fieldDec.type.exposed().type;
                 String fieldTypeDesc = MPLType.getDescriptor(fieldType);
                 String fieldName = fieldDec.name.real();
 
@@ -249,12 +249,12 @@ public class TemplateHandleBuilder<H extends Handle> {
                 String methodName = methodDec.name.real();
 
                 // Build the method descriptor
-                boolean hasTypeConversion = (methodDec.returnType.cast != null);
-                Class<?> returnType = TemplateGenerator.getExposedType(methodDec.returnType).type;
+                boolean hasTypeConversion = !methodDec.returnType.canDownCast();
+                Class<?> returnType = methodDec.returnType.exposed().type;
                 Class<?>[] paramTypes = new Class<?>[methodDec.parameters.parameters.length];
                 for (int i = 0; i < paramTypes.length; i++) {
-                    hasTypeConversion |= (methodDec.parameters.parameters[i].type.cast != null);
-                    paramTypes[i] = TemplateGenerator.getExposedType(methodDec.parameters.parameters[i].type).type;
+                    hasTypeConversion |= !methodDec.parameters.parameters[i].type.canUpCast();
+                    paramTypes[i] = methodDec.parameters.parameters[i].type.exposed().type;
                 }
                 String methodDesc = MPLType.getMethodDescriptor(returnType, paramTypes);
 
