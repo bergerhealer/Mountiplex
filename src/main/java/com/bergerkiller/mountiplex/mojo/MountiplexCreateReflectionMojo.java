@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex;
+package com.bergerkiller.mountiplex.mojo;
 
 import java.io.File;
 import java.util.HashMap;
@@ -20,7 +20,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  *
  * @phase generate-sources
  */
-public class MountiplexMojo extends AbstractMojo {
+public class MountiplexCreateReflectionMojo extends AbstractMojo {
 
     /**
      * Root directory of the source files being processed.

@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -368,7 +369,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
             }
 
             try {
-                ClassLoader generatorLoader = ExtendedClassWriter.getGeneratorClassLoader(GeneratedCodeInvoker.class.getClassLoader());
+                ClassLoader generatorLoader = GeneratorClassLoader.get(GeneratedCodeInvoker.class.getClassLoader());
                 Class<?> invokerClass = invoker.toClass(generatorLoader, null);
                 return (GeneratedCodeInvoker<T>) invokerClass.newInstance();
             } catch (java.lang.VerifyError ex) {

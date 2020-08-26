@@ -14,6 +14,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterListDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 
 /**
  * Re-implementation of some methods of ASM's Type class to make use of the
@@ -396,18 +397,6 @@ public class MPLType {
 
     private static final MPLTypeHelper helper;
 
-    // Solely used to generate the helper implementation, is then discarded
-    // Only the MPLTypeHelper generated class holds a reference to it, then
-    private static final class MPLTypeHelperClassLoader extends ClassLoader {
-        public MPLTypeHelperClassLoader(ClassLoader base) {
-            super(base);
-        }
-
-        public Class<?> defineClass(String name, byte[] b) {
-            return defineClass(name, b, 0, b.length);
-        }
-    }
-
     static {
         String interfaceName = MPLTypeHelper.class.getName().replace('.', '/');
         String internalName = MPLType.class.getName().replace('.', '/') + "$HelperImpl";
@@ -507,7 +496,7 @@ public class MPLType {
 
         cw.visitEnd();
 
-        MPLTypeHelperClassLoader loader = new MPLTypeHelperClassLoader(MPLType.class.getClassLoader());
+        GeneratorClassLoader loader = GeneratorClassLoader.get(MPLType.class.getClassLoader());
         Class<?> helperImplType = loader.defineClass(MPLType.class.getName() + "$HelperImpl", cw.toByteArray());
 
         try {

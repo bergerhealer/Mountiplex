@@ -7,9 +7,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.WeakHashMap;
 
-import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
@@ -29,7 +27,6 @@ import org.objectweb.asm.MethodVisitor;
  * @param <T> type of base class
  */
 public class ExtendedClassWriter<T> extends ClassWriter {
-    private static WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
     private static final UniqueHash generatedClassCtr = new UniqueHash();
     private final String name;
     private final String internalName;
@@ -38,86 +35,70 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     private final List<StaticFieldInit> pendingStaticFields = new ArrayList<StaticFieldInit>();
     private CtClass ctClass = null;
 
-    static {
-        MountiplexUtil.registerUnloader(new Runnable() {
-            @Override
-            public void run() {
-                loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>(0);
-            }
-        });
-    }
-
     private ExtendedClassWriter(Builder<T> options) {
         super(options.flags);
 
         // Get or generate postfix
         String postfix = (options.postfix != null) ? options.postfix : getNextPostfix();
 
-        // Note: initialization must be globally synchronized to prevent multithreading bugs
-        // It could accidentally create a duplicate GeneratorClassLoader, or accidentally use the same name twice
-        // This synchronized block protects against these issues
-        // The actual generate() is not thread-safe (for obvious reasons)
-        synchronized (loaders) {
-            ClassLoader baseClassLoader = options.superClass.getClassLoader();
-            GeneratorClassLoader theLoader = loaders.computeIfAbsent(baseClassLoader, GeneratorClassLoader::create);
-            this.loader = theLoader;
+        // This is multi-thread safe
+        this.loader = GeneratorClassLoader.get(options.superClass.getClassLoader());
 
-            // Bugfix: pick a different postfix if another class already exists with this name
-            // This can happen by accident as well, when a jar is incorrectly reloaded
-            // Namespace clashes are nasty!
-            {
-                String postfix_original = postfix;
-                for (int i = 1;; i++) {
-                    String tmpClassPath = MPLType.getName(options.superClass) + postfix;
-                    boolean classExists = false;
+        // Bugfix: pick a different postfix if another class already exists with this name
+        // This can happen by accident as well, when a jar is incorrectly reloaded
+        // Namespace clashes are nasty!
+        {
+            String postfix_original = postfix;
+            for (int i = 1;; i++) {
+                String tmpClassPath = MPLType.getName(options.superClass) + postfix;
+                boolean classExists = false;
 
-                    try {
-                        theLoader.loadClass(tmpClassPath);
-                        classExists = true;
-                    } catch (ClassNotFoundException e) {}
+                try {
+                    this.loader.loadClass(tmpClassPath);
+                    classExists = true;
+                } catch (ClassNotFoundException e) {}
 
-                    try {
-                        MPLType.getClassByName(tmpClassPath);
-                        classExists = true;
-                    } catch (ClassNotFoundException ex) {}
+                try {
+                    MPLType.getClassByName(tmpClassPath);
+                    classExists = true;
+                } catch (ClassNotFoundException ex) {}
 
-                    if (classExists) {
-                        postfix = postfix_original + "_" + i;
-                    } else {
-                        break;
-                    }
+                if (classExists) {
+                    postfix = postfix_original + "_" + i;
+                } else {
+                    break;
                 }
             }
-
-            // Extends Object instead of SuperClass when it is an interface
-            Class<?> superType = options.superClass.isInterface() ? Object.class : options.superClass;
-
-            // If interfaces are specified, then the signature must be generated also
-            String signature = null;
-            if (!options.interfaces.isEmpty()) {
-                signature = MPLType.getDescriptor(superType);
-                for (Class<?> interfaceType : options.interfaces) {
-                    signature += MPLType.getDescriptor(interfaceType);
-                }
-            }
-
-            // Class that is extended, is Object when super type is an interface
-            String superName = MPLType.getInternalName(superType);
-
-            // Interfaces List<Class<?>> -> String[] if set
-            String[] interfaceNames = null;
-            if (!options.interfaces.isEmpty()) {
-                interfaceNames = new String[options.interfaces.size()];
-                for (int i = 0; i < interfaceNames.length; i++) {
-                    interfaceNames[i] = MPLType.getInternalName(options.interfaces.get(i));
-                }
-            }
-
-            this.name = MPLType.getName(options.superClass) + postfix;
-            this.internalName = MPLType.getInternalName(options.superClass) + postfix;
-            this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
-            this.visit(V1_8, options.access, this.internalName, signature, superName, interfaceNames);
         }
+
+        // Extends Object instead of SuperClass when it is an interface
+        Class<?> superType = options.superClass.isInterface() ? Object.class : options.superClass;
+
+        // If interfaces are specified, then the signature must be generated also
+        String signature = null;
+        if (!options.interfaces.isEmpty()) {
+            signature = MPLType.getDescriptor(superType);
+            for (Class<?> interfaceType : options.interfaces) {
+                signature += MPLType.getDescriptor(interfaceType);
+            }
+        }
+
+        // Class that is extended, is Object when super type is an interface
+        String superName = MPLType.getInternalName(superType);
+
+        // Interfaces List<Class<?>> -> String[] if set
+        String[] interfaceNames = null;
+        if (!options.interfaces.isEmpty()) {
+            interfaceNames = new String[options.interfaces.size()];
+            for (int i = 0; i < interfaceNames.length; i++) {
+                interfaceNames[i] = MPLType.getInternalName(options.interfaces.get(i));
+            }
+        }
+
+        this.name = MPLType.getName(options.superClass) + postfix;
+        this.internalName = MPLType.getInternalName(options.superClass) + postfix;
+        this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
+        this.visit(V1_8, options.access, this.internalName, signature, superName, interfaceNames);
     }
 
     // TODO: make cleaner
@@ -410,75 +391,6 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         fv = this.visitField(ACC_PUBLIC | ACC_STATIC, fieldName,
                 MPLType.getDescriptor(field.fieldType), null, null);
         fv.visitEnd();
-    }
-
-    private static final class GeneratorClassLoader extends ClassLoader {
-
-        public static GeneratorClassLoader create(ClassLoader base) {
-            if (base instanceof GeneratorClassLoader) {
-                return (GeneratorClassLoader) base;
-            } else {
-                return new GeneratorClassLoader(base);
-            }
-        }
-
-        private GeneratorClassLoader(ClassLoader base) {
-            super(base);
-        }
-
-        public Class<?> superFindClass(String name) {
-            Class<?> loaded = this.findLoadedClass(name);
-            if (loaded != null) {
-                return loaded;
-            }
-            try {
-                return MPLType.getClassByName(name, false, this.getParent());
-            } catch (ClassNotFoundException ex) {
-                return null;
-            }
-        }
-
-        @Override
-        public Class<?> findClass(String name) throws ClassNotFoundException {
-            // Ask the other GeneratorClassLoaders what this Class is
-            // This fixes a problem that it cannot find classes generated by other base classloaders
-            synchronized (loaders) {
-                // Ask class loader of mountiplex first, as this is the most likely case
-                // For example, when accessing mountiplex types extended at runtime
-                Class<?> loaded;
-                GeneratorClassLoader mountiplexLoader = loaders.computeIfAbsent(ExtendedClassWriter.class.getClassLoader(), GeneratorClassLoader::create);
-                if (mountiplexLoader != this && ((loaded = mountiplexLoader.superFindClass(name)) != null)) {
-                    return loaded;
-                }
-
-                // Try all other loaders we have used to generate classes
-                for (GeneratorClassLoader otherLoader : loaders.values()) {
-                    if (otherLoader != mountiplexLoader && otherLoader != this && ((loaded = otherLoader.superFindClass(name)) != null)) {
-                        return loaded;
-                    }
-                }
-            }
-
-            // Failed to find it
-            throw new ClassNotFoundException(name);
-        }
-
-        public Class<?> defineClass(String name, byte[] b) {
-            return defineClass(name, b, 0, b.length);
-        }
-    }
-
-    /**
-     * Gets the class loader used to generate classes.
-     * This method is thread-safe.
-     * 
-     * @param baseClassLoader The base class loader used by the caller
-     * @return generator class loader
-     */
-    public static ClassLoader getGeneratorClassLoader(ClassLoader baseClassLoader) {
-        synchronized (loaders) {
-            return loaders.computeIfAbsent(baseClassLoader, GeneratorClassLoader::create);
-        }
     }
 
     /**
