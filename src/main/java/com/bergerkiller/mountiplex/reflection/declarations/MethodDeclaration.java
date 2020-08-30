@@ -903,7 +903,7 @@ public class MethodDeclaration extends Declaration {
      * @return name-resolved method declaration
      */
     public MethodDeclaration resolveName() {
-        if (!this.isResolved() || this.getResolver().getDeclaredClass() == null) {
+        if (!this.isResolved() || this.getResolver().getDeclaredClass() == null || this.body != null) {
             return this;
         }
 

@@ -34,6 +34,9 @@ public class MethodMatchResolver {
         // Connect the methods together
         for (int i = 0; i < methods.length; i++) {
             MethodDeclaration method = methods[i];
+            if (method.body != null) {
+                continue; // ignore, has body
+            }
 
             // Ask Resolver for the real method name
             MethodDeclaration nameResolved = method.resolveName();
@@ -53,7 +56,7 @@ public class MethodMatchResolver {
                     break;
                 }
             }
-            if (!found && !method.modifiers.isOptional() && method.body == null) {
+            if (!found && !method.modifiers.isOptional()) {
                 FieldLCSResolver.logAlternatives("method", realMethods, nameResolved, false);
             }
         }
