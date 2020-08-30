@@ -88,9 +88,6 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
         // If one is expected but not found, log an error
         if (this.instanceType != null && this.instanceType != Object.class && classDeclarationResolver != null) {
             this.classDec = classDeclarationResolver.resolveClassDeclaration(this.instanceClassPath, this.instanceType);
-            if (this.classDec == null) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Class Declaration for " + this.instanceClassPath + " not found");
-            }
         } else {
             this.classDec = null;
         }
