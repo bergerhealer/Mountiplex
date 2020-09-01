@@ -722,12 +722,14 @@ public class MethodDeclaration extends Declaration {
         if (this.modifiers.isStatic()) {
             alternatives = ReflectionUtil.getAllMethods(declaringClass)
                     .filter(m -> Modifier.isStatic(m.getModifiers()))
+                    .map(m -> new MethodDeclaration(getResolver(), m))
                     .toArray(MethodDeclaration[]::new);
         } else {
             HashSet<MethodSignature> unique = new HashSet<MethodSignature>();
             alternatives = ReflectionUtil.getAllMethods(declaringClass)
                     .filter(m -> !Modifier.isStatic(m.getModifiers()))
                     .filter(m -> unique.add(new MethodSignature(m)))
+                    .map(m -> new MethodDeclaration(getResolver(), m))
                     .toArray(MethodDeclaration[]::new);
         }
         sortSimilarity(this, alternatives);
