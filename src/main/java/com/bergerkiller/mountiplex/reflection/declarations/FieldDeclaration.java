@@ -46,9 +46,15 @@ public class FieldDeclaration extends Declaration {
         // If classloader loading this class altered the bytecode, the result of alias will differ from name
         // In that case, store the name the classloader gives the field as an alias
         String name = MPLType.getName(field);
-        String alias = field.getName();
-        if (alias.equals(name)) {
-            alias = null;
+        String alias = null;
+        try {
+            alias = field.getName();
+            if (alias.equals(name)) {
+                alias = null;
+            }
+        } catch (Throwable t) {
+            String decName = MPLType.getName(field.getDeclaringClass());
+            MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to retrieve field name alias for " + decName + ":" + name + ":", t);
         }
 
         this.isEnum = field.isEnumConstant();

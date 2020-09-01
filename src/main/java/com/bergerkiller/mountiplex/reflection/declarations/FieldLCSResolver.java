@@ -163,6 +163,24 @@ public class FieldLCSResolver {
             }
         }
 
+        // For remaining fields we could not match, try to match a real field exactly
+        // This is needed when fields are for some reason out of order
+        succIter = pairs.iterator();
+        while (succIter.hasNext()) {
+            FieldLCSResolver.Pair pair = succIter.next();
+            if (pair.a == null) {
+                continue;
+            }
+
+            for (FieldDeclaration realField : realFields) {
+                if (pair.a.match(realField)) {
+                    pair.a.copyFieldFrom(realField);
+                    succIter.remove();
+                    break;
+                }
+            }
+        }
+
         // Log all fields we could not find in our template
         // The fields in the underlying Class are not important (yet)
         for (FieldLCSResolver.Pair failPair : pairs) {
