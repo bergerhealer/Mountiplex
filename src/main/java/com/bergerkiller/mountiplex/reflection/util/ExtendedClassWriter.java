@@ -190,7 +190,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     public Class<T> generate() {
         if (this.ctClass == null) {
             this.closeASM();
-            return (Class<T>) this.loader.defineClass(this.name, this.toByteArray());
+            return (Class<T>) this.loader.createClassFromBytecode(this.name, this.toByteArray());
         } else {
             try {
                 return (Class<T>) this.ctClass.toClass(this.loader, null);

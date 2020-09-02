@@ -101,7 +101,7 @@ public class GeneratorClassLoader extends ClassLoader {
      * @param b Bytecode for the Class
      * @return defined class
      */
-    public Class<?> defineClass(String name, byte[] b) {
+    public Class<?> createClassFromBytecode(String name, byte[] b) {
         try {
             return (Class<?>) defineClassMethod.invoke(this, name, b, Integer.valueOf(0), Integer.valueOf(b.length));
         } catch (Throwable t) {

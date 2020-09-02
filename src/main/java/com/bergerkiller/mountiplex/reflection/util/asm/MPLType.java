@@ -497,7 +497,7 @@ public class MPLType {
         cw.visitEnd();
 
         GeneratorClassLoader loader = GeneratorClassLoader.get(MPLType.class.getClassLoader());
-        Class<?> helperImplType = loader.defineClass(MPLType.class.getName() + "$HelperImpl", cw.toByteArray());
+        Class<?> helperImplType = loader.createClassFromBytecode(MPLType.class.getName() + "$HelperImpl", cw.toByteArray());
 
         try {
             helper = (MPLTypeHelper) helperImplType.newInstance();
