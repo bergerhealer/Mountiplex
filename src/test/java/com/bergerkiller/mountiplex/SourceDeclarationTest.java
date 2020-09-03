@@ -56,7 +56,20 @@ public class SourceDeclarationTest {
                            "#if dummy >= 5\n" +
                            "THIS SHOULD BE IGNORED, BLOCK COMMENT\n" +
                            "#endif\n" +
-                           "*/";
+                           "*/\n" +
+                           "#set casevarA 1.15\n" +
+                           "#set casevarB 1.12\n" +
+                           "#select casevarA\n" +
+                           "#case >= 1.16: CASE_VAR_A_WRONG1\n" +
+                           "#case >= 1.15: CASE_VAR_A_CORRECT\n" +
+                           "    #select casevarB >=\n" +
+                           "    #case 1.13: CASE_VAR_B_WRONG1\n" +
+                           "    #case 1.12: CASE_VAR_B_CORRECT\n" +
+                           "    #case else: CASE_VAR_B_WRONG2\n" +
+                           "    #endselect\n" +
+                           "#case >= 1.14: CASE_VAR_A_WRONG2\n" +
+                           "#case else   : CASE_VAR_A_WRONG3\n" +
+                           "#endselect";
 
         String expected = "#set test 1.23.55\n" +
                           "#set dummy 12\n" +
@@ -66,7 +79,12 @@ public class SourceDeclarationTest {
                           "AFTER ENDIF SHOULD EVALUATE\n" +
                           "THIS SHOULD MATCH BECAUSE FIRST IF\n" +
                           "COPYVALUEOF SHOULD EXIST\n" +
-                          "PLEASE BE THERE\n";
+                          "PLEASE BE THERE\n" +
+                          "\n" +
+                          "#set casevarA 1.15\n" + 
+                          "#set casevarB 1.12\n" + 
+                          "               CASE_VAR_A_CORRECT\n" + 
+                          "                CASE_VAR_B_CORRECT\n";
 
         String result = SourceDeclaration.preprocess(sourceDec);
         if (!result.equals(expected)) {

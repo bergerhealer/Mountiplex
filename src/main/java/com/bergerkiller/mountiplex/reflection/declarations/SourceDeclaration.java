@@ -7,7 +7,6 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -207,101 +206,7 @@ public class SourceDeclaration extends Declaration {
 
     /// pre-processes the source file, keeping the parts that pass variable evaluation
     public static String preprocess(String declaration, ClassResolver resolver) {
-        // Trim block comments from the declaration text
-        while (true) {
-            int startIndex = declaration.lastIndexOf("/*");
-            if (startIndex == -1) {
-                break;
-            }
-            int endIndex = declaration.indexOf("*/", startIndex + 2);
-            if (endIndex == -1) {
-                break;
-            }
-            declaration = declaration.substring(0, startIndex) +
-                    declaration.substring(endIndex + 2);
-        }
-
-        // Resolve variables and #if - preprocessor declarations
-        StringBuilder result = new StringBuilder();
-        int disabledIfLevel = 0;
-        boolean disabledIfExpression = false;
-        for (String line : declaration.split("\\r?\\n")) {
-            String lineTrimmed = line.trim();
-            String lineLower = lineTrimmed.toLowerCase(Locale.ENGLISH);
-            if (disabledIfLevel > 1) {
-                // At this level, #elseif and #else have no effect, only switch levels
-                if (lineLower.startsWith("#if")) {
-                    disabledIfLevel++;
-                } else if (lineLower.startsWith("#endif")) {
-                    disabledIfLevel--;
-                }
-                continue;
-            }
-            if (disabledIfLevel == 1) {
-                // At this level, #elseif or #else can toggle modes
-                if (lineLower.startsWith("#if")) {
-                    disabledIfLevel++;
-                } else if (lineLower.startsWith("#endif")) {
-                    disabledIfLevel--;
-                } else if (lineLower.startsWith("#else")) {
-                    int ifIdx = lineTrimmed.indexOf("if", 5);
-                    boolean evaluates = true;
-                    if (ifIdx != -1) {
-                        // Else if - evaluate expression to decide whether to allow
-                        String expr = lineTrimmed.substring(ifIdx + 2).trim();
-                        evaluates = resolver.evaluateExpression(expr);
-                    }
-                    if (!disabledIfExpression && evaluates) {
-                        // Evaluates - enter this if-block
-                        disabledIfLevel--;
-                    }
-                }
-                continue;
-            }
-
-            // Over here all lines are allowed to be included
-            // Parse if-statements in case we go a level deeper
-            // All else-evaluations fail here
-            disabledIfExpression = false;
-            if (lineLower.startsWith("#if")) {
-                String expr = lineTrimmed.substring(3).trim();
-                if (!resolver.evaluateExpression(expr)) {
-                    disabledIfLevel++;
-                }
-                continue;
-            }
-            if (lineLower.startsWith("#else")) {
-                disabledIfLevel++;
-                disabledIfExpression = true;
-                continue;
-            }
-            if (lineLower.startsWith("#endif")) {
-                continue; // ignore
-            }
-
-            // Ignore comments
-            if (lineLower.startsWith("//")) {
-                continue;
-            }
-
-            // The below statements are all included in the source
-            result.append(line).append('\n');
-            if (lineLower.startsWith("#set ")) {
-                lineTrimmed = lineTrimmed.substring(5).trim();
-                int nameEndIdx = lineTrimmed.indexOf(' ');
-                if (nameEndIdx == -1) {
-                    continue;
-                }
-                String varName = lineTrimmed.substring(0, nameEndIdx);
-                String varValue = lineTrimmed.substring(nameEndIdx + 1);
-                while (varValue.length() > 0 && varValue.charAt(0) == ' ') {
-                    varValue = varValue.substring(1);
-                }
-                resolver.setVariable(varName, varValue);
-                continue;
-            }
-        }
-        return result.toString();
+        return (new SourcePreprocessor(resolver)).preprocess(declaration);
     }
 
     /**
