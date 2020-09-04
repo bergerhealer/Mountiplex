@@ -222,10 +222,18 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                 }
 
                 //TODO: Conversion. For now just fail the method body when used
-                boolean hasConversion = methodDec.returnType.cast != null;
-                if (!hasConversion) {
+                boolean hasConversion = false;
+                if (methodDec.returnType.cast != null &&
+                    !methodDec.returnType.cast.isAssignableFrom(methodDec.returnType) &&
+                    !methodDec.returnType.isAssignableFrom(methodDec.returnType.cast))
+                {
+                    hasConversion = true;
+                } else {
                     for (ParameterDeclaration param : methodDec.parameters.parameters) {
-                        if (param.type.cast != null) {
+                        if (param.type.cast != null &&
+                            !param.type.isAssignableFrom(param.type.cast) &&
+                            !param.type.cast.isAssignableFrom(param.type))
+                        {
                             hasConversion = true;
                             break;
                         }
@@ -235,7 +243,6 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     cw.visitMethodUnsupported(method, "Conversion of parameters/return type is not supported yet");
                     continue;
                 }
-                
 
                 if (methodDec.body == null && Modifier.isPublic(methodDec.method.getModifiers()) && Resolver.isPublic(this.instanceType)) {
                     mv = cw.visitMethod(ACC_PUBLIC, MPLType.getName(method), MPLType.getMethodDescriptor(method), null, null);
@@ -243,11 +250,20 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
 
                     // static method can be called from within the method body just fine
                     // load all the parameters onto the stack
-                    int varIdx = MPLType.visitVarILoad(mv, 1, method.getParameterTypes());
+                    int varIdx = 1;
+                    for (ParameterDeclaration param : methodDec.parameters.parameters) {
+                        varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.exposed().type);
+                        if (param.type.cast != null) {
+                            ExtendedClassWriter.visitUnboxVariable(mv, param.type.type);
+                        }
+                    }
 
                     // call static method directly and proxy-return the return value
-                    mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), MPLType.getName(method),
-                            MPLType.getMethodDescriptor(method), false);
+                    mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), methodDec.name.value(),
+                            MPLType.getInternalMethodDescriptor(methodDec), false);
+                    if (methodDec.returnType.cast != null) {
+                        ExtendedClassWriter.visitUnboxVariable(mv, methodDec.returnType.cast.type);
+                    }
                     mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
                     mv.visitMaxs(varIdx, varIdx);
                     mv.visitEnd();
@@ -278,7 +294,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                         for (ParameterDeclaration param : methodDec.parameters.parameters) {
                             mv.visitInsn(DUP);
                             ExtendedClassWriter.visitPushInt(mv, varIdx-1);
-                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.type);
+                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.exposed().type);
                             ExtendedClassWriter.visitBoxVariable(mv, param.type.type);
                             mv.visitInsn(AASTORE);
                         }
@@ -291,7 +307,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                         // Load parameters onto the stack
                         int varIdx = 1;
                         for (ParameterDeclaration param : methodDec.parameters.parameters) {
-                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.type);
+                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.exposed().type);
                             ExtendedClassWriter.visitBoxVariable(mv, param.type.type);
                         }
 

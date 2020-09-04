@@ -2,6 +2,11 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
@@ -76,6 +81,10 @@ public class GeneratedTemplateTest {
         private static String priv_test_areturn() {
             return "600";
         }
+
+        public static List<String> conversion_test(List<String> input) {
+            return new ArrayList<String>(input);
+        }
     }
 
     @Template.InstanceType("com.bergerkiller.mountiplex.GeneratedTemplateTest.HelperObject")
@@ -121,6 +130,34 @@ public class GeneratedTemplateTest {
         public abstract int priv_test_ireturn();
         @Template.Generated("private static String priv_test_areturn()")
         public abstract String priv_test_areturn();
+
+        @Template.Generated("public static (java.util.ArrayList<String>) java.util.List<String> conversion_test(java.util.List<String> input);")
+        public abstract ArrayList<String> conversion_test_call_returntype_upcast(List<String> input);
+        @Template.Generated("public static (java.util.Collection<String>) java.util.List<String> conversion_test(java.util.List<String> input);")
+        public abstract Collection<String> conversion_test_call_returntype_downcast(List<String> input);
+
+        @Template.Generated("public static java.util.List<String> conversion_test((java.util.Collection<String>) java.util.List<String> input);")
+        public abstract List<String> conversion_test_call_paramtype_upcast(Collection<String> input);
+        @Template.Generated("public static java.util.List<String> conversion_test((java.util.ArrayList<String>) java.util.List<String> input);")
+        public abstract List<String> conversion_test_call_paramtype_downcast(ArrayList<String> input);
+
+        @Template.Generated("public static (java.util.ArrayList<String>) java.util.List<String> conversion_test(java.util.List<String> input) {\n" +
+                            "    return new ArrayList(input);\n" +
+                            "}")
+        public abstract ArrayList<String> conversion_test_body_returntype_upcast(List<String> input);
+        @Template.Generated("public static (java.util.Collection<String>) java.util.List<String> conversion_test(java.util.List<String> input) {\n" +
+                            "    return new ArrayList(input);\n" +
+                            "}")
+        public abstract ArrayList<String> conversion_test_body_returntype_downcast(List<String> input);
+
+        @Template.Generated("public static java.util.List<String> conversion_test((java.util.Collection<String>) java.util.List<String> input) {\n" +
+                            "    return new ArrayList(input);\n" +
+                            "}")
+        public abstract List<String> conversion_test_body_paramtype_upcast(Collection<String> input);
+        @Template.Generated("public static java.util.List<String> conversion_test((java.util.ArrayList<String>) java.util.List<String> input) {\n" +
+                            "    return new ArrayList(input);\n" +
+                            "}")
+        public abstract List<String> conversion_test_body_paramtype_downcast(ArrayList<String> input);
     }
 
     // Proxies the call directly, because the method is accessible
@@ -199,5 +236,47 @@ public class GeneratedTemplateTest {
 
         assertEquals(600, T.priv_test_ireturn());
         assertEquals("600", T.priv_test_areturn());
+    }
+
+    // Tests the casting behavior (up and down cast) for called method return types
+    @Test
+    public void testReturnTypeCastingWithoutInvoker() {
+        GeneratedClass T = Template.Class.create(GeneratedClass.class);
+
+        verifyContents(T.conversion_test_call_returntype_downcast(Arrays.asList("hello", "world")));
+        verifyContents(T.conversion_test_call_returntype_upcast(Arrays.asList("hello", "world")));
+    }
+
+    // Tests the casting behavior (up and down cast) for called method return types
+    @Test
+    public void testReturnTypeCastingWithInvoker() {
+        GeneratedClass T = Template.Class.create(GeneratedClass.class);
+
+        verifyContents(T.conversion_test_body_returntype_downcast(Arrays.asList("hello", "world")));
+        verifyContents(T.conversion_test_body_returntype_upcast(Arrays.asList("hello", "world")));
+    }
+
+    // Tests the casting behavior (up and down cast) for called method parameter types
+    @Test
+    public void testParamTypeCastingWithoutInvoker() {
+        GeneratedClass T = Template.Class.create(GeneratedClass.class);
+
+        verifyContents(T.conversion_test_call_paramtype_downcast(new ArrayList<String>(Arrays.asList("hello", "world"))));
+        verifyContents(T.conversion_test_call_paramtype_upcast(Arrays.asList("hello", "world")));
+    }
+
+    // Tests the casting behavior (up and down cast) for called method parameter types
+    @Test
+    public void testParamTypeCastingWithInvoker() {
+        GeneratedClass T = Template.Class.create(GeneratedClass.class);
+
+        verifyContents(T.conversion_test_body_paramtype_downcast(new ArrayList<String>(Arrays.asList("hello", "world"))));
+        verifyContents(T.conversion_test_body_paramtype_upcast(Arrays.asList("hello", "world")));
+    }
+
+    private void verifyContents(Collection<String> values) {
+        assertTrue(values.contains("hello"));
+        assertTrue(values.contains("world"));
+        assertEquals(2, values.size());
     }
 }

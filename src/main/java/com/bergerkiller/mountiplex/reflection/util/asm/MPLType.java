@@ -11,6 +11,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterListDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -90,6 +91,22 @@ public class MPLType {
      */
     public static String getMethodDescriptor(final Method method) {
         return getMethodDescriptor(method.getReturnType(), method.getParameterTypes());
+    }
+
+    /**
+     * Returns the descriptor corresponding to the internal (not exposed)
+     * method definition of a method declaration.
+     * 
+     * @param dec Declaration of the method
+     * @return the descriptor of the given method.
+     */
+    public static String getInternalMethodDescriptor(MethodDeclaration dec) {
+        Class<?> returnType = dec.returnType.type;
+        Class<?>[] paramTypes = new Class[dec.parameters.parameters.length];
+        for (int i = 0; i < paramTypes.length; i++) {
+            paramTypes[i] = dec.parameters.parameters[i].type.type;
+        }
+        return getMethodDescriptor(returnType, paramTypes);
     }
 
     /**
