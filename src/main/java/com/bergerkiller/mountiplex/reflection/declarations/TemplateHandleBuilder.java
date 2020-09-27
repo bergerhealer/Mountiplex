@@ -333,8 +333,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                         invokeDescBldr.append("(Ljava/lang/Object;");
                         int varIdx = 1;
                         for (int i = 0; i < paramTypes.length; i++) {
-                            varIdx = MPLType.visitVarILoad(mv,  varIdx, paramTypes[i]);
-                            ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
+                            varIdx = MPLType.visitVarILoadAndBox(mv, varIdx, paramTypes[i]);
                             invokeDescBldr.append("Ljava/lang/Object;");
                         }
                         invokeDescBldr.append(")Ljava/lang/Object;");
@@ -354,8 +353,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                         for (int i = 0; i < paramTypes.length; i++) {
                             mv.visitInsn(DUP);
                             ExtendedClassWriter.visitPushInt(mv, i);
-                            varIdx = MPLType.visitVarILoad(mv, varIdx, paramTypes[i]);
-                            ExtendedClassWriter.visitBoxVariable(mv, paramTypes[i]);
+                            varIdx = MPLType.visitVarILoadAndBox(mv, varIdx, paramTypes[i]);
                             mv.visitInsn(AASTORE);
                         }
 

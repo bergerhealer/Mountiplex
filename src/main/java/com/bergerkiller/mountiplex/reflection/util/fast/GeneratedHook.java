@@ -284,8 +284,7 @@ public class GeneratedHook {
             // Load all the parameters onto the stack, box them into Objects if needed
             int varIdx = 1;
             for (Class<?> parameterType : parameterTypes) {
-                varIdx = MPLType.visitVarILoad(mv, varIdx, parameterType);
-                ExtendedClassWriter.visitBoxVariable(mv, parameterType);
+                varIdx = MPLType.visitVarILoadAndBox(mv, varIdx, parameterType);
             }
 
             // invoke
@@ -304,8 +303,7 @@ public class GeneratedHook {
             for (int i = 0; i < parameterTypes.length; i++) {
                 mv.visitInsn(DUP);
                 ExtendedClassWriter.visitPushInt(mv, i);
-                varIdx = MPLType.visitVarILoad(mv, varIdx, parameterTypes[i]);
-                ExtendedClassWriter.visitBoxVariable(mv, parameterTypes[i]);
+                varIdx = MPLType.visitVarILoadAndBox(mv, varIdx, parameterTypes[i]);
                 mv.visitInsn(AASTORE);
             }
 

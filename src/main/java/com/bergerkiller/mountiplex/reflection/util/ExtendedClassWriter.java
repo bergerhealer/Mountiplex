@@ -266,25 +266,6 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
-     * Includes instructions to box a primitive value on the stack.
-     * <i>void</i> types are turned into <i>null</i>.
-     * 
-     * @param mv method visitor
-     * @param primType primitive type to box (int -> Integer)
-     */
-    public static void visitBoxVariable(MethodVisitor mv, java.lang.Class<?> primType) {
-        if (primType == void.class) {
-            mv.visitInsn(ACONST_NULL);
-        } else if (primType.isPrimitive()) {
-            Class<?> boxedType = BoxedType.getBoxedType(primType);
-            if (boxedType != null) {
-                mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(boxedType),
-                        "valueOf", "(" + MPLType.getDescriptor(primType) + ")" + MPLType.getDescriptor(boxedType), false);
-            }
-        }
-    }
-
-    /**
      * Includes instructions to unbox a boxed value to a primitive value on the stack.
      * If no primitive type is requested, only a checked cast is performed.
      * 

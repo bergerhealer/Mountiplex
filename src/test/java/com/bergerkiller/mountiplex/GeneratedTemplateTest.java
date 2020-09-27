@@ -158,6 +158,11 @@ public class GeneratedTemplateTest {
                             "    return new ArrayList(input);\n" +
                             "}")
         public abstract List<String> conversion_test_body_paramtype_downcast(ArrayList<String> input);
+
+        @Template.Generated("public static int call_with_mixed_registers(String a, int b, int c, int d, String e) {\n" +
+                            "    return 10*Integer.parseInt(a) + 20*b + 30*c + 40*d + 50*Integer.parseInt(e);\n" +
+                            "}")
+        public abstract int call_with_mixed_registers(String a, int b, int c, int d, String e);
     }
 
     // Proxies the call directly, because the method is accessible
@@ -272,6 +277,19 @@ public class GeneratedTemplateTest {
 
         verifyContents(T.conversion_test_body_paramtype_downcast(new ArrayList<String>(Arrays.asList("hello", "world"))));
         verifyContents(T.conversion_test_body_paramtype_upcast(Arrays.asList("hello", "world")));
+    }
+
+    // Tests mixed register types
+    @Test
+    public void testMixedRegisters() {
+        GeneratedClass T = Template.Class.create(GeneratedClass.class);
+
+        assertEquals(10, T.call_with_mixed_registers("1", 0, 0, 0, "0"));
+        assertEquals(20, T.call_with_mixed_registers("0", 1, 0, 0, "0"));
+        assertEquals(30, T.call_with_mixed_registers("0", 0, 1, 0, "0"));
+        assertEquals(40, T.call_with_mixed_registers("0", 0, 0, 1, "0"));
+        assertEquals(50, T.call_with_mixed_registers("0", 0, 0, 0, "1"));
+        assertEquals(550, T.call_with_mixed_registers("1", 2, 3, 4, "5"));
     }
 
     private void verifyContents(Collection<String> values) {

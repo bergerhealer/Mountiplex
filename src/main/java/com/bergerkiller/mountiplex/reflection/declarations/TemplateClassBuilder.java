@@ -291,11 +291,10 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                         mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
 
                         int varIdx = 1;
-                        for (ParameterDeclaration param : methodDec.parameters.parameters) {
+                        for (Class<?> paramType : method.getParameterTypes()) {
                             mv.visitInsn(DUP);
                             ExtendedClassWriter.visitPushInt(mv, varIdx-1);
-                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.exposed().type);
-                            ExtendedClassWriter.visitBoxVariable(mv, param.type.type);
+                            varIdx = MPLType.visitVarILoadAndBox(mv, varIdx, paramType);
                             mv.visitInsn(AASTORE);
                         }
 
@@ -306,9 +305,8 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     } else {
                         // Load parameters onto the stack
                         int varIdx = 1;
-                        for (ParameterDeclaration param : methodDec.parameters.parameters) {
-                            varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.exposed().type);
-                            ExtendedClassWriter.visitBoxVariable(mv, param.type.type);
+                        for (Class<?> paramType : method.getParameterTypes()) {
+                            varIdx = MPLType.visitVarILoadAndBox(mv, varIdx, paramType);
                         }
 
                         // invoke(null, [0], [1], [2], [3], [4])

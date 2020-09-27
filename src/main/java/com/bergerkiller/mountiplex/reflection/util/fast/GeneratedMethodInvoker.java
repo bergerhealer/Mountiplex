@@ -115,7 +115,7 @@ public abstract class GeneratedMethodInvoker<T> implements Invoker<T> {
                 ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
             }
             ExtendedClassWriter.visitInvoke(mv, instanceType, method);
-            ExtendedClassWriter.visitBoxVariable(mv, returnType);
+            MPLType.visitBoxVariable(mv, returnType);
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();
@@ -152,7 +152,7 @@ public abstract class GeneratedMethodInvoker<T> implements Invoker<T> {
                 ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
             }
             ExtendedClassWriter.visitInvoke(mv, instanceType, method);
-            ExtendedClassWriter.visitBoxVariable(mv, returnType);
+            MPLType.visitBoxVariable(mv, returnType);
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();

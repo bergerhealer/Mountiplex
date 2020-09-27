@@ -15,6 +15,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterListDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 
 /**
@@ -187,6 +188,25 @@ public class MPLType {
     }
 
     /**
+     * Includes instructions to box a primitive value on the stack.
+     * <i>void</i> types are turned into <i>null</i>.
+     * 
+     * @param mv method visitor
+     * @param primType primitive type to box (int -> Integer)
+     */
+    public static void visitBoxVariable(MethodVisitor mv, java.lang.Class<?> primType) {
+        if (primType == void.class) {
+            mv.visitInsn(ACONST_NULL);
+        } else if (primType.isPrimitive()) {
+            Class<?> boxedType = BoxedType.getBoxedType(primType);
+            if (boxedType != null) {
+                mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(boxedType),
+                        "valueOf", "(" + MPLType.getDescriptor(primType) + ")" + MPLType.getDescriptor(boxedType), false);
+            }
+        }
+    }
+
+    /**
      * Visits a variable ILOAD instruction for a given Class type
      * 
      * @param mv Method visitor
@@ -230,6 +250,21 @@ public class MPLType {
         for (ParameterDeclaration param : parameters.parameters) {
             register = visitVarILoad(mv, register, param.type.type);
         }
+        return register;
+    }
+
+    /**
+     * Visits a variable ILOAD instruction for a given Class type, then adds extra
+     * instructions for primitive types to box them to an Object type.
+     * 
+     * @param mv Method visitor
+     * @param registerInitial Initial register value to load into
+     * @param clazz Type of variable to load
+     * @return Next free register to use (register + size)
+     */
+    public static int visitVarILoadAndBox(MethodVisitor mv, int registerInitial, Class<?> type) {
+        int register = visitVarILoad(mv, registerInitial, type);
+        visitBoxVariable(mv, type);
         return register;
     }
 
