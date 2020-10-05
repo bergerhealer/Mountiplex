@@ -1,9 +1,14 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.WeakHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedConstructor;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedMethodInvoker;
 
 /**
  * ClassLoader used to generate new classes at runtime in various areas
@@ -12,8 +17,13 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
  * resolving works properly.
  */
 public class GeneratorClassLoader extends ClassLoader {
+    private static final Map<String, Class<?>> staticClasses = new HashMap<String, Class<?>>();
     private static WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
     private static final java.lang.reflect.Method defineClassMethod;
+
+    private static void registerStaticClass(Class<?> type) {
+        staticClasses.put(type.getName(), type);
+    }
 
     static {
         MountiplexUtil.registerUnloader(new Runnable() {
@@ -30,6 +40,13 @@ public class GeneratorClassLoader extends ClassLoader {
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
+
+        // These classes are often used to generate method bodies at runtime.
+        // However, a Class Loader might be specified that has no access to these
+        // class types. We register these special types to avoid that problem.
+        registerStaticClass(GeneratedMethodInvoker.class);
+        registerStaticClass(GeneratedCodeInvoker.class);
+        registerStaticClass(GeneratedConstructor.class);
     }
 
     /**
@@ -66,6 +83,21 @@ public class GeneratorClassLoader extends ClassLoader {
             return MPLType.getClassByName(name, false, this.getParent());
         } catch (ClassNotFoundException ex) {
             return null;
+        }
+    }
+
+    /*
+     * We have to avoid asking class loaders for certain class types, because
+     * it causes problems. For example, the generated invoker classes are provided
+     * by this library, but a class loader might be used with no access to it.
+     */
+    @Override
+    public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        Class<?> foundInStaticClasses = staticClasses.get(name);
+        if (foundInStaticClasses != null) {
+            return foundInStaticClasses;
+        } else {
+            return super.loadClass(name, resolve);
         }
     }
 

@@ -31,6 +31,7 @@ public class ClassResolver {
     private String packagePath;
     private String declaredClassName;
     private Class<?> declaredClass;
+    private ClassLoader classLoader;
     private boolean logErrors;
     private boolean isGenerating;
     private Runnable[] bootstrap;
@@ -44,6 +45,7 @@ public class ClassResolver {
         this.packagePath = src.packagePath;
         this.declaredClassName = src.declaredClassName;
         this.declaredClass = src.declaredClass;
+        this.classLoader = src.classLoader;
         this.logErrors = src.logErrors;
         this.isGenerating = src.isGenerating;
         this.bootstrap = src.bootstrap;
@@ -58,6 +60,7 @@ public class ClassResolver {
         this.packagePath = "";
         this.declaredClassName = null;
         this.declaredClass = null;
+        this.classLoader = ClassResolver.class.getClassLoader();
         this.logErrors = true;
         this.isGenerating = false;
         this.bootstrap = default_bootstrap;
@@ -76,6 +79,7 @@ public class ClassResolver {
         this.bootstrap = default_bootstrap;
         this.declaredClassName = null;
         this.declaredClass = null;
+        this.classLoader = ClassResolver.class.getClassLoader();
         this.setPackage(packagePath);
     }
 
@@ -130,6 +134,16 @@ public class ClassResolver {
      */
     public ClassResolver immutable() {
         return new ImmutableClassResolver(this);
+    }
+
+    /**
+     * Sets the Class Loader used to load new class types by name.
+     * By default uses the same class loader that loaded this library.
+     * 
+     * @param loader
+     */
+    public void setClassLoader(ClassLoader loader) {
+        this.classLoader = loader;
     }
 
     public void setDeclaredClassName(String typeName) {
@@ -485,7 +499,7 @@ public class ClassResolver {
             }
 
             // Find class that the object is declared in
-            Class<?> declaredClass = Resolver.loadClass(classPath, false);
+            Class<?> declaredClass = Resolver.loadClass(classPath, false, this.classLoader);
             if (declaredClass == null) {
                 return false; // Class not available
             }
@@ -595,7 +609,7 @@ public class ClassResolver {
         }
 
         // Directly by name
-        Class<?> byAbsoluteName = Resolver.loadClass(name, false);
+        Class<?> byAbsoluteName = Resolver.loadClass(name, false, this.classLoader);
         if (byAbsoluteName != null) {
             return new ResolveResult(name, byAbsoluteName);
         }
@@ -614,7 +628,7 @@ public class ClassResolver {
                 continue;
             }
 
-            Class<?> byImport = Resolver.loadClass(classPath, false);
+            Class<?> byImport = Resolver.loadClass(classPath, false, this.classLoader);
             if (byImport != null) {
                 return new ResolveResult(classPath, byImport);
             }
@@ -623,7 +637,7 @@ public class ClassResolver {
         // Try package path
         if (!packagePath.isEmpty() && !(Character.isLowerCase(name.charAt(0)) && name.contains("."))) {
             classPath = packagePath + "." + name;
-            Class<?> byPackage = Resolver.loadClass(classPath, false);
+            Class<?> byPackage = Resolver.loadClass(classPath, false, this.classLoader);
             if (byPackage != null) {
                 return new ResolveResult(classPath, byPackage);
             }

@@ -32,7 +32,7 @@ public class ArrayHelper {
         // Optimization for common Object-type single-dim arrays
         if (num_dimensions == 1 && !componentType.isPrimitive()) {
             try {
-                return Class.forName("[L" + MPLType.getName(componentType) + ";");
+                return MPLType.getClassByName("[L" + MPLType.getName(componentType) + ";", false, componentType.getClassLoader());
             } catch (ClassNotFoundException e) {}
         }
 

@@ -52,6 +52,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
         // Create class-level resolver, which adds all the imports declared at class level
         ClassResolver classLevelResolver = methodDec.getResolver();
+        classLevelResolver.setClassLoader(methods.hookClassLoader);
         if (methods.classImports.length > 0 || methods.classPackage != null) {
             classLevelResolver = classLevelResolver.clone();
             if (methods.classPackage != null) {
@@ -179,16 +180,20 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     }
 
     private static class HookMethodList {
+        public final ClassLoader hookClassLoader;
         public final List<HookMethodEntry> entries = new ArrayList<HookMethodEntry>();
         public final String[] classImports;
         public final String classPackage;
 
         public HookMethodList() {
+            this.hookClassLoader = HookMethodList.class.getClassLoader();
             this.classImports = new String[0];
             this.classPackage = null;
         }
 
         public HookMethodList(Class<?> hookClassType) {
+            this.hookClassLoader = hookClassType.getClassLoader();
+
             this.classImports = ReflectionUtil.getAllClassesAndInterfaces(hookClassType)
                     .flatMap(c -> Stream.of(c.getDeclaredAnnotationsByType(HookImport.class)))
                     .map(HookImport::value)
@@ -302,6 +307,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             resolver.addImports(Arrays.asList(this.owner.classImports));
             resolver.addImports(Arrays.asList(this.hookImports));
             resolver.setLogErrors(true);
+            resolver.setClassLoader(this.owner.hookClassLoader);
             return resolver;
         }
 

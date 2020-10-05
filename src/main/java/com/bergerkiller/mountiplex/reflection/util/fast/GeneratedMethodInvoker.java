@@ -40,12 +40,14 @@ public abstract class GeneratedMethodInvoker<T> implements Invoker<T> {
      * @return generated invoker
      */
     public static <T> GeneratedMethodInvoker<T> create(java.lang.reflect.Method method) {
+        Class<?> instanceType = method.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
+
         ExtendedClassWriter<GeneratedMethodInvoker<T>> cw = ExtendedClassWriter.builder(GeneratedMethodInvoker.class)
+                .setClassLoader(instanceType.getClassLoader())
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setAccess(ACC_FINAL).build();
 
         MethodVisitor mv;
-        Class<?> instanceType = method.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
         String instanceName = MPLType.getInternalName(instanceType);
         Class<?>[] paramTypes = method.getParameterTypes();
         Class<?> returnType = method.getReturnType();

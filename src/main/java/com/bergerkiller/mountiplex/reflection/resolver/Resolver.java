@@ -107,17 +107,30 @@ public class Resolver {
 
     /**
      * Attempts to load a class by path. If the class can not be loaded, null is returned instead.
+     * Uses the class loader that loaded this library.
      * 
      * @param path of the class to load
      * @param initialize whether to call static initializers on the loaded class
      * @return The loaded class, or null if the class could not be loaded
      */
     public static Class<?> loadClass(String path, boolean initialize) {
+        return loadClass(path, initialize, Resolver.class.getClassLoader());
+    }
+
+    /**
+     * Attempts to load a class by path. If the class can not be loaded, null is returned instead.
+     * 
+     * @param path of the class to load
+     * @param initialize whether to call static initializers on the loaded class
+     * @param loader the preferred ClassLoader to use to find the class, if not already loaded
+     * @return The loaded class, or null if the class could not be loaded
+     */
+    public static Class<?> loadClass(String path, boolean initialize, ClassLoader loader) {
         HashMap<String, ClassMeta> classCache = resolver.classCache;
         synchronized (classCache) {
             ClassMeta meta = classCache.get(path);
             if (meta == null) {
-                Class<?> type = loadClassImpl(path, initialize);
+                Class<?> type = loadClassImpl(path, initialize, loader);
                 if (type == null) {
                     meta = new ClassMeta(null, initialize);
                 } else {
@@ -139,7 +152,7 @@ public class Resolver {
         }
     }
 
-    private static Class<?> loadClassImpl(String path, boolean initialize) {
+    private static Class<?> loadClassImpl(String path, boolean initialize, ClassLoader loader) {
         // There is a strange glitch where the class loader fails to find primitive types
         // This is a workaround so that types like 'double' and 'void' are properly resolved
         Class<?> prim = BoxedType.getUnboxedType(path);
@@ -160,7 +173,7 @@ public class Resolver {
         /* ===================== */
         String alterPath = resolveClassPath(path);
         try {
-            return MPLType.getClassByName(alterPath, initialize, Resolver.class.getClassLoader());
+            return MPLType.getClassByName(alterPath, initialize, loader);
         } catch (ExceptionInInitializerError e) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + alterPath + "':", e.getCause());
             return null;
@@ -190,7 +203,7 @@ public class Resolver {
     public static void initializeClass(Class<?> classType) {
         String className = MPLType.getName(classType);
         try {
-            MPLType.getClassByName(className, true, Resolver.class.getClassLoader());
+            MPLType.getClassByName(className, true, classType.getClassLoader());
         } catch (ExceptionInInitializerError e) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + className + "':", e.getCause());
         } catch (ClassNotFoundException e) {

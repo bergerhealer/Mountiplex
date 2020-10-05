@@ -42,7 +42,11 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         String postfix = (options.postfix != null) ? options.postfix : getNextPostfix();
 
         // This is multi-thread safe
-        this.loader = GeneratorClassLoader.get(options.superClass.getClassLoader());
+        if (options.classLoader != null) {
+            this.loader = GeneratorClassLoader.get(options.classLoader);
+        } else {
+            this.loader = GeneratorClassLoader.get(options.superClass.getClassLoader());
+        }
 
         // Bugfix: pick a different postfix if another class already exists with this name
         // This can happen by accident as well, when a jar is incorrectly reloaded
@@ -397,6 +401,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         private int flags = 0;
         private int access = ACC_PUBLIC | ACC_STATIC;
         private String postfix = null;
+        private ClassLoader classLoader = null;
 
         private Builder(Class<T> superClass) {
             this.superClass = superClass;
@@ -427,6 +432,11 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
         public Builder<T> setPostfix(String postfix) {
             this.postfix = postfix;
+            return this;
+        }
+
+        public Builder<T> setClassLoader(ClassLoader loader) {
+            this.classLoader = loader;
             return this;
         }
 
