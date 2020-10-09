@@ -73,7 +73,9 @@ public class SafeMethod<T> implements MethodAccessor<T> {
         // try to find the method
         this.method.init(findRaw(source, fixedName, parameterTypes));
         if (!this.method.isAvailable()) {
-            MountiplexUtil.LOGGER.warning("Method '" + dispName + "' could not be found in class " + MPLType.getName(source));
+            String message = "Method '" + dispName + "' could not be found in class " + MPLType.getName(source);
+            this.method.initUnavailable(message);
+            MountiplexUtil.LOGGER.warning(message);
         }
     }
 
