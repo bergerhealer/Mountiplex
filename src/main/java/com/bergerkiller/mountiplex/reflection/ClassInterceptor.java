@@ -294,7 +294,10 @@ public abstract class ClassInterceptor {
             final EnhancedClass new_enhanced = new EnhancedClass(objectType);
             final StackInformation current_stack = interceptor.stackInfo.get();
 
-            new_enhanced.setupEnhancedType(GeneratedHook.generate(objectType, Arrays.asList(EnhancedObject.class), method -> {
+            new_enhanced.setupEnhancedType(GeneratedHook.generate(interceptor.getClass().getClassLoader(),
+                                           objectType,
+                                           Arrays.asList(EnhancedObject.class),
+                                           method -> {
                 String name = MPLType.getName(method);
 
                 // Implement EnhancedObject interface

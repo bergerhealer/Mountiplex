@@ -201,7 +201,7 @@ public class ClassBytecodeLoader {
 
             // Generate the Class Bytecode by this path
             try {
-                Class<?> clazz = MPLType.getClassByName(classname);
+                Class<?> clazz = Resolver.getClassByExactName(classname);
                 return new ByteArrayInputStream(generateMockByteCode(clazz));
             } catch (Throwable t) {
                 return null;
@@ -241,11 +241,11 @@ public class ClassBytecodeLoader {
             // Generate the Class Bytecode by this path
             // Is generated when the URL is visited.
             try {
-                Class<?> clazz = MPLType.getClassByName(classname);
+                Class<?> clazz = Resolver.getClassByExactName(classname);
                 return generatedURL(clazz, filename);
-            } catch (Throwable t) {
-                return null;
-            }
+            } catch (Throwable t) {}
+
+            return null;
         }
     }
 }

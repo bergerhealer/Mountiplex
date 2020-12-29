@@ -106,6 +106,26 @@ public class Resolver {
     }
 
     /**
+     * Looks up a previously loaded class name by path.
+     * The type stored here must have the exact same class name.
+     *
+     * @param name Class name to find the loaded Class type of
+     * @return Class type matching this name
+     * @throws ClassNotFoundException If class by this name could not be found
+     */
+    public static Class<?> getClassByExactName(String name) throws ClassNotFoundException {
+        HashMap<String, ClassMeta> classCache = resolver.classCache;
+        synchronized (classCache) {
+            ClassMeta meta = classCache.get(name);
+            if (meta != null && meta.type != null && MPLType.getName(meta.type).equals(name)) {
+                return meta.type;
+            }
+        }
+
+        return MPLType.getClassByName(name);
+    }
+
+    /**
      * Attempts to load a class by path. If the class can not be loaded, null is returned instead.
      * Uses the class loader that loaded this library.
      * 

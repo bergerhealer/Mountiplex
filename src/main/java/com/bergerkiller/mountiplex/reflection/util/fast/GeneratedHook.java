@@ -31,15 +31,17 @@ public class GeneratedHook {
      * are queried for the base class and sent through the callbacks query function. If a non-null result
      * is returned, then that method is overrided, calling into the returned invoker.
      * 
+     * @param classLoader Class Loader which will be used to generate the final Class
      * @param baseClass Base class or interface to extend/implement
      * @param interfaces Additional interfaces to implement
      * @param callbacks Callbacks to override, query function
      * @return generated class
      */
-    public static <T> Class<? extends T> generate(Class<T> baseClass, Collection<Class<?>> interfaces, Function<Method, Invoker<?>> callbacks) {
+    public static <T> Class<? extends T> generate(ClassLoader classLoader, Class<T> baseClass, Collection<Class<?>> interfaces, Function<Method, Invoker<?>> callbacks) {
         final ExtendedClassWriter<T> cw = ExtendedClassWriter.builder(baseClass)
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .addInterfaces(interfaces)
+                .setClassLoader(classLoader)
                 .build();
 
         // Used when generating invokeSuper trampolines

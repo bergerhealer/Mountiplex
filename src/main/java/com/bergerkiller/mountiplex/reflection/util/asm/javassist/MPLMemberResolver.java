@@ -131,7 +131,7 @@ public final class MPLMemberResolver extends MemberResolver {
         // Resolve the class name first, only do remapping if we can identify this type
         Class<?> declaringClass;
         try {
-            declaringClass = MPLType.getClassByName(clazz.getName());
+            declaringClass = Resolver.getClassByExactName(clazz.getName());
         } catch (ClassNotFoundException e) {
             return fieldName;
         }
@@ -180,7 +180,7 @@ public final class MPLMemberResolver extends MemberResolver {
         // Figure out the actual Class. If not found, skip.
         Class<?> declaringClass;
         try {
-            declaringClass = MPLType.getClassByName(clazz.getName());
+            declaringClass = Resolver.getClassByExactName(clazz.getName());
         } catch (ClassNotFoundException e) {
             return methodName;
         }
@@ -235,7 +235,7 @@ public final class MPLMemberResolver extends MemberResolver {
             return double.class;
         case CLASS:
             try {
-                return MPLType.getClassByName(altName.replace('/', '.'));
+                return Resolver.getClassByExactName(altName.replace('/', '.'));
             } catch (ClassNotFoundException e) {
                 return null;
             }

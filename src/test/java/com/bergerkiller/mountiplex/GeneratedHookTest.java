@@ -76,7 +76,7 @@ public class GeneratedHookTest {
             }
         };
 
-        Class<? extends Frog> generated = GeneratedHook.generate(Frog.class, Collections.emptyList(), method -> {
+        Class<? extends Frog> generated = GeneratedHook.generate(Frog.class.getClassLoader(), Frog.class, Collections.emptyList(), method -> {
             if (method.getName().equals("croak")) {
                 return croakCallback;
             } else {
@@ -138,7 +138,7 @@ public class GeneratedHookTest {
         // As a result, we should not see the same method come by multiple times
         final Set<String> methodNames = new HashSet<String>();
         final AtomicBoolean noDuplicateMethods = new AtomicBoolean(true);
-        GeneratedHook.generate(Rabbit.class, Collections.emptyList(), method -> {
+        GeneratedHook.generate(Rabbit.class.getClassLoader(), Rabbit.class, Collections.emptyList(), method -> {
             if (!methodNames.add(method.getName())) {
                 System.err.println("Duplicate method detected: " + method);
                 noDuplicateMethods.set(false);

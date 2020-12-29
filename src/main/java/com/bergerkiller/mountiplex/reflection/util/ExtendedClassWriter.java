@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
@@ -63,7 +64,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
                 } catch (ClassNotFoundException e) {}
 
                 try {
-                    MPLType.getClassByName(tmpClassPath);
+                    Resolver.getClassByExactName(tmpClassPath);
                     classExists = true;
                 } catch (ClassNotFoundException ex) {}
 
