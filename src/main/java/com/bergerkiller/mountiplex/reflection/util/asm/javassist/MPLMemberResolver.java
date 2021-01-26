@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex.reflection.util.asm.javassist;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
-import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 
 import javassist.ClassPool;
