@@ -483,6 +483,13 @@ public class ClassResolver {
             varName = expression;
             expression = "";
         }
+
+        boolean inverted = false;
+        while (varName.startsWith("!")) {
+            inverted = !inverted;
+            varName = varName.substring(1);
+        }
+
         if (varName.equals("classexists") || // legacy
             varName.equals("methodexists") || // legacy
             varName.equals("fieldexists") || // legacy
@@ -501,13 +508,13 @@ public class ClassResolver {
             // Find class that the object is declared in
             Class<?> declaredClass = Resolver.loadClass(classPath, false, this.classLoader);
             if (declaredClass == null) {
-                return false; // Class not available
+                return inverted; // Class not available
             }
 
             // Rest is method/field signature
             String signatureStr = expression.substring(signatureStart).trim();
             if (signatureStr.isEmpty()) {
-                return true; // Only Class is asked
+                return !inverted; // Only Class is asked
             }
 
             // Parse the signature
@@ -518,35 +525,35 @@ public class ClassResolver {
             if (declaration == null) {
                 if (this.getLogErrors()) {
                     MountiplexUtil.LOGGER.warning("Failed to parse declaration to check existance: " + signatureStr);
-                    return false;
+                    return inverted;
                 }
             }
 
             // If signature itself could not be resolved, it simply doesn't exist
             if (!declaration.isResolved()) {
-                return false;
+                return inverted;
             }
 
             // Find the declaration's actual method/field/constructor to check it exists
-            return declaration.discover() != null;
+            return (declaration.discover() != null) != inverted;
         }
 
         String value1 = this.variables.get(varName);
         if (value1 == null) {
             // Edge cases: true/false constants
             if (varName.equals("1") || varName.equalsIgnoreCase("true")) {
-                return true;
+                return !inverted;
             }
-            return false; // variable not found; never evaluates to True
+            return inverted; // variable not found; never evaluates to True
         }
         int logicEndIdx = expression.indexOf(' ');
         if (logicEndIdx == -1) {
             // #if <varname> simply checks if the variable exists
-            return true;
+            return !inverted;
         }
         String operand = expression.substring(0, logicEndIdx);
         String value2 = expression.substring(logicEndIdx + 1).trim();
-        return MountiplexUtil.evaluateText(value1, operand, value2);
+        return MountiplexUtil.evaluateText(value1, operand, value2) != inverted;
     }
 
     /**
