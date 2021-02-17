@@ -38,10 +38,9 @@ public class GeneratorClassLoader extends ClassLoader {
         // getDeclaredMethod() works. A class remapper altering this can seriously
         // break it.
         try {
-            Method tmp = Class.class.getDeclaredMethod(String.join("", "get", "Declared", "Method"), String.class, Class[].class);
+            Method tmp = Class.class.getMethod(String.join("", "get", "Declared", "Method"), String.class, Class[].class);
             defineClassMethod = (Method) tmp.invoke(ClassLoader.class, String.join("", "define", "Class"),
                     new Class[] { String.class, byte[].class, int.class, int.class });
-            defineClassMethod.setAccessible(true);
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
