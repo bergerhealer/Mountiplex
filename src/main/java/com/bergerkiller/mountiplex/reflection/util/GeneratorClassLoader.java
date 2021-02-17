@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
 import java.lang.reflect.Method;
+import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -40,7 +41,7 @@ public class GeneratorClassLoader extends ClassLoader {
         try {
             Method tmp = Class.class.getMethod(String.join("", "get", "Declared", "Method"), String.class, Class[].class);
             defineClassMethod = (Method) tmp.invoke(ClassLoader.class, String.join("", "define", "Class"),
-                    new Class[] { String.class, byte[].class, int.class, int.class });
+                    new Class[] { String.class, byte[].class, int.class, int.class, ProtectionDomain.class });
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
@@ -135,11 +136,12 @@ public class GeneratorClassLoader extends ClassLoader {
      * 
      * @param name Name of the class to generate
      * @param b Bytecode for the Class
+     * @param protectionDomain Protection Domain, null if unspecified
      * @return defined class
      */
-    public Class<?> createClassFromBytecode(String name, byte[] b) {
+    public Class<?> createClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain) {
         try {
-            return (Class<?>) defineClassMethod.invoke(this, name, b, Integer.valueOf(0), Integer.valueOf(b.length));
+            return (Class<?>) defineClassMethod.invoke(this, name, b, Integer.valueOf(0), Integer.valueOf(b.length), protectionDomain);
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }

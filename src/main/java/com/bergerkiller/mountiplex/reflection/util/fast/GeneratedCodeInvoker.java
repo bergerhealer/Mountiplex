@@ -1,6 +1,8 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import java.io.IOException;
 import java.net.URL;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -182,6 +184,26 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
         public ResolvedClassPool() {
             super();
             appendClassPath(ClassBytecodeLoader.CLASSPATH);
+        }
+
+        @Override
+        public Class<?> toClass(CtClass ct, Class<?> neighbor, ClassLoader loader, ProtectionDomain domain) throws CannotCompileException {
+            // If the ClassLoader used is the GeneratorClassLoader, we can call defineClass
+            // on it directly. This avoids an illegal access warning from being printed, and
+            // also prevents a remapping classloader from interfering.
+            //
+            // Only do this when neighbor==null. The neighbor is used to define new classes
+            // neighbouring other classes. This has some special logic we don't care about.
+            if (loader instanceof GeneratorClassLoader && neighbor == null) {
+                GeneratorClassLoader generator = (GeneratorClassLoader) loader;
+                try {
+                    return generator.createClassFromBytecode(ct.getName(), ct.toBytecode(), domain);
+                } catch (IOException e) {
+                    throw new CannotCompileException(e);
+                }
+            } else {
+                return super.toClass(ct, neighbor, loader, domain);
+            }
         }
 
         @Override
