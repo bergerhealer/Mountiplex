@@ -29,6 +29,7 @@ public class Resolver {
     private CompiledMethodNameResolver compiledMethodNameResolverChain = NoOpResolver.INSTANCE;
     private FieldNameResolver fieldNameResolverChain = NoOpResolver.INSTANCE;
     private MethodNameResolver methodNameResolverChain = NoOpResolver.INSTANCE;
+    private boolean enableClassLoaderRemapping = false;
     private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
     private final HashMap<Class<?>, ClassMeta> classTypeCache = new HashMap<Class<?>, ClassMeta>();
 
@@ -39,6 +40,27 @@ public class Resolver {
                 resolver = new Resolver();
             }
         });
+    }
+
+    /**
+     * Gets whether the class loader loading this library's classes is allowed
+     * to remap generated code and class definitions.
+     *
+     * @return True if the class loader is allowed to remap
+     */
+    public static boolean isClassLoaderRemappingEnabled() {
+        return resolver.enableClassLoaderRemapping;
+    }
+
+    /**
+     * Sets whether the class loader loading this library's classes is allowed
+     * to remap generated code and class definitions.
+     *
+     * @param enabled Whether this is enabled
+     */
+    public static void setClassLoaderRemappingEnabled(boolean enabled) {
+        resolver.enableClassLoaderRemapping = enabled;
+        MPLType.setRemappingEnabled(enabled);
     }
 
     /**

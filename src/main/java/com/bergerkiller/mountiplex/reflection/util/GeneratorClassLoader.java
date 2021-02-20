@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedConstructor;
@@ -140,6 +141,23 @@ public class GeneratorClassLoader extends ClassLoader {
      * @return defined class
      */
     public Class<?> createClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain) {
+        return createClassFromBytecode(name, b, protectionDomain, true);
+    }
+
+    /**
+     * Defines a new class name using the bytecode specified
+     * 
+     * @param name Name of the class to generate
+     * @param b Bytecode for the Class
+     * @param protectionDomain Protection Domain, null if unspecified
+     * @param allowRemapping Whether to allow a class remapper to alter the code
+     * @return defined class
+     */
+    public Class<?> createClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain, boolean allowRemapping) {
+        if (allowRemapping && Resolver.isClassLoaderRemappingEnabled()) {
+            return super.defineClass(name, b, 0, b.length, protectionDomain);
+        }
+
         try {
             return (Class<?>) defineClassMethod.invoke(this, name, b, Integer.valueOf(0), Integer.valueOf(b.length), protectionDomain);
         } catch (Throwable t) {

@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util.asm.javassist;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
@@ -33,6 +34,11 @@ public final class MPLMemberResolver extends MemberResolver {
      * class superclass is this type helps performance a little bit.
      */
     private static final String GENERATED_CODE_INVOKER_NAME = GeneratedCodeInvoker.class.getName();
+    /**
+     * Last local field lookup that failed. Used to find more meaningful debug information
+     * when resolving a field fails
+     */
+    private FailedLocalFieldLookup lastFailedLocalFieldLookup = null;
 
     public MPLMemberResolver(ClassPool cp) {
         super(cp);
@@ -69,6 +75,8 @@ public final class MPLMemberResolver extends MemberResolver {
             return cc.getField(fieldName.get());
         }
         catch (NotFoundException e) {}
+
+        this.lastFailedLocalFieldLookup = new FailedLocalFieldLookup(cc.getName(), fieldName.get());
         throw new CompileError("no such field: " + cc.getName() + " -> " + fieldName.get());
     }
 
@@ -78,12 +86,26 @@ public final class MPLMemberResolver extends MemberResolver {
             ASTree expr) throws javassist.compiler.NoFieldException
     {
         String field = fieldSym.get();
+
         CtClass cc = null;
         String javaName = jvmToJavaName(jvmClassName);
         try {
             cc = lookupClass(javaName, true);
         }
         catch (CompileError e) {
+            // Avoids confusion
+            if (field.startsWith(IGNORE_PREFIX)) {
+                field = field.substring(IGNORE_PREFIX.length());
+            }
+
+            // Log this as well, as this context helps explain missing fields better
+            if (lastFailedLocalFieldLookup != null && lastFailedLocalFieldLookup.fieldName.equals(field)) {
+                MountiplexUtil.LOGGER.severe("Local field lookup also failed: "
+                        + lastFailedLocalFieldLookup.className + " -> "
+                        + lastFailedLocalFieldLookup.fieldName);
+                lastFailedLocalFieldLookup = null;
+            }
+
             // EXPR might be part of a qualified class name.
             throw new NoFieldException(
                     jvmClassName + "/" + field,
@@ -259,6 +281,16 @@ public final class MPLMemberResolver extends MemberResolver {
         @Override
         public String getField() {
             return this.replFieldName;
+        }
+    }
+
+    private static class FailedLocalFieldLookup {
+        public final String className;
+        public final String fieldName;
+
+        public FailedLocalFieldLookup(String className, String fieldName) {
+            this.className = className;
+            this.fieldName = fieldName;
         }
     }
 }

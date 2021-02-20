@@ -25,6 +25,19 @@ import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
  * names stay true to the JVM.
  */
 public class MPLType {
+    private static final MPLTypeHelper REMAPPING_DISABLED_HELPER = generateNoRemappingHelper();
+    private static final MPLTypeHelper REMAPPING_ENABLED_HELPER = new DefaultMPLTypeHelper();
+    private static MPLTypeHelper helper = REMAPPING_DISABLED_HELPER;
+
+    /**
+     * Sets whether results obtained through this class are remapped by the classloader
+     * loading this class. If disabled, code is generated at runtime to avoid interference.
+     *
+     * @param enabled True if remapping is enabled (allowed), False if it is prevented
+     */
+    public static void setRemappingEnabled(boolean enabled) {
+        helper = enabled ? REMAPPING_ENABLED_HELPER : REMAPPING_DISABLED_HELPER;
+    }
 
     /**
      * Returns the internal name of the given class. The internal name of a class is its fully
@@ -447,9 +460,7 @@ public class MPLType {
     }
     */
 
-    private static final MPLTypeHelper helper;
-
-    static {
+    private static MPLTypeHelper generateNoRemappingHelper() {
         String interfaceName = MPLTypeHelper.class.getName().replace('.', '/');
         String internalName = MPLType.class.getName().replace('.', '/') + "$HelperImpl";
         String signature = "Ljava/lang/Object;L" + interfaceName + ";";
@@ -549,12 +560,48 @@ public class MPLType {
         cw.visitEnd();
 
         GeneratorClassLoader loader = GeneratorClassLoader.get(MPLType.class.getClassLoader());
-        Class<?> helperImplType = loader.createClassFromBytecode(MPLType.class.getName() + "$HelperImpl", cw.toByteArray(), null);
+        Class<?> helperImplType = loader.createClassFromBytecode(MPLType.class.getName() + "$HelperImpl",
+                cw.toByteArray(), null, false);
 
         try {
-            helper = (MPLTypeHelper) helperImplType.newInstance();
+            return (MPLTypeHelper) helperImplType.newInstance();
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
+        }
+    }
+
+    /**
+     * Default implementation that allows for remapping to occur
+     */
+    private static final class DefaultMPLTypeHelper implements MPLTypeHelper {
+        @Override
+        public String getClassName(Class<?> clazz) {
+            return clazz.getName();
+        }
+
+        @Override
+        public String getMethodName(Method method) {
+            return method.getName();
+        }
+
+        @Override
+        public String getFieldName(Field field) {
+            return field.getName();
+        }
+
+        @Override
+        public Method getDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) throws NoSuchMethodException, SecurityException {
+            return clazz.getDeclaredMethod(name, parameterTypes);
+        }
+
+        @Override
+        public Field getDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException, SecurityException {
+            return clazz.getDeclaredField(name);
+        }
+
+        @Override
+        public Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
+            return Class.forName(name, initialize, classLoader);
         }
     }
 }
