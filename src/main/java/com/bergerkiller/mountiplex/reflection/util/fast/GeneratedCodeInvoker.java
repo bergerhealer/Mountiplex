@@ -5,6 +5,7 @@ import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
@@ -70,7 +71,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
             MountiplexUtil.LOGGER.severe(methodBody);
             throw MountiplexUtil.uncheckedRethrow(ex.getCause());
         } catch (Throwable t) {
-            MountiplexUtil.LOGGER.severe("Failed to generate method body:");
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to generate method body:", t);
             MountiplexUtil.LOGGER.severe(methodBody);
             throw MountiplexUtil.uncheckedRethrow(t);
         }
@@ -215,18 +216,11 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
         public URL find(String classname) {
             // First try to find the classname without further resolving.
             // If it exists, skip resolveClassPath
-            URL url;
             if (classname == null) {
                 return null;
-            } else if ((url = super.find(classname)) != null) {
-                //System.out.println("[MPL] FIND " + classname + " UNCHANGED_URI");
-                return url;
             } else {
                 // Try to resolve. If no difference is found, fail right away
                 String newClassName = Resolver.resolveClassPath(classname);
-                if (newClassName.equals(classname)) {
-                    return null;
-                }
 
                 // Try to find at the alternative path
                 return super.find(newClassName);
