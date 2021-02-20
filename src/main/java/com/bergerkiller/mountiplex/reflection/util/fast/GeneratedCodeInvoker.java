@@ -1,10 +1,5 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
-import java.io.IOException;
-import java.net.URL;
-import java.security.ProtectionDomain;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -13,14 +8,15 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
+import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
-import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLCtNewMethod;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
 import javassist.ClassPool;
@@ -32,24 +28,6 @@ import javassist.NotFoundException;
  * Generates an invoker that executes a method body
  */
 public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, IgnoresRemapping {
-    private static final List<ResolvedClassPool> CACHED_CLASS_POOLS = new ArrayList<ResolvedClassPool>();
-
-    private static ResolvedClassPool retrieveClassPool() {
-        synchronized (CACHED_CLASS_POOLS) {
-            if (CACHED_CLASS_POOLS.isEmpty()) {
-                return new ResolvedClassPool();
-            } else {
-                return CACHED_CLASS_POOLS.remove(CACHED_CLASS_POOLS.size()-1);
-            }
-        }
-    }
-
-    private static void storeClassPool(ResolvedClassPool pool) {
-        pool.clearImportedPackages();
-        synchronized (CACHED_CLASS_POOLS) {
-            CACHED_CLASS_POOLS.add(pool);
-        }
-    }
 
     private static final CtClass getExtendedClass(ClassPool pool, Class<?> type, Class<?> interfaceClass) throws NotFoundException {
         CtClass origClazz = pool.getCtClass(MPLType.getName(type));
@@ -79,7 +57,15 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
 
     private static String getAccessibleTypeName(Class<?> type) {
         if (Resolver.isPublic(type)) {
-            return ReflectionUtil.getTypeName(type);
+            String name = ReflectionUtil.getTypeName(type);
+
+            // If a resolver would 'double-resolve' the type name, prefix with $mpl
+            // This prevents accidents like that
+            if (!Resolver.resolveClassPath(name).equals(name)) {
+                name = MPLMemberResolver.IGNORE_PREFIX + name;
+            }
+
+            return name;
         } else {
             return "Object";
         }
@@ -180,69 +166,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
         methodBody.append('}');
     }
 
-    private static final class ResolvedClassPool extends ClassPool {
-
-        public ResolvedClassPool() {
-            super();
-            appendClassPath(ClassBytecodeLoader.CLASSPATH);
-        }
-
-        @Override
-        public Class<?> toClass(CtClass ct, Class<?> neighbor, ClassLoader loader, ProtectionDomain domain) throws CannotCompileException {
-            // If the ClassLoader used is the GeneratorClassLoader, we can call defineClass
-            // on it directly. This avoids an illegal access warning from being printed, and
-            // also prevents a remapping classloader from interfering.
-            //
-            // Only do this when neighbor==null. The neighbor is used to define new classes
-            // neighbouring other classes. This has some special logic we don't care about.
-            if (loader instanceof GeneratorClassLoader && neighbor == null) {
-                GeneratorClassLoader generator = (GeneratorClassLoader) loader;
-                try {
-                    return generator.createClassFromBytecode(ct.getName(), ct.toBytecode(), domain);
-                } catch (IOException e) {
-                    throw new CannotCompileException(e);
-                }
-            } else {
-                return super.toClass(ct, neighbor, loader, domain);
-            }
-        }
-
-        @Override
-        public CtClass get(String classname) throws NotFoundException {
-            return super.get(resolveClassName(classname));
-        }
-
-        @Override
-        public URL find(String classname) {
-            // First try to find the classname without further resolving.
-            // If it exists, skip resolveClassPath
-            if (classname == null) {
-                return null;
-            } else {
-                // Try to resolve. If no difference is found, fail right away
-                String newClassName = Resolver.resolveClassPath(classname);
-
-                // Try to find at the alternative path
-                return super.find(newClassName);
-            }
-        }
-
-        private String resolveClassName(String classname) {
-            // First try to find the classname without further resolving.
-            // If it exists, skip resolveClassPath
-            if (classname == null) {
-                return null;
-            } else if (super.find(classname) != null) {
-                //System.out.println("[MPL] FIND " + classname + " UNCHANGED");
-                return classname;
-            } else {
-                String str = Resolver.resolveClassPath(classname);
-                //System.out.println("[MPL] FIND " + classname + " -> " + str);
-                return str;
-            }
-        }
-    }
-
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
         return create(declaration, null);
     }
@@ -253,8 +176,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
             throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());
         }
 
-        ResolvedClassPool pool = retrieveClassPool();
-        try {
+        try (ResolvedClassPool pool = ResolvedClassPool.create()) {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getDeclaringClass();
 
@@ -394,8 +316,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
             }
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
-        } finally {
-            storeClassPool(pool);
         }
     }
 }
