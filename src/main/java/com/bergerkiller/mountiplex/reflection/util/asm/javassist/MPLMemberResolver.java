@@ -1,12 +1,15 @@
 package com.bergerkiller.mountiplex.reflection.util.asm.javassist;
 
+import java.util.Map;
+
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.SafeField;
+import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 
-import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.NotFoundException;
@@ -38,10 +41,12 @@ public final class MPLMemberResolver extends MemberResolver {
      * Last local field lookup that failed. Used to find more meaningful debug information
      * when resolving a field fails
      */
+    private final ResolvedClassPool resolvedClassPool;
     private FailedLocalFieldLookup lastFailedLocalFieldLookup = null;
 
-    public MPLMemberResolver(ClassPool cp) {
+    public MPLMemberResolver(ResolvedClassPool cp) {
         super(cp);
+        resolvedClassPool = cp;
     }
 
     // Remaps the methodName symbol of a local or static method call
@@ -127,6 +132,51 @@ public final class MPLMemberResolver extends MemberResolver {
                     cc.getName() + "." + field,
                     expr);
         }
+    }
+
+    // Used by lookupClass()
+    private static final String INVALID;
+    private static final java.lang.reflect.Method getInvalidNamesMethod;
+    static {
+        try {
+            INVALID = SafeField.get(MemberResolver.class, "INVALID", String.class);
+            getInvalidNamesMethod = MemberResolver.class.getDeclaredMethod("getInvalidNames");
+            getInvalidNamesMethod.setAccessible(true);
+        } catch (Throwable t) {
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
+    }
+
+    // The default method calls classPool.get() with an already-resolved (cached)
+    // class name. We have to override it and retrieve the CtClass object without
+    // resolving a second time, as this can cause double-resolving bugs.
+    // If absent or incorrect in the cache, call the default method with cache
+    // cleared.
+    @Override
+    @SuppressWarnings("unchecked")
+    public CtClass lookupClass(String name, boolean notCheckInner)
+            throws CompileError
+    {
+        Map<String,String> cache;
+        try {
+            cache = (Map<String,String>) getInvalidNamesMethod.invoke(this);
+        } catch (Throwable t) {
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
+
+        String found = cache.get(name);
+        if (found == INVALID)
+            throw new CompileError("no such class: " + name);
+        else if (found != null)
+            try {
+                return resolvedClassPool.getWithoutResolving(found);
+            } catch (NotFoundException e) {
+                // Remove from cache to prevent a classPool.get()
+                cache.remove(name);
+            }
+
+        // Fallback to default lookupClass0 / searchImports
+        return super.lookupClass(name, notCheckInner);
     }
 
     // Remaps the name of a field

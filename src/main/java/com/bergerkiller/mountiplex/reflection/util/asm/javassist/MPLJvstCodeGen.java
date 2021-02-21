@@ -1,8 +1,8 @@
 package com.bergerkiller.mountiplex.reflection.util.asm.javassist;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 
-import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.bytecode.Bytecode;
 import javassist.bytecode.MethodInfo;
@@ -46,7 +46,7 @@ public final class MPLJvstCodeGen extends JvstCodeGen {
         }
     }
 
-    public MPLJvstCodeGen(Bytecode b, CtClass cc, ClassPool cp) {
+    public MPLJvstCodeGen(Bytecode b, CtClass cc, ResolvedClassPool cp) {
         super(b, cc, cp);
         this.resolver = new MPLMemberResolver(cp);
 

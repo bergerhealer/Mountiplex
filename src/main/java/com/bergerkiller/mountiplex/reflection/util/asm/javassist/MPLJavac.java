@@ -1,8 +1,10 @@
 package com.bergerkiller.mountiplex.reflection.util.asm.javassist;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 
+import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.bytecode.Bytecode;
 import javassist.compiler.Javac;
@@ -38,10 +40,15 @@ public class MPLJavac {
      * @return Javac
      */
     public static Javac create(CtClass thisClass) {
+        ClassPool classPool = thisClass.getClassPool();
+        if (!(classPool instanceof ResolvedClassPool)) {
+            throw new IllegalArgumentException("Class " + thisClass.getName() + " does not use a resolved class pool");
+        }
+
         try {
             Javac compiler = javac_instantiator.create();
             Bytecode bytecode = new Bytecode(thisClass.getClassFile2().getConstPool(), 0, 0);
-            javac_gen.set(compiler, new MPLJvstCodeGen(bytecode, thisClass, thisClass.getClassPool()));
+            javac_gen.set(compiler, new MPLJvstCodeGen(bytecode, thisClass, (ResolvedClassPool) classPool));
             javac_stable.set(compiler, new SymbolTable());
             javac_bytecode.set(compiler, bytecode);
             return compiler;

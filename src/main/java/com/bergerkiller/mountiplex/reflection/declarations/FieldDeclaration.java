@@ -299,7 +299,7 @@ public class FieldDeclaration extends Declaration {
                     replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
                 } else {
                     // Get + cast
-                    replacement.append(ReflectionUtil.getCastString(fieldType.type));
+                    replacement.append(ReflectionUtil.getAccessibleTypeCast(fieldType.type));
                     replacement.append("this.").append(requirementName).append(".get");
                 }
                 replacement.append('(');

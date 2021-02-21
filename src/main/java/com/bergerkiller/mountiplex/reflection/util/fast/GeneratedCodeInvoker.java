@@ -16,7 +16,6 @@ import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLCtNewMethod;
-import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
 import javassist.ClassPool;
@@ -55,22 +54,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
         }
     }
 
-    private static String getAccessibleTypeName(Class<?> type) {
-        if (Resolver.isPublic(type)) {
-            String name = ReflectionUtil.getTypeName(type);
-
-            // If a resolver would 'double-resolve' the type name, prefix with $mpl
-            // This prevents accidents like that
-            if (!Resolver.resolveClassPath(name).equals(name)) {
-                name = MPLMemberResolver.IGNORE_PREFIX + name;
-            }
-
-            return name;
-        } else {
-            return "Object";
-        }
-    }
-
     private static boolean mustCastType(Class<?> type) {
         return type != null && type != Object.class && Resolver.isPublic(type);
     }
@@ -81,8 +64,10 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
         // Cast the instance
         Class<?> instanceType = declaration.modifiers.isStatic() ? null : declaration.getDeclaringClass();
         if (mustCastType(instanceType)) {
-            methodBody.append(ReflectionUtil.getTypeName(instanceType))
-            .append(" instance=").append(ReflectionUtil.getCastString(instanceType)).append("instance_raw;\n");
+            methodBody.append(ReflectionUtil.getAccessibleTypeName(instanceType))
+                      .append(" instance=")
+                      .append(ReflectionUtil.getAccessibleTypeCast(instanceType))
+                      .append("instance_raw;\n");
         }
 
         // Unpack all the parameters
@@ -94,7 +79,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
                 continue; // skip, there is no cast needed
             }
 
-            methodBody.append(ReflectionUtil.getTypeName(param.type.type))
+            methodBody.append(ReflectionUtil.getAccessibleTypeName(param.type.type))
                       .append(' ')
                       .append(param.name.real())
                       .append('=');
@@ -106,7 +91,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
                           .append(param.type.type.getSimpleName()).append("Value();\n");
             } else {
                 // Simple cast, is omitted if the parameter type is already Object
-                methodBody.append(ReflectionUtil.getCastString(param.type.type))
+                methodBody.append(ReflectionUtil.getAccessibleTypeCast(param.type.type))
                           .append(arg_prefix).append(i).append(arg_postfix).append(";\n");
             }
         }
@@ -234,10 +219,10 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
 
                 // Add the method signature information
                 methodBody.append("public ")
-                          .append(getAccessibleTypeName(declaration.returnType.type))
+                          .append(ReflectionUtil.getAccessibleTypeName(declaration.returnType.type))
                           .append(" ").append(declaration.name.real()).append("(");
                 if (!declaration.modifiers.isStatic()) {
-                    methodBody.append(getAccessibleTypeName(instanceType))
+                    methodBody.append(ReflectionUtil.getAccessibleTypeName(instanceType))
                               .append(" instance");
                     if (argCount > 0) {
                         methodBody.append(',');
@@ -245,7 +230,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
                 }
                 for (int i = 0; i < argCount; i++) {
                     ParameterDeclaration param = declaration.parameters.parameters[i];
-                    methodBody.append(getAccessibleTypeName(param.type.type))
+                    methodBody.append(ReflectionUtil.getAccessibleTypeName(param.type.type))
                               .append(' ')
                               .append(param.name.real());
                     if (i < (argCount-1)) {

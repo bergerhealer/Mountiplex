@@ -76,19 +76,38 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
         }
     }
 
+    /**
+     * Retrieves a class by name from this class pool without asking resolvers
+     * to translate the class name. This can be important if the input name was
+     * already resolved prior.
+     *
+     * @param classname
+     * @return found class, or null if not found
+     * @throws NotFoundException
+     */
+    public CtClass getWithoutResolving(String classname) throws NotFoundException {
+        boolean old = ignoreRemapper;
+        try {
+            ignoreRemapper = true;
+            return super.get(classname);
+        } finally {
+            ignoreRemapper = old;
+        }
+    }
+
     @Override
     public CtClass get(String classname) throws NotFoundException {
-        // First try to find the classname without further resolving.
-        // If it exists, skip resolveClassPath
-        if (classname == null) {
+        if (ignoreRemapper) {
             return super.get(classname);
-        } else if (super.find(classname) != null) {
-            //System.out.println("[MPL] FIND " + classname + " UNCHANGED");
+        }
+
+        classname = resolveClassPath(classname);
+
+        try {
+            ignoreRemapper = true;
             return super.get(classname);
-        } else {
-            String str = Resolver.resolveClassPath(classname);
-            //System.out.println("[MPL] FIND " + classname + " -> " + str);
-            return super.get(str);
+        } finally {
+            ignoreRemapper = false;
         }
     }
 
@@ -99,6 +118,10 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
 
     @Override
     protected CtClass createCtClass(String classname, boolean useCache) {
+        if (ignoreRemapper) {
+            return super.createCtClass(classname, useCache);
+        }
+
         // accept "[L<class name>;" as a class name. 
         if (classname.charAt(0) == '[')
             classname = Descriptor.toClassName(classname);
@@ -123,12 +146,10 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     }
 
     private final String resolveClassPath(String classname) {
-        if (classname == null) {
+        if (classname == null || ignoreRemapper) {
             return classname;
         } else if (classname.startsWith(MPLMemberResolver.IGNORE_PREFIX)) {
             return classname.substring(MPLMemberResolver.IGNORE_PREFIX.length());
-        } else if (ignoreRemapper) {
-            return classname;
         } else {
             return Resolver.resolveClassPath(classname);
         }

@@ -11,9 +11,11 @@ import java.util.ListIterator;
 import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.asm.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 import com.bergerkiller.mountiplex.reflection.util.DisableFinalModifierHelper;
 
 public class ReflectionUtil {
@@ -55,6 +57,59 @@ public class ReflectionUtil {
             name += "[]";
         }
         return name;
+    }
+
+    /**
+     * Gets the String expression of a type. Shortens builtin type names
+     * and properly resolves array types. If the input type is private,
+     * Object is returned instead to guarantee the name used can be
+     * compiled. If resolving the type name could result in a different
+     * type than intended, a prefix is included that prevents that.
+     *
+     * @param type Type to get the name of
+     * @return accessible type name
+     */
+    public static String getAccessibleTypeName(Class<?> type) {
+        if (Resolver.isPublic(type)) {
+            String name = getTypeName(type);
+
+            // If a resolver would 'double-resolve' the type name, prefix with $mpl
+            // This prevents accidents like that
+            if (!Resolver.resolveClassPath(name).equals(name)) {
+                name = MPLMemberResolver.IGNORE_PREFIX + name;
+            }
+
+            return name;
+        } else {
+            return "Object";
+        }
+    }
+
+    /**
+     * Similar to {@link #getAccessibleTypeName(Class)}, but surrounds
+     * the result in parenthesis to make a type cast expression.
+     * If the result is Object, then an empty String is returned
+     * to indicate no casting is required.
+     *
+     * @param type Type to get the cast expression of
+     * @return accessible cast expression
+     */
+    public static String getAccessibleTypeCast(Class<?> type) {
+        if (type != Object.class && Resolver.isPublic(type)) {
+            String name = getTypeName(type);
+
+            // If a resolver would 'double-resolve' the type name, prefix with $mpl
+            // This prevents accidents like that
+            if (Resolver.resolveClassPath(name).equals(name)) {
+                return '(' + name + ')';
+            } else {
+                name = '(' + MPLMemberResolver.IGNORE_PREFIX + name + ')';
+            }
+
+            return name;
+        } else {
+            return "";
+        }
     }
 
     /**
