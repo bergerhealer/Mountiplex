@@ -5,6 +5,9 @@ public class SpeedTestObject {
     public double d;
     public String s;
 
+    @SuppressWarnings("unused")
+    private static HiddenClass hiddenTypeField = new HiddenClass();
+
     public SpeedTestObject() {
     }
 
@@ -44,5 +47,10 @@ public class SpeedTestObject {
     @SuppressWarnings("unused")
     private int privateLotsOfArgs(int a, int b, int c, int d, int e, int f, int g) {
         return a + b + c + d + e + f + g;
+    }
+
+    @SuppressWarnings("unused")
+    private static HiddenClass createHiddenClass() {
+        return new HiddenClass();
     }
 }

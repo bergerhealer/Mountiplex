@@ -291,4 +291,62 @@ public class MethodDeclarationTest {
         assertEquals(21, method.invoke(testObject, 0).intValue());
         assertEquals(23, method.invoke(testObject, 2).intValue());
     }
+
+    // Tests that when generating a #require body that involves a private type,
+    // it correctly uses Object in place of the actual type to avoid illegal access errors.
+    @Test
+    public void testMethodWithPrivateClassMethodRequirement() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public static com.bergerkiller.mountiplex.types.HiddenClass makeHiddenClass() {\n" +
+                "  #require com.bergerkiller.mountiplex.types.SpeedTestObject private static HiddenClass createHiddenClass();\n" +
+                "  return #createHiddenClass();\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        assertEquals(
+                "{\n" +
+                "  return this.createHiddenClass(null);\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("private static HiddenClass createHiddenClass();", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Object> method = new FastMethod<Object>();
+        method.init(dec);
+        assertEquals("success", method.invoke(null).toString());
+    }
+
+    // Tests that when generating a #require body that involves a private type,
+    // it correctly uses Object in place of the actual type to avoid illegal access errors.
+    @Test
+    public void testMethodWithPrivateClassFieldRequirement() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public static com.bergerkiller.mountiplex.types.HiddenClass getHiddenClass() {\n" +
+                "  #require com.bergerkiller.mountiplex.types.SpeedTestObject private static HiddenClass hiddenTypeField;\n" +
+                "  return #hiddenTypeField;\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        assertEquals(
+                "{\n" +
+                "  return this.hiddenTypeField.get(null);\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("private static HiddenClass hiddenTypeField;", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Object> method = new FastMethod<Object>();
+        method.init(dec);
+        assertEquals("success", method.invoke(null).toString());
+    }
 }

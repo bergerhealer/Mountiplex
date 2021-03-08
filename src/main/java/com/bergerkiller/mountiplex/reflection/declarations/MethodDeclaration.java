@@ -430,7 +430,7 @@ public class MethodDeclaration extends Declaration {
         // Create a new method with the exposed parameter types and return type
         StringBuilder methodBody = new StringBuilder();
         methodBody.append("private final ");
-        methodBody.append(ReflectionUtil.getTypeName(this.returnType.exposed().type));
+        methodBody.append(ReflectionUtil.getAccessibleTypeName(this.returnType.exposed().type));
         methodBody.append(' ').append(name).append('(');
         methodBody.append("Object instance");
         for (int i = 0; i < this.parameters.parameters.length; i++) {
@@ -544,9 +544,9 @@ public class MethodDeclaration extends Declaration {
                 methodBody.append(ReflectionUtil.getCastString(boxedType));
             } else {
                 // Cast to returned type
-                methodBody.append(ReflectionUtil.getTypeName(this.returnType.type)).append(' ');
+                methodBody.append(ReflectionUtil.getAccessibleTypeName(this.returnType.type)).append(' ');
                 methodBody.append(name).append("_return = ");
-                methodBody.append(ReflectionUtil.getCastString(this.returnType.type));
+                methodBody.append(ReflectionUtil.getAccessibleTypeCast(this.returnType.type));
             }
         }
 
