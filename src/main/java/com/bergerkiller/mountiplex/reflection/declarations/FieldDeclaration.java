@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericSignatureFormatError;
 import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 
@@ -57,10 +58,18 @@ public class FieldDeclaration extends Declaration {
             MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to retrieve field name alias for " + decName + ":" + name + ":", t);
         }
 
+        // Try to get generic field type information. If this fails, revert back to just using Class type
+        TypeDeclaration fieldType;
+        try {
+            fieldType = TypeDeclaration.fromType(resolver, field.getGenericType());
+        } catch (GenericSignatureFormatError ex) {
+            fieldType = TypeDeclaration.fromType(resolver, field.getType());
+        }
+
         this.isEnum = field.isEnumConstant();
         this.field = field;
         this.modifiers = new ModifierDeclaration(resolver, field.getModifiers());
-        this.type = TypeDeclaration.fromType(resolver, field.getGenericType());
+        this.type = fieldType;
         this.name = new NameDeclaration(resolver, name, alias);
     }
 
