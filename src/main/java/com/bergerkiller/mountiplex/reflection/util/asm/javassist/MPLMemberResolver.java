@@ -30,7 +30,7 @@ public final class MPLMemberResolver extends MemberResolver {
      * Field and method names with this prefix are ignored when doing name remapping.
      * The prefix is removed prior to compiling.
      */
-    public static final String IGNORE_PREFIX = "mpl$";
+    public static final String IGNORE_PREFIX = "MPL_NOREMAP$";
     /**
      * This class is the super class of the type being generated. The class extending this
      * can often not be found because it is being generated. Checking that the declaring
