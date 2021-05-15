@@ -1,6 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.Constructor;
 import java.net.URLClassLoader;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -10,6 +10,7 @@ import java.util.WeakHashMap;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLGeneratorClassLoaderBuilder;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedConstructor;
@@ -21,10 +22,11 @@ import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedMethodInvoker;
  * loaders in use. The generator is written in a way that class name
  * resolving works properly.
  */
-public class GeneratorClassLoader extends ClassLoader {
+public abstract class GeneratorClassLoader extends ClassLoader {
     private static final Map<String, Class<?>> staticClasses = new HashMap<String, Class<?>>();
     private static WeakHashMap<ClassLoader, GeneratorClassLoader> loaders = new WeakHashMap<ClassLoader, GeneratorClassLoader>();
-    private static final java.lang.reflect.Method defineClassMethod;
+    private static final Constructor<? extends GeneratorClassLoader> implementationFactory;
+    private static final GeneratorNotSupportedException implementationTypeFailure;
 
     private static void registerStaticClass(Class<?> type) {
         staticClasses.put(type.getName(), type);
@@ -38,15 +40,20 @@ public class GeneratorClassLoader extends ClassLoader {
             }
         });
 
-        // Note: wrapped in a Method invoke() to prevent remappers from altering how
-        // getDeclaredMethod() works. A class remapper altering this can seriously
-        // break it.
-        try {
-            Method tmp = Class.class.getMethod(String.join("", "get", "Declared", "Method"), String.class, Class[].class);
-            defineClassMethod = (Method) tmp.invoke(ClassLoader.class, String.join("", "define", "Class"),
-                    new Class[] { String.class, byte[].class, int.class, int.class, ProtectionDomain.class });
-        } catch (Throwable t) {
-            throw MountiplexUtil.uncheckedRethrow(t);
+        // Initialize the environment while avoiding class initialization problems
+        {
+            Class<? extends GeneratorClassLoader> theImplementationType = null;
+            Constructor<? extends GeneratorClassLoader> theImplementationFactory = null;
+            GeneratorNotSupportedException theImplementationTypeFailure = null;
+            try {
+                theImplementationType = MPLGeneratorClassLoaderBuilder.buildImplementation();
+                theImplementationFactory = (Constructor<? extends GeneratorClassLoader>) theImplementationType.getConstructor(ClassLoader.class);
+            } catch (Throwable t) {
+                theImplementationTypeFailure = new GeneratorNotSupportedException(t);
+            }
+
+            implementationFactory = theImplementationFactory;
+            implementationTypeFailure = theImplementationTypeFailure;
         }
 
         // These classes are often used to generate method bodies at runtime.
@@ -73,12 +80,18 @@ public class GeneratorClassLoader extends ClassLoader {
     private static GeneratorClassLoader create(ClassLoader base) {
         if (base instanceof GeneratorClassLoader) {
             return (GeneratorClassLoader) base;
+        } else if (implementationFactory != null) {
+            try {
+                return implementationFactory.newInstance(base);
+            } catch (Throwable t) {
+                throw MountiplexUtil.uncheckedRethrow(t);
+            }
         } else {
-            return new GeneratorClassLoader(base);
+            throw implementationTypeFailure;
         }
     }
 
-    private GeneratorClassLoader(ClassLoader base) {
+    protected GeneratorClassLoader(ClassLoader base) {
         super(base);
     }
 
@@ -190,14 +203,28 @@ public class GeneratorClassLoader extends ClassLoader {
     public Class<?> createClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain, boolean allowRemapping) {
         if (allowRemapping && Resolver.isClassLoaderRemappingEnabled()) {
             return super.defineClass(name, b, 0, b.length, protectionDomain);
+        } else {
+            return defineClassFromBytecode(name, b, protectionDomain);
         }
 
+        /*
         try {
             return (Class<?>) defineClassMethod.invoke(this, name, b, Integer.valueOf(0), Integer.valueOf(b.length), protectionDomain);
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
+        */
     }
+
+    /**
+     * Implemented using generated code at runtime to define a class without remapping
+     *
+     * @param name Name of the class to generate
+     * @param b Bytecode for the Class
+     * @param protectionDomain Protection Domain, null if unspecified
+     * @return defined class
+     */
+    protected abstract Class<?> defineClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain);
 
     /**
      * Exception thrown when an attempt is made to load a Class from
@@ -209,6 +236,18 @@ public class GeneratorClassLoader extends ClassLoader {
 
         public LoaderClosedException() {
             super("This ClassLoader is closed");
+        }
+    }
+
+    /**
+     * Exception thrown when during the initialization of the GeneratorClassLoader
+     * an unrecoverable problem occurred, and generating classes is not supported.
+     */
+    public static class GeneratorNotSupportedException extends RuntimeException {
+        private static final long serialVersionUID = -362584700480972819L;
+
+        public GeneratorNotSupportedException(Throwable reason) {
+            super("Generating classes is not supported on this JDK", reason);
         }
     }
 }

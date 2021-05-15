@@ -2,11 +2,14 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.security.ProtectionDomain;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.types.TestObject;
@@ -35,10 +38,25 @@ public class ASMPlaygroundTest {
 
     }
 
+    /**
+     * As implemented at runtime
+     */
+    public static class ImplementedGeneratorClassLoader extends GeneratorClassLoader {
+
+        protected ImplementedGeneratorClassLoader(ClassLoader base) {
+            super(base);
+        }
+
+        @Override
+        protected Class<?> defineClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain) {
+            return super.defineClass(name, b, 0, b.length, protectionDomain);
+        }
+    }
+
     @Ignore
     @Test
     public void testShowASM() {
-        TestUtil.printASM(Handle.class);
+        TestUtil.printASM(ImplementedGeneratorClassLoader.class);
     }
 
     private Invoker<Object> invoker;
