@@ -124,7 +124,14 @@ public class TemplateGenerator {
                 String path = baseGen.findClassName(baseGen.rootClassDec, baseGen.path, classDec.base);
                 if (path != null) {
                     extendedHandleType = resolveImport(path);
+                } else {
+                    System.err.println("Failed to find super type template class: " + baseType.typePath);
+                    System.err.println("With super template generator: " + baseGen.path);
+                    System.err.println("At template " + classDec.type.typePath);
                 }
+            } else {
+                System.err.println("Super type has no template: " + baseType.typePath);
+                System.err.println("At template " + classDec.type.typePath);
             }
         }
 

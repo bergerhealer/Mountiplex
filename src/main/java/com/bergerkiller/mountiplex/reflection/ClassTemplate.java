@@ -374,14 +374,6 @@ public class ClassTemplate<T> {
         return new ClassTemplate<Object>().setClass(path);
     }
 
-    public static ClassTemplate<?> createNMS(String path) {
-        return create("net.minecraft.server." + path);
-    }
-    
-    public static ClassTemplate<?> createCB(String path) {
-        return create("org.bukkit.craftbukkit." + path);
-    }
-    
     /**
      * Attempts to create a new template for the class of the class instance
      * specified<br>
