@@ -28,6 +28,7 @@ public class Resolver {
     private CompiledFieldNameResolver compiledFieldNameResolverChain = NoOpResolver.INSTANCE;
     private CompiledMethodNameResolver compiledMethodNameResolverChain = NoOpResolver.INSTANCE;
     private FieldNameResolver fieldNameResolverChain = NoOpResolver.INSTANCE;
+    private FieldAliasResolver fieldAliasResolverChain = NoOpResolver.INSTANCE;
     private MethodNameResolver methodNameResolverChain = NoOpResolver.INSTANCE;
     private boolean enableClassLoaderRemapping = false;
     private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
@@ -280,6 +281,11 @@ public class Resolver {
                 Resolver.resolver.fieldNameResolverChain, resolver);
     }
 
+    public static void registerFieldAliasResolver(FieldAliasResolver resolver) {
+        Resolver.resolver.fieldAliasResolverChain = ChainResolver.chain(
+                Resolver.resolver.fieldAliasResolverChain, resolver);
+    }
+
     public static void registerMethodResolver(MethodNameResolver resolver) {
         Resolver.resolver.methodNameResolverChain = ChainResolver.chain(
                 Resolver.resolver.methodNameResolverChain, resolver);
@@ -343,6 +349,10 @@ public class Resolver {
 
     public static String resolveFieldName(Class<?> declaringClass, String fieldName) {
         return Resolver.resolver.fieldNameResolverChain.resolveFieldName(declaringClass, fieldName);
+    }
+
+    public static String resolveFieldAlias(java.lang.reflect.Field field, String name) {
+        return Resolver.resolver.fieldAliasResolverChain.resolveFieldAlias(field, name);
     }
 
     public static String resolveMethodName(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {

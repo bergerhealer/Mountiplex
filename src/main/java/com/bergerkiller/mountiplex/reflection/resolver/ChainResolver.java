@@ -116,6 +116,21 @@ public class ChainResolver {
      * @param next
      * @return chained
      */
+    public static FieldAliasResolver chain(final FieldAliasResolver previous, final FieldAliasResolver next) {
+        return (previous == NoOpResolver.INSTANCE) ? next : (field, name) -> {
+            String alias = previous.resolveFieldAlias(field, name);
+            return (alias != null) ? alias : next.resolveFieldAlias(field, name);
+        };
+    }
+
+    /**
+     * Chains two resolvers so that first the previous one is called, then the second.
+     * If the previous resolver is a no-op, then next is returned instead.
+     * 
+     * @param previous
+     * @param next
+     * @return chained
+     */
     public static MethodNameResolver chain(final MethodNameResolver previous, final MethodNameResolver next) {
         return (previous == NoOpResolver.INSTANCE) ? next : (declaringClass, methodName, parameterTypes) -> {
             methodName = previous.resolveMethodName(declaringClass, methodName, parameterTypes);
