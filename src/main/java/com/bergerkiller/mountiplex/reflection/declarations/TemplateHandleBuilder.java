@@ -4,6 +4,7 @@ import static org.objectweb.asm.Opcodes.*;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.Template.Handle;
@@ -243,6 +244,12 @@ public class TemplateHandleBuilder<H extends Handle> {
             // Implement the invoke method for all non-static methods
             for (MethodDeclaration methodDec : classDec.methods) {
                 if (methodDec.modifiers.isStatic() || methodDec.modifiers.isUnknown() || methodDec.modifiers.isOptional()) {
+                    continue;
+                }
+
+                if (!methodDec.isResolved()) {
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Method " + methodDec + " not implemented in handle for "
+                           + classDec.type + " because some types are not resolved");
                     continue;
                 }
 
