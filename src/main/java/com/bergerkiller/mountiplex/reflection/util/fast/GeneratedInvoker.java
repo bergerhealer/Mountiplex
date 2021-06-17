@@ -39,6 +39,10 @@ public interface GeneratedInvoker<T> extends Invoker<T> {
      * @return generated invoker interface
      */
     public static Class<? extends GeneratedInvoker<?>> generateInterface(MethodDeclaration methodDeclaration) {
+        if (!methodDeclaration.isResolved()) {
+            throw new IllegalArgumentException("Method declaration is not resolved: " + methodDeclaration);
+        }
+
         MethodVisitor mv;
         ExtendedClassWriter<? extends GeneratedInvoker<?>> cw = ExtendedClassWriter.builder(GeneratedInvoker.class)
                 .setAccess(ACC_ABSTRACT | ACC_INTERFACE).build();

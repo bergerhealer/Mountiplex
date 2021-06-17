@@ -292,6 +292,39 @@ public class MethodDeclarationTest {
         assertEquals(23, method.invoke(testObject, 2).intValue());
     }
 
+    // Tests requirements logic for a method with a method body, which will generate a member method with the body and call it
+    @Test
+    public void testMethodWithMethodBodyRequirements() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public int add(int n) {\n" +
+                "  #require com.bergerkiller.mountiplex.types.SpeedTestObject public int test(int a, int b, int c) {\n" +
+                "    return a + b + c + instance.i;\n" +
+                "  }\n" +
+                "  return instance#test(1, 2, n);\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        assertEquals(
+                "{\n" +
+                "  return this.test(instance, 1, 2, n);\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("public int test(int a, int b, int c);", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Integer> method = new FastMethod<Integer>();
+        method.init(dec);
+        SpeedTestObject testObject = new SpeedTestObject();
+        testObject.i = 20;
+        assertEquals(23, method.invoke(testObject, 0).intValue());
+        assertEquals(25, method.invoke(testObject, 2).intValue());
+    }
+
     // Tests that when generating a #require body that involves a private type,
     // it correctly uses Object in place of the actual type to avoid illegal access errors.
     @Test

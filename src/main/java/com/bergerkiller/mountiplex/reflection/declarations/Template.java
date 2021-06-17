@@ -694,6 +694,11 @@ public class Template {
             }
             for (FieldDeclaration fieldDec : dec.fields) {
                 if (fieldDec.field != null && fieldDec.name.real().equals(name)) {
+                    if (!fieldDec.isResolved()) {
+                        initFail("Field '" + name + "' has an unresolved declaration: " + fieldDec);
+                        return null;
+                    }
+
                     this.field.init(fieldDec.field);
                     return fieldDec;
                 }
@@ -774,6 +779,11 @@ public class Template {
             }
             for (MethodDeclaration methodDec : dec.methods) {
                 if ((methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
+                    if (!methodDec.isResolved()) {
+                        initFail("Method '" + name + "' has an unresolved declaration: " + methodDec);
+                        return null;
+                    }
+
                     this.method = methodDec;
                     this.invoker = InitInvoker.forMethod(this, "invoker", methodDec);
                     return methodDec;
