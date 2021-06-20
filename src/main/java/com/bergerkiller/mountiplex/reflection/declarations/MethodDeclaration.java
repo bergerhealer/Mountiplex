@@ -731,10 +731,9 @@ public class MethodDeclaration extends Declaration {
                     .map(m -> new MethodDeclaration(getResolver(), m))
                     .toArray(MethodDeclaration[]::new);
         } else {
-            HashSet<MethodSignature> unique = new HashSet<MethodSignature>();
             alternatives = ReflectionUtil.getAllMethods(declaringClass)
                     .filter(m -> !Modifier.isStatic(m.getModifiers()))
-                    .filter(m -> unique.add(new MethodSignature(m)))
+                    .filter(ReflectionUtil.createDuplicateMethodFilter())
                     .map(m -> new MethodDeclaration(getResolver(), m))
                     .toArray(MethodDeclaration[]::new);
         }

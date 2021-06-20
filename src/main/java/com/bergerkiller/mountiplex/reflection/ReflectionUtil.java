@@ -8,15 +8,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.asm.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
-import com.bergerkiller.mountiplex.reflection.util.DisableFinalModifierHelper;
 
 public class ReflectionUtil {
 
@@ -224,7 +225,20 @@ public class ReflectionUtil {
      * @return stream of methods declared in the clazz, its superclasses and interfaces
      */
     public static Stream<Method> getAllMethods(Class<?> clazz) {
-        return getAllClassesAndInterfaces(clazz).flatMap(ReflectionUtil::getDeclaredMethods);
+        return getAllClassesAndInterfaces(clazz)
+                .flatMap(ReflectionUtil::getDeclaredMethods);
+    }
+
+    /**
+     * Returns a predicate that will filter all duplicate method signatures.
+     * Only member methods are filtered, since static methods don't override
+     * each other and will always be unique.
+     *
+     * @return duplicate method filter
+     */
+    public static Predicate<Method> createDuplicateMethodFilter() {
+        final java.util.HashSet<MethodSignature> filtered = new java.util.HashSet<MethodSignature>();
+        return method -> Modifier.isStatic(method.getModifiers()) || filtered.add(new MethodSignature(method));
     }
 
     /**
@@ -486,15 +500,5 @@ public class ReflectionUtil {
         System.arraycopy(oldTrace, 0, newTrace, 1, oldTrace.length);
         newTrace[0] = ASMUtil.findMethodDetails(m);
         t.setStackTrace(newTrace);
-    }
-
-    /**
-     * Removes the final field modifier, making a final field writable
-     * 
-     * @param field
-     * @throws IllegalAccessException
-     */
-    public static void removeFinalModifier(java.lang.reflect.Field field) throws IllegalAccessException {
-        DisableFinalModifierHelper.removeFinalModifier(field);
     }
 }

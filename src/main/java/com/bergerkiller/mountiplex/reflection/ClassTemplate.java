@@ -6,7 +6,6 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
-import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -16,7 +15,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -497,10 +495,9 @@ public class ClassTemplate<T> {
     private void loadMethods() {
         // Initialize field queue with fields if needed
         if (typeMethods == null) {
-            HashSet<MethodSignature> addedSignatures = new HashSet<MethodSignature>();
             typeMethods = ReflectionUtil.getAllClassesAndInterfaces(this.getType())
                     .flatMap(c -> ReflectionUtil.getDeclaredMethods(c).sorted(createMethodComparator()))
-                    .filter(m -> addedSignatures.add(new MethodSignature(m)))
+                    .filter(ReflectionUtil.createDuplicateMethodFilter())
                     .map(m -> new MethodDeclaration(resolver, m))
                     .collect(Collectors.toList());
 

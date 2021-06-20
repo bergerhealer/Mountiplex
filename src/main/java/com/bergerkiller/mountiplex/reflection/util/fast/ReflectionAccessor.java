@@ -114,7 +114,12 @@ public class ReflectionAccessor<T> implements Reader<T>, Writer<T>, Copier {
     public void checkCanCopy() {}
 
     public static <T> ReflectionAccessor<T> create(java.lang.reflect.Field field) {
-        if (Resolver.isPublic(field)) {
+        // When fields are public, we can at the very least generate a getter method
+        // When the field is public and non-final, a setter will also be generated
+        // For static fields, it is not possible to set the field value using reflection, and we
+        // must generate an accessor class which uses Unsafe to do it anyway.
+        int modifiers = field.getModifiers();
+        if (Resolver.isPublic(field) || (Modifier.isFinal(modifiers) && Modifier.isStatic(modifiers))) {
             return GeneratedAccessor.create(field);
         } else {
             return new ReflectionAccessor<T>(field);

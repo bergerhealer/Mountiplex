@@ -115,7 +115,7 @@ public class FieldDeclaration extends Declaration {
     	FieldDeclaration f = (FieldDeclaration) other;
     	return 0.1 * this.modifiers.similarity(f.modifiers) +
                0.3 * this.name.similarity(f.name) +
-               0.5 * this.type.similarity(f.type);
+               0.6 * this.type.similarity(f.type);
     }
 
     @Override

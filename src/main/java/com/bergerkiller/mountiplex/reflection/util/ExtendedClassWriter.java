@@ -29,6 +29,7 @@ import org.objectweb.asm.MethodVisitor;
  */
 public class ExtendedClassWriter<T> extends ClassWriter {
     private static final UniqueHash generatedClassCtr = new UniqueHash();
+    private static final UniqueHash generatedStaticFieldCtr = new UniqueHash();
     private final String name;
     private final String internalName;
     private final String typeDescriptor;
@@ -40,7 +41,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         super(options.flags);
 
         // Get or generate postfix
-        String postfix = (options.postfix != null) ? options.postfix : getNextPostfix();
+        String postfix = options.exactName != null ? null : ((options.postfix != null) ? options.postfix : getNextPostfix());
 
         // This is multi-thread safe
         if (options.classLoader != null) {
@@ -52,7 +53,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         // Bugfix: pick a different postfix if another class already exists with this name
         // This can happen by accident as well, when a jar is incorrectly reloaded
         // Namespace clashes are nasty!
-        {
+        if (postfix != null) {
             String postfix_original = postfix;
             for (int i = 1;; i++) {
                 String tmpClassPath = MPLType.getName(options.superClass) + postfix;
@@ -100,9 +101,15 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             }
         }
 
-        this.name = MPLType.getName(options.superClass) + postfix;
-        this.internalName = MPLType.getInternalName(options.superClass) + postfix;
-        this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
+        if (options.exactName != null) {
+            this.name = options.exactName;
+            this.internalName = options.exactName.replace('.', '/');
+            this.typeDescriptor = "L" + this.internalName + ";"; // Might fail sometimes...
+        } else {
+            this.name = MPLType.getName(options.superClass) + postfix;
+            this.internalName = MPLType.getInternalName(options.superClass) + postfix;
+            this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
+        }
         this.visit(V1_8, options.access, this.internalName, signature, superName, interfaceNames);
     }
 
@@ -224,6 +231,16 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
+     * Generates a new instance by making use of Objenesis to null-instantiate
+     * an instance of the class. No constructor will be called.
+     *
+     * @return null-instantiated instance of the generated class
+     */
+    public T generateInstanceNull() {
+        return NullInstantiator.of(this.generate()).create();
+    }
+
+    /**
      * Gets a unique class name postfix to be used for a generated class
      * 
      * @return unique class name postfix
@@ -252,8 +269,142 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
+     * Includes instructions to push a char constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushChar(MethodVisitor mv, char value) {
+        visitPushInt(mv, (int) value);
+    }
+
+    /**
+     * Includes instructions to push a boolean constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushBoolean(MethodVisitor mv, boolean value) {
+        mv.visitInsn(value ? ICONST_1 : ICONST_0);
+    }
+
+    /**
+     * Includes instructions to push a float constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushFloat(MethodVisitor mv, float value) {
+        if (value == 0.0f) {
+            mv.visitInsn(FCONST_0);
+        } else if (value == 1.0f) {
+            mv.visitInsn(FCONST_1);
+        } else if (value == 2.0f) {
+            mv.visitInsn(FCONST_2);
+        } else {
+            mv.visitLdcInsn(Float.valueOf(value));
+        }
+    }
+
+    /**
+     * Includes instructions to push a double constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushDouble(MethodVisitor mv, double value) {
+        if (value == 0.0f) {
+            mv.visitInsn(DCONST_0);
+        } else if (value == 1.0f) {
+            mv.visitInsn(DCONST_1);
+        } else {
+            mv.visitLdcInsn(Double.valueOf(value));
+        }
+    }
+
+    /**
+     * Includes instructions to push a constant onto the stack. The right instruction for the size
+     * of the value is selected. If the value being stored cannot be represented using instructions
+     * alone, then a static field is added initialized with the value from which the value is loaded
+     * onto the stack.<br>
+     * <br>
+     * If a null value is specified, and the type is a primitive type, then the default primitive
+     * type value (0, false, etc.) is loaded instead.
+     *
+     * @param mv method visitor
+     * @param type Type of value to load onto the stack
+     * @param value Value to push onto the stack
+     */
+    public void visitPush(MethodVisitor mv, Class<?> type, Object value) {
+        // Nothing is loaded for void types
+        if (type == void.class) {
+            return;
+        }
+
+        // null -> 0, false, etc.
+        if (type.isPrimitive() && value == null) {
+            value = BoxedType.getDefaultValue(type);
+        }
+
+        // Load primitive types
+        if (value == null) {
+            mv.visitInsn(ACONST_NULL);
+        } else if (type == byte.class) {
+            visitPushByte(mv, ((Byte) value).byteValue());
+        } else if (type == short.class) {
+            visitPushShort(mv, ((Short) value).shortValue());
+        } else if (type == int.class) {
+            visitPushInt(mv, ((Integer) value).intValue());
+        } else if (type == long.class) {
+            visitPushLong(mv, ((Long) value).longValue());
+        } else if (type == float.class) {
+            visitPushFloat(mv, ((Float) value).floatValue());
+        } else if (type == double.class) {
+            visitPushDouble(mv, ((Double) value).doubleValue());
+        } else if (type == char.class) {
+            visitPushChar(mv, ((Character) value).charValue());
+        } else if (type == boolean.class) {
+            visitPushBoolean(mv, ((Boolean) value).booleanValue());
+        } else if (type == String.class) {
+            // JVM allows for storing strings
+            mv.visitLdcInsn(value);
+        } else {
+            // Object constant value
+            String name = "mplgen_cinit_field_" + generatedStaticFieldCtr.nextHex();
+            this.visitStaticField(name, type, value);
+            mv.visitFieldInsn(GETSTATIC, this.internalName, name, MPLType.getDescriptor(type));
+        }
+    }
+
+    /**
+     * Includes instructions to push a byte constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushByte(MethodVisitor mv, byte value) {
+        visitPushInt(mv, value);
+    }
+
+    /**
+     * Includes instructions to push a short constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushShort(MethodVisitor mv, short value) {
+        visitPushInt(mv, value);
+    }
+
+    /**
      * Includes instructions to push an int constant onto the stack. The right instruction for the size
-     * of the number if selected.
+     * of the number is selected.
      * 
      * @param mv method visitor
      * @param value Value to push onto the stack
@@ -266,7 +417,22 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         } else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) {
             mv.visitIntInsn(SIPUSH, value);
         } else {
-            mv.visitLdcInsn(new Integer(value));
+            mv.visitLdcInsn(Integer.valueOf(value));
+        }
+    }
+
+    /**
+     * Includes instructions to push a long constant onto the stack. The right instruction for the size
+     * of the number is selected.
+     * 
+     * @param mv method visitor
+     * @param value Value to push onto the stack
+     */
+    public static void visitPushLong(MethodVisitor mv, long value) {
+        if (value >= 0 && value <= 5) {
+            mv.visitInsn(LCONST_0 + (int) value);
+        } else {
+            mv.visitLdcInsn(Long.valueOf(value));
         }
     }
 
@@ -346,6 +512,47 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
+     * Implements a method with a body that ignores all input parameters and returns
+     * a constant value instead. For non-null value types, a static field is added
+     * to the class definition setting this constant value to be returned.
+     *
+     * @param method
+     * @param value
+     */
+    public void visitMethodReturnConstant(Method method, Object value) {
+        Class<?> returnType = method.getReturnType();
+        MethodVisitor mv;
+
+        // Make sure return type is compatible with method signature
+        if (returnType != void.class) {
+            if (returnType.isPrimitive()) {
+                if (value == null) {
+                    throw new IllegalArgumentException("Cannot return 'null' from method " + method);
+                }
+                Class<?> primType = BoxedType.getUnboxedType(value.getClass());
+                if (primType != returnType) {
+                    throw new IllegalArgumentException("Cannot return type " + primType.getName() + " from method " + method);
+                }
+            } else if (value != null && !returnType.isAssignableFrom(value.getClass())) {
+                throw new IllegalArgumentException("Cannot return type " + value.getClass().getName() + " from method " + method);
+            }
+        }
+
+        // Compute total stack size of the method parameters
+        int maxLocals = 1;
+        for (Class<?> param : method.getParameterTypes()) {
+            maxLocals += MPLType.getType(param).getSize();
+        }
+
+        mv = this.visitMethod(ACC_PUBLIC, MPLType.getName(method), MPLType.getMethodDescriptor(method), null, null);
+        mv.visitCode();
+        visitPush(mv, returnType, value);
+        mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));
+        mv.visitMaxs(MPLType.getType(returnType).getSize(), maxLocals);
+        mv.visitEnd();
+    }
+
+    /**
      * Adds a public static Invoker field to this Class definition, which will be initialized
      * to call the method by the MethodDeclaration specified.
      * 
@@ -402,6 +609,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         private int flags = 0;
         private int access = ACC_PUBLIC | ACC_STATIC;
         private String postfix = null;
+        private String exactName = null;
         private ClassLoader classLoader = null;
 
         private Builder(Class<T> superClass) {
@@ -433,6 +641,18 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
         public Builder<T> setPostfix(String postfix) {
             this.postfix = postfix;
+            return this;
+        }
+
+        /**
+         * Forces a class to be generated with exactly the name as specified.
+         * Will throw an error if a Class by this name already exists.
+         *
+         * @param name
+         * @return builder
+         */
+        public Builder<T> setExactName(String name) {
+            this.exactName = name;
             return this;
         }
 

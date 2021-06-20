@@ -18,6 +18,7 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
+import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 
 import javassist.NotFoundException;
 
@@ -167,6 +168,7 @@ public class ClassBytecodeLoader {
     private static final class CBLObjectClassPath implements javassist.ClassPath {
         private final ClassLoader mountiplexClassLoader = ClassBytecodeLoader.class.getClassLoader();
         private final ClassLoader fallbackClassLoader = Thread.currentThread().getContextClassLoader();
+        private final boolean fallbackIsMountiplex = (mountiplexClassLoader == fallbackClassLoader);
 
         @Override
         public InputStream openClassfile(String classname) throws NotFoundException {
@@ -189,8 +191,14 @@ public class ClassBytecodeLoader {
                 }
 
                 // Mountiplex's own types
-                if ((result = mountiplexClassLoader.getResourceAsStream(filename)) != null) {
+                if (!fallbackIsMountiplex && (result = mountiplexClassLoader.getResourceAsStream(filename)) != null) {
                     return result;
+                }
+
+                // Generated types
+                Class<?> generated = GeneratorClassLoader.findGeneratedClass(classname);
+                if (generated != null) {
+                    return new ByteArrayInputStream(generateMockByteCode(generated));
                 }
 
                 // Just in case the check in the beginning missed it: System path
@@ -228,8 +236,14 @@ public class ClassBytecodeLoader {
                 }
 
                 // Mountiplex's own types
-                if ((result = mountiplexClassLoader.getResource(filename)) != null) {
+                if (!fallbackIsMountiplex && (result = mountiplexClassLoader.getResource(filename)) != null) {
                     return result;
+                }
+
+                // Generated types
+                Class<?> generated = GeneratorClassLoader.findGeneratedClass(classname);
+                if (generated != null) {
+                    return getResourceGenerated(generated);
                 }
 
                 // Just in case the check in the beginning missed it: System path

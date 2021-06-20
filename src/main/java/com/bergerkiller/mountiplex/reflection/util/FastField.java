@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex.reflection.util;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.Copier;
@@ -136,19 +135,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
         return this.field != null ? Modifier.isStatic(this.field.getModifiers()) : false;
     }
 
-    private void makeAccessible(boolean write) {
-        // Setting a static final field requires hacking away the final modifier in the field
-        // Otherwise an illegalAccessException occurs when attempting to set it
-        int mod = field.getModifiers();
-        if (write && Modifier.isFinal(mod) && Modifier.isStatic(mod)) {
-            try {
-                ReflectionUtil.removeFinalModifier(field);
-            } catch (IllegalAccessException ex) {
-                throw new RuntimeException("Failed to make final field " + MPLType.getName(field) + " accessible: " + ex.getMessage());
-            }
-        }
-
-        // Basic tier takes care of most cases
+    private void makeAccessible() {
         try {
             field.setAccessible(true);
         } catch (Throwable t) {
@@ -226,7 +213,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                     if (reader == this) {
                         checkInit();
                         if (!Resolver.isPublic(field)) {
-                            makeAccessible(false);
+                            makeAccessible();
                         }
                         reader = access();
                     }
@@ -242,7 +229,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                         checkInit();
                         int mod = field.getModifiers();
                         if (!Resolver.isPublic(field) || Modifier.isFinal(mod)) {
-                            makeAccessible(true);
+                            makeAccessible();
                         }
                         writer = access();
                     }
@@ -263,7 +250,7 @@ public final class FastField<T> implements Reader<T>, Writer<T>, Copier, LazyIni
                         }
 
                         if (!Resolver.isPublic(field) || Modifier.isFinal(mod)) {
-                            makeAccessible(true);
+                            makeAccessible();
                         }
 
                         copier = access();

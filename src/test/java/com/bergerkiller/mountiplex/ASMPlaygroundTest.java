@@ -2,7 +2,10 @@ package com.bergerkiller.mountiplex;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Field;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -10,6 +13,7 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedAccessor;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 import com.bergerkiller.mountiplex.types.TestObject;
@@ -29,13 +33,26 @@ public class ASMPlaygroundTest {
         }
     }
 
-    public static class Handle extends HandleBase {
+    public static class Cool extends GeneratedAccessor.GeneratedStaticFinalAccessor<Object> {
 
-        public Handle(String as, double a, double b, double c, String cool) {
-            super(as, a, b, c, cool);
-            // TODO Auto-generated constructor stub
+        protected Cool(Field field) {
+            super(field);
         }
 
+        @Override
+        public void setInteger(Object o, int value) {
+            if (!this.class_init) {
+                this.initDeclaringClass();
+            }
+            unsafe.putInt(base, offset, value);
+        }
+    }
+
+    public static class MyCustomSerializer {
+
+        public List<String> getValue(int k, byte d) {
+            return Arrays.asList("a", "b");
+        }
     }
 
     /**
@@ -56,7 +73,7 @@ public class ASMPlaygroundTest {
     @Ignore
     @Test
     public void testShowASM() {
-        TestUtil.printASM(ImplementedGeneratorClassLoader.class);
+        TestUtil.printASM(Cool.class);
     }
 
     private Invoker<Object> invoker;
