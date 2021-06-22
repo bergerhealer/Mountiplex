@@ -10,7 +10,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
-import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedMethodInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.InvalidArgumentCountException;
 import com.bergerkiller.mountiplex.types.SpeedTestObject;
 import com.bergerkiller.mountiplex.types.SpeedTestObjectHandle;
@@ -63,7 +63,7 @@ public class MethodSpeedTest {
         System.out.println("Execution time of " + testName + ": " + (endTime - startTime) + "ms");
     }
 
-    public static class CustomGenSet extends GeneratedMethodInvoker<Object> {
+    public static class CustomGenSet extends GeneratedInvoker<Object> {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {
@@ -81,7 +81,7 @@ public class MethodSpeedTest {
         }
     }
 
-    public static class CustomGenGet extends GeneratedMethodInvoker<Object> {
+    public static class CustomGenGet extends GeneratedInvoker<Object> {
 
         @Override
         public Object invokeVA(Object instance, Object... args) {

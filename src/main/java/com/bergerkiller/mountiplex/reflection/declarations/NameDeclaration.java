@@ -53,7 +53,15 @@ public class NameDeclaration extends Declaration {
                 continue;
             }
 
-            boolean validNameChar = !MountiplexUtil.containsChar(c, invalid_name_chars);
+            // Note: allow < and > because of <init>
+            boolean validNameChar;
+            if (c == '<') {
+                validNameChar = declaration.substringEquals(cidx, cidx + 6, "<init>");
+            } else if (c == '>') {
+                validNameChar = declaration.substringEquals(cidx - 5, cidx + 1, "<init>");
+            } else {
+                validNameChar = !MountiplexUtil.containsChar(c, invalid_name_chars);
+            }
 
             // Verify the first character of the name is valid, and set it
             if (startIdx == -1) {

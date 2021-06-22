@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex;
 import static org.junit.Assert.*;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
@@ -22,29 +23,17 @@ import com.bergerkiller.mountiplex.types.TestObject;
  * This class contains no tests but offers room to play around with ASM utilities
  */
 public class ASMPlaygroundTest {
-    
-    public static interface TestInterface {
-        void theMethod(TestObject instance, int value1, int value2);
-    }
 
-    public static abstract class HandleBase {
-        public HandleBase(String as, double a, double b, double c, String cool) {
+    public static class Dummy {
+        
+        public Dummy(long k) {
             
         }
     }
-
-    public static class Cool extends GeneratedAccessor.GeneratedStaticFinalAccessor<Object> {
-
-        protected Cool(Field field) {
-            super(field);
-        }
-
-        @Override
-        public void setInteger(Object o, int value) {
-            if (!this.class_init) {
-                this.initDeclaringClass();
-            }
-            unsafe.putInt(base, offset, value);
+    
+    public static class Woo {
+        public Dummy cool(long k) {
+            return new Dummy(k);
         }
     }
 
@@ -73,7 +62,7 @@ public class ASMPlaygroundTest {
     @Ignore
     @Test
     public void testShowASM() {
-        TestUtil.printASM(Cool.class);
+        TestUtil.printASM(Woo.class);
     }
 
     private Invoker<Object> invoker;

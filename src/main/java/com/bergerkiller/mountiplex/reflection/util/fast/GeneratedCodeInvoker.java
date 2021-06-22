@@ -26,7 +26,7 @@ import javassist.NotFoundException;
 /**
  * Generates an invoker that executes a method body
  */
-public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, IgnoresRemapping {
+public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignatureInvoker<T>, IgnoresRemapping {
 
     private static final CtClass getExtendedClass(ClassPool pool, Class<?> type, Class<?> interfaceClass) throws NotFoundException {
         CtClass origClazz = pool.getCtClass(MPLType.getName(type));
@@ -155,7 +155,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedInvoker<T>, Ig
         return create(declaration, null);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "deprecation" })
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration, Class<?> interfaceClass) {
         if (!declaration.isResolved()) {
             throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());

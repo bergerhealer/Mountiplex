@@ -14,7 +14,7 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLGeneratorClassLoaderBu
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedConstructor;
-import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedMethodInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedInvoker;
 
 /**
  * ClassLoader used to generate new classes at runtime in various areas
@@ -59,7 +59,7 @@ public abstract class GeneratorClassLoader extends ClassLoader {
         // These classes are often used to generate method bodies at runtime.
         // However, a Class Loader might be specified that has no access to these
         // class types. We register these special types to avoid that problem.
-        registerStaticClass(GeneratedMethodInvoker.class);
+        registerStaticClass(GeneratedInvoker.class);
         registerStaticClass(GeneratedCodeInvoker.class);
         registerStaticClass(GeneratedConstructor.class);
     }

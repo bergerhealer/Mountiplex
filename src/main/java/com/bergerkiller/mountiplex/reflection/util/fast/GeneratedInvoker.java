@@ -1,68 +1,201 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import java.lang.reflect.Modifier;
+
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+
 import static org.objectweb.asm.Opcodes.*;
 
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
-
-import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
- * An invoker that results in generated code at runtime, allowing for a caller
- * to use a more optimized function that doesn't require casting. The interface
- * produced by {@link #generateInterface(MethodDeclaration)} automatically implements the
- * {@link #getInterface()} also.
- *
- * @param <T>
+ * Class is generated at runtime to invoke a method directly.
+ * The input instance and arguments are unpacked, then the method is called,
+ * without using any reflection to do so.
  */
-public interface GeneratedInvoker<T> extends Invoker<T> {
+public abstract class GeneratedInvoker<T> implements Invoker<T> {
 
     /**
-     * Gets the runtime-generated interface class implemented by this
-     * generated invoker. This interface contains the exact method signature
-     * of the method, not requiring casting or boxing.<br>
-     * <br>
-     * If the real method still has to be generated, then
-     * that generated invoker will implement the same interface. Calling this
-     * method will not create the interface, the method declared must be called first.
+     * Checks whether a method or constructor is compatible with the GeneratedInvoker.
+     * Only public methods/constructors with 5 arguments or less can be called.
      * 
-     * @return generated class name
+     * @param executable The method or constructor to check
+     * @return True if compatible and create() will succeed.
      */
-    Class<?> getInterface();
-
-    /**
-     * Generates a class that implements this GeneratedInvoker, implementing the underlying invoke methods,
-     * as well as it's own method exactly matching the method signature.
-     * 
-     * @param methodDeclaration The method signature to create an interface for
-     * @return generated invoker interface
-     */
-    public static Class<? extends GeneratedInvoker<?>> generateInterface(MethodDeclaration methodDeclaration) {
-        if (!methodDeclaration.isResolved()) {
-            throw new IllegalArgumentException("Method declaration is not resolved: " + methodDeclaration);
+    public static boolean canCreate(java.lang.reflect.Executable executable) {
+        Class<?>[] paramTypes = executable.getParameterTypes();
+        if (paramTypes.length > 5) {
+            return false;
+        } else if (executable instanceof java.lang.reflect.Method) {
+            return Resolver.isPublic((java.lang.reflect.Method) executable);
+        } else if (executable instanceof java.lang.reflect.Constructor) {
+            return Resolver.isPublic((java.lang.reflect.Constructor<?>) executable);
+        } else {
+            return false;
         }
+    }
+
+    /**
+     * Generates a new method invoker. Internal use only. Method may only have 5 arguments or less,
+     * and must be public. Check using {@link #canCreate(java.lang.reflect.Method)} first.
+     * 
+     * @param method The method to invoke
+     * @return generated invoker
+     */
+    public static <T> GeneratedInvoker<T> create(java.lang.reflect.Executable executable) {
+        Class<?> instanceType = executable.getDeclaringClass(); //TODO: Find the real base class or interface that declared it!
+
+        ExtendedClassWriter<GeneratedInvoker<T>> cw = ExtendedClassWriter.builder(GeneratedInvoker.class)
+                .setClassLoader(instanceType.getClassLoader())
+                .setFlags(ClassWriter.COMPUTE_MAXS)
+                .setAccess(ACC_FINAL).build();
 
         MethodVisitor mv;
-        ExtendedClassWriter<? extends GeneratedInvoker<?>> cw = ExtendedClassWriter.builder(GeneratedInvoker.class)
-                .setAccess(ACC_ABSTRACT | ACC_INTERFACE).build();
-
-        // Method signature itself, not implemented yet
-        {
-            mv = cw.visitMethod(ACC_PUBLIC | ACC_ABSTRACT, methodDeclaration.name.real(), methodDeclaration.getASMInvokeDescriptor(), null, null);
-            mv.visitEnd();
+        String instanceName = MPLType.getInternalName(instanceType);
+        Class<?>[] paramTypes = executable.getParameterTypes();
+        if (paramTypes.length > 5) {
+            throw new IllegalArgumentException("Method has too many parameters to be optimizable");
         }
 
-        // Implement getInterface() to return self type
+        Class<?> returnType;
+        boolean isStatic;
+        if (executable instanceof java.lang.reflect.Constructor) {
+            returnType = executable.getDeclaringClass();
+            isStatic = true;
+        } else if (executable instanceof java.lang.reflect.Method) {
+            returnType = ((java.lang.reflect.Method) executable).getReturnType();
+            isStatic = Modifier.isStatic(executable.getModifiers());
+        } else {
+            throw new IllegalArgumentException("Not a constructor or method");
+        }
+
+        // Empty constructor
         {
-            mv = cw.visitMethod(ACC_PUBLIC, "getInterface", "()Ljava/lang/Class;", "()Ljava/lang/Class<*>;", null);
+            mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
             mv.visitCode();
-            mv.visitLdcInsn(Type.getType(cw.getTypeDescriptor()));
-            mv.visitInsn(ARETURN);
-            mv.visitMaxs(1, 1);
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(GeneratedInvoker.class), "<init>", "()V", false);
+            mv.visitInsn(RETURN);
+            mv.visitMaxs(2, 2);
             mv.visitEnd();
         }
 
-        return cw.generate();
+        // create the invoke argument list description String up front (instance, varargs)returntype
+        // E.g.: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"
+        String argsStr_obj_token = "Ljava/lang/Object;";
+        StringBuilder argsStr_build = new StringBuilder(argsStr_obj_token.length() * (paramTypes.length + 1));
+        argsStr_build.append('(');
+        for (int i = 0; i <= paramTypes.length; i++) {
+            argsStr_build.append(argsStr_obj_token);
+        }
+        argsStr_build.append(")Ljava/lang/Object;");
+        String argsStr = argsStr_build.toString();
+
+        // invokeVA proxy method delegating to the correct method for invocation after checking args length
+        {
+            mv = cw.visitMethod(ACC_PUBLIC + ACC_VARARGS + ACC_FINAL, "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", null, null);
+            mv.visitCode();
+            mv.visitVarInsn(ALOAD, 2);
+            mv.visitInsn(ARRAYLENGTH);
+            Label l_validArgs = new Label();
+            if (paramTypes.length > 0) {
+                ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
+                mv.visitJumpInsn(IF_ICMPEQ, l_validArgs);
+            } else {
+                mv.visitJumpInsn(IFEQ, l_validArgs);
+            }
+            {
+                // Invalid number of arguments
+                mv.visitTypeInsn(NEW, MPLType.getInternalName(InvalidArgumentCountException.class));
+                mv.visitInsn(DUP);
+                mv.visitLdcInsn("method");
+                mv.visitVarInsn(ALOAD, 2);
+                mv.visitInsn(ARRAYLENGTH);
+                ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
+                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(InvalidArgumentCountException.class), "<init>", "(Ljava/lang/String;II)V", false);
+                mv.visitInsn(ATHROW);
+            }
+
+            // Valid number of arguments; call the appropriate method with the array elements
+            mv.visitLabel(l_validArgs);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+            if (executable instanceof java.lang.reflect.Constructor) {
+                mv.visitTypeInsn(NEW, MPLType.getInternalName(instanceType));
+                mv.visitInsn(DUP);
+            }
+            if (!isStatic) {
+                mv.visitVarInsn(ALOAD, 1);
+                mv.visitTypeInsn(CHECKCAST, instanceName);
+            }
+            for (int i = 0; i < paramTypes.length; i++) {
+                mv.visitVarInsn(ALOAD, 2);
+                ExtendedClassWriter.visitPushInt(mv, i);
+                mv.visitInsn(AALOAD);
+                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+            }
+            if (executable instanceof java.lang.reflect.Method) {
+                ExtendedClassWriter.visitInvoke(mv, instanceType, (java.lang.reflect.Method) executable);
+            } else if (executable instanceof java.lang.reflect.Constructor) {
+                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(instanceType), "<init>",
+                        MPLType.getConstructorDescriptor((java.lang.reflect.Constructor<?>) executable), false);
+            }
+            MPLType.visitBoxVariable(mv, returnType);
+            mv.visitInsn(ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+
+            // Old code: delegates to the invoke function with the right amount of arguments
+            // Replaced with one that calls the method directly to save a stack frame
+            /*
+            mv.visitLabel(l_validArgs);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitVarInsn(ALOAD, 1);
+            for (int i = 0; i < paramTypes.length; i++) {
+                mv.visitVarInsn(ALOAD, 2);
+                mv.visitInsn(ICONST_0 + i);
+                mv.visitInsn(AALOAD);
+            }
+            mv.visitMethodInsn(INVOKEVIRTUAL, cw.getInternalName(), "invoke", argsStr);
+            mv.visitInsn(ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+            */
+        }
+
+        // Invoke method that casts the parameters and calls the method
+        {
+            mv = cw.visitMethod(ACC_PUBLIC, "invoke", argsStr, null, null);
+            mv.visitCode();
+            if (executable instanceof java.lang.reflect.Constructor) {
+                mv.visitTypeInsn(NEW, MPLType.getInternalName(instanceType));
+                mv.visitInsn(DUP);
+            }
+            if (!isStatic) {
+                mv.visitVarInsn(ALOAD, 1);
+                mv.visitTypeInsn(CHECKCAST, instanceName);
+            }
+            for (int i = 0; i < paramTypes.length; i++) {
+                mv.visitVarInsn(ALOAD, 2 + i);
+                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+            }
+            if (executable instanceof java.lang.reflect.Method) {
+                ExtendedClassWriter.visitInvoke(mv, instanceType, (java.lang.reflect.Method) executable);
+            } else if (executable instanceof java.lang.reflect.Constructor) {
+                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(instanceType), "<init>",
+                        MPLType.getConstructorDescriptor((java.lang.reflect.Constructor<?>) executable), false);
+            }
+            MPLType.visitBoxVariable(mv, returnType);
+            mv.visitInsn(ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+        }
+
+        return cw.generateInstance();
     }
 }

@@ -1,9 +1,9 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -14,7 +14,6 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
-import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
@@ -30,12 +29,27 @@ import javassist.NotFoundException;
 
 public class MethodDeclaration extends Declaration {
     public Method method;
+    public Constructor<Object> constructor;
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration returnType;
     public final NameDeclaration name;
     public final ParameterListDeclaration parameters;
     public final String body;
     public final Requirement[] bodyRequirements;
+
+    @SuppressWarnings("unchecked")
+    public MethodDeclaration(ClassResolver resolver, Constructor<?> constructor) {
+        super(resolver);
+
+        this.method = null;
+        this.constructor = (Constructor<Object>) constructor;
+        this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers());
+        this.returnType = TypeDeclaration.fromClass(constructor.getDeclaringClass());
+        this.name = new NameDeclaration(resolver, "<init>", null);
+        this.parameters = new ParameterListDeclaration(resolver, constructor.getGenericParameterTypes());
+        this.body = null;
+        this.bodyRequirements = new Requirement[0];
+    }
 
     public MethodDeclaration(ClassResolver resolver, Method method) {
         super(resolver);
@@ -55,6 +69,7 @@ public class MethodDeclaration extends Declaration {
         }
 
         this.method = method;
+        this.constructor = null;
         this.modifiers = new ModifierDeclaration(resolver, method.getModifiers());
         this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
         this.name = new NameDeclaration(resolver, name, alias);
@@ -70,6 +85,7 @@ public class MethodDeclaration extends Declaration {
     public MethodDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
         this.method = null;
+        this.constructor = null;
         this.modifiers = nextModifier();
 
         // Skip type variables, they may exist. For now do a simple replace between < > portions
@@ -186,6 +202,7 @@ public class MethodDeclaration extends Declaration {
     private MethodDeclaration(MethodDeclaration original, NameDeclaration newName) {
         super(original.getResolver());
         this.method = original.method;
+        this.constructor = original.constructor;
         this.modifiers = original.modifiers;
         this.returnType = original.returnType;
         this.name = newName;
@@ -254,6 +271,8 @@ public class MethodDeclaration extends Declaration {
     public Class<?> getDeclaringClass() {
         if (this.body == null && this.method != null) {
             return this.method.getDeclaringClass();
+        } else if (this.body == null && this.constructor != null) {
+            return this.constructor.getDeclaringClass();
         } else {
             return this.getResolver().getDeclaredClass();
         }
@@ -339,10 +358,14 @@ public class MethodDeclaration extends Declaration {
     public void modifyBodyRequirement(Requirement requirement, StringBuilder body, String instanceName, String requirementName, int instanceStartIdx, int nameEndIdx) {
         // Modifiers for checking public, if missing (0), none of the modifiers match
         // When the class in which the method is declared is not accessible, force field as unavailable
-        Class<?> methodDeclaringClass = (this.method == null) ? null : this.method.getDeclaringClass();
+        Class<?> methodDeclaringClass = this.getDeclaringClass();
         boolean canCallDirectly = false;
         if (methodDeclaringClass != null && Resolver.isPublic(methodDeclaringClass)) {
-            canCallDirectly = Modifier.isPublic(this.method.getModifiers());
+            if (this.method != null) {
+                canCallDirectly = Modifier.isPublic(this.method.getModifiers());
+            } else if (this.constructor != null) {
+                canCallDirectly = Modifier.isPublic(this.constructor.getModifiers());
+            }
         }
 
         // Also check we aren't using any converters
@@ -362,16 +385,23 @@ public class MethodDeclaration extends Declaration {
         // If method is accessible, call it directly rather than using reflection/generated code
         if (canCallDirectly) {
             StringBuilder replacement = new StringBuilder();
-            if (this.modifiers.isStatic()) {
-                // Replace with ClassName.MethodName
-                replacement.append(MPLType.getName(this.method.getDeclaringClass()));
-            } else {
-                // Replace with instanceName.MethodName
-                replacement.append(instanceName);
+            if (this.method != null) {
+                if (this.modifiers.isStatic()) {
+                    // Replace with ClassName.MethodName
+                    replacement.append(MPLType.getName(this.method.getDeclaringClass()));
+                } else {
+                    // Replace with instanceName.MethodName
+                    replacement.append(instanceName);
+                }
+                replacement.append('.');
+                replacement.append(MPLMemberResolver.IGNORE_PREFIX); // to prevent double-renaming
+                replacement.append(MPLType.getName(this.method));
+            } else if (this.constructor != null) {
+                // Replace with new <DeclaringClass>() constructor expression
+                replacement.append("new ");
+                replacement.append(MPLMemberResolver.IGNORE_PREFIX);
+                replacement.append(MPLType.getName(this.constructor.getDeclaringClass()));
             }
-            replacement.append('.');
-            replacement.append(MPLMemberResolver.IGNORE_PREFIX); // to prevent double-renaming
-            replacement.append(MPLType.getName(this.method));
             body.replace(instanceStartIdx, nameEndIdx, replacement.toString());
             return;
         }
@@ -401,7 +431,8 @@ public class MethodDeclaration extends Declaration {
             // For static methods, only #name ( is replaced
             StringBuilder replacement = new StringBuilder();
             replacement.append("this.").append(requirementName);
-            replacement.append('(').append(instanceName);
+            replacement.append('(');
+            replacement.append(instanceName);
 
             // Add a comma if there is something inside the ()
             for (int i = firstOpenIndex + 1; i < body.length(); i++) {
@@ -626,6 +657,7 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public MethodDeclaration discover() {
         if (!this.isValid() || !this.isResolved()) {
             return null;
@@ -678,36 +710,47 @@ public class MethodDeclaration extends Declaration {
         // Because of that, we must now ask the Resolver to give us the real method name
         MethodDeclaration nameResolved = this.resolveName();
 
-        // First try to find the method in a quick way
-        try {
-            java.lang.reflect.Method method;
-            method = MPLType.getDeclaredMethod(this.getResolver().getDeclaredClass(), nameResolved.name.value(), nameResolved.parameters.toParamArray());
-            MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
-            if (result.match(nameResolved) && checkPublic(method)) {
-                this.method = method;
+        if (nameResolved.name.value().equals("<init>")) {
+            // Try to find a constructor matching the parameter types of this method declaration
+            // Name is ignored entirely
+            try {
+                this.constructor = (Constructor<Object>) this.getResolver().getDeclaredClass().getDeclaredConstructor(nameResolved.parameters.toParamArray());
                 return this;
+            } catch (NoSuchMethodException | SecurityException e) {
+                // Ignored
             }
-        } catch (NoSuchMethodException | SecurityException e) {
-            // Ignored
-        }
-
-        // Try looking through the class itself by using a ClassDeclaration to preprocess it
-        {
-            ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, this.getResolver().getDeclaredClass());
-            MethodDeclaration result = cDec.findMethod(nameResolved);
-            if (result != null && checkPublic(result.method)) {
-                this.method = result.method;
-                return this;
+        } else {
+            // First try to find the method in a quick way
+            try {
+                java.lang.reflect.Method method;
+                method = MPLType.getDeclaredMethod(this.getResolver().getDeclaredClass(), nameResolved.name.value(), nameResolved.parameters.toParamArray());
+                MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
+                if (result.match(nameResolved) && checkPublic(method)) {
+                    this.method = method;
+                    return this;
+                }
+            } catch (NoSuchMethodException | SecurityException e) {
+                // Ignored
             }
-        }
 
-        // Check the superclasses of the declaring class as well
-        for (TypeDeclaration superType : typeDec.getSuperTypes()) {
-            ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, superType.type);
-            MethodDeclaration result = cDec.findMethod(nameResolved);
-            if (result != null && checkPublic(result.method)) {
-                this.method = result.method;
-                return this;
+            // Try looking through the class itself by using a ClassDeclaration to preprocess it
+            {
+                ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, this.getResolver().getDeclaredClass());
+                MethodDeclaration result = cDec.findMethod(nameResolved);
+                if (result != null && checkPublic(result.method)) {
+                    this.method = result.method;
+                    return this;
+                }
+            }
+
+            // Check the superclasses of the declaring class as well
+            for (TypeDeclaration superType : typeDec.getSuperTypes()) {
+                ClassDeclaration cDec = new ClassDeclaration(ClassResolver.DEFAULT, superType.type);
+                MethodDeclaration result = cDec.findMethod(nameResolved);
+                if (result != null && checkPublic(result.method)) {
+                    this.method = result.method;
+                    return this;
+                }
             }
         }
 
@@ -851,10 +894,9 @@ public class MethodDeclaration extends Declaration {
 
             // Check static (no instance name)
             boolean isStatic = false;
-            if (foundRequirement.declaration instanceof MethodDeclaration &&
-               ((MethodDeclaration) foundRequirement.declaration).modifiers.isStatic())
-            {
-                isStatic = true;
+            if (foundRequirement.declaration instanceof MethodDeclaration) {
+                MethodDeclaration mDec = (MethodDeclaration) foundRequirement.declaration;
+                isStatic = (mDec.constructor != null || mDec.modifiers.isStatic());
             }
             if (foundRequirement.declaration instanceof FieldDeclaration &&
                 ((FieldDeclaration) foundRequirement.declaration).modifiers.isStatic())
@@ -910,7 +952,7 @@ public class MethodDeclaration extends Declaration {
      * @return name-resolved method declaration
      */
     public MethodDeclaration resolveName() {
-        if (!this.isResolved() || this.getResolver().getDeclaredClass() == null || this.body != null) {
+        if (!this.isResolved() || this.getResolver().getDeclaredClass() == null || this.body != null || this.name.value().equals("<init>")) {
             return this;
         }
 

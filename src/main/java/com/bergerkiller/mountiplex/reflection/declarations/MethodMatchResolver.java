@@ -42,16 +42,17 @@ public class MethodMatchResolver {
             MethodDeclaration nameResolved = method.resolveName();
 
             boolean found = false;
-            for (int j = 0; j < realMethods.length; j++) {
-                if (realMethods[j].match(nameResolved)) {
+            for (MethodDeclaration realMethod : realMethods) {
+                if (realMethod.match(nameResolved)) {
 
                     // Log a warning when modifiers differ, but do not fail the matching
-                    if (!realMethods[j].modifiers.match(method.modifiers)) {
+                    if (!realMethod.modifiers.match(method.modifiers)) {
                         MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " + method.toString() +
-                                " do not match (" + realMethods[j].modifiers + " expected)");
+                                " do not match (" + realMethod.modifiers + " expected)");
                     }
 
-                    method.method = realMethods[j].method;
+                    method.method = realMethod.method;
+                    method.constructor = realMethod.constructor;
                     found = true;
                     break;
                 }

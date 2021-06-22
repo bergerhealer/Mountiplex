@@ -116,8 +116,8 @@ public class GeneratedHook {
         } catch (Throwable t) { /* not declared */ }
 
         // Standard invoker, use reflection if needed, otherwise generate one
-        if (GeneratedMethodInvoker.canCreate(methodToInvoke)) {
-            return GeneratedMethodInvoker.create(methodToInvoke);
+        if (GeneratedInvoker.canCreate(methodToInvoke)) {
+            return GeneratedInvoker.create(methodToInvoke);
         } else {
             return ReflectionInvoker.create(methodToInvoke);
         }

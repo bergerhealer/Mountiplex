@@ -1,22 +1,18 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
-public class ReflectionInvoker<T> implements Invoker<T> {
+public abstract class ReflectionInvoker<T> implements Invoker<T> {
     private static final Object[] NO_ARGS = new Object[0];
-    protected final java.lang.reflect.Method m;
 
-    protected ReflectionInvoker(java.lang.reflect.Method method) {
-        this.m = method;
-    }
-
-    private RuntimeException checkInstance(Object instance) {
+    private static RuntimeException checkInstance(java.lang.reflect.Executable executable, Object instance) {
         // Verify the instance is of the correct type
-        if (Modifier.isStatic(m.getModifiers())) {
+        if (Modifier.isStatic(executable.getModifiers())) {
             if (instance != null) {
                 return new IllegalArgumentException("Instance should be null for static fields, but was " +
                         MPLType.getName(instance.getClass()) + " instead");
@@ -24,25 +20,25 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         } else {
             if (instance == null) {
                 return new IllegalArgumentException("Instance can not be null for member fields declared in " +
-                        MPLType.getName(m.getDeclaringClass()));
+                        MPLType.getName(executable.getDeclaringClass()));
             }
-            if (!m.getDeclaringClass().isAssignableFrom(instance.getClass())) {
+            if (!executable.getDeclaringClass().isAssignableFrom(instance.getClass())) {
                 return new IllegalArgumentException("Instance of type " + MPLType.getName(instance.getClass()) +
-                        " does not contain the field declared in " + MPLType.getName(m.getDeclaringClass()));
+                        " does not contain the field declared in " + MPLType.getName(executable.getDeclaringClass()));
             }
         }
         return null;
     }
 
-    protected RuntimeException f(Object instance, Object[] args, Throwable t) {
+    protected static RuntimeException f(java.lang.reflect.Executable executable, Object instance, Object[] args, Throwable t) {
         // Check instance
-        RuntimeException iex = checkInstance(instance);
+        RuntimeException iex = checkInstance(executable, instance);
         if (iex != null) {
             return iex;
         }
 
         // Check argument count
-        Class<?>[] paramTypes = m.getParameterTypes();
+        Class<?>[] paramTypes = executable.getParameterTypes();
         if (paramTypes.length != args.length) {
             return new InvalidArgumentCountException("method", args.length, paramTypes.length);
         }
@@ -77,23 +73,6 @@ public class ReflectionInvoker<T> implements Invoker<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public T invokeVA(Object instance, Object... args) {
-        try {
-            return (T) m.invoke(instance, args);
-        } catch (InvocationTargetException ex) {
-            Throwable cause = ex.getCause();
-            if (cause instanceof RuntimeException) {
-                throw ((RuntimeException) cause);
-            } else {
-                throw new RuntimeException("An error occurred in the invoked method", cause);
-            }
-        } catch (Throwable t) {
-            throw f(instance, args, t);
-        }
-    }
-
-    @Override
     public T invoke(Object instance) {
         return invokeVA(instance, NO_ARGS);
     }
@@ -123,8 +102,64 @@ public class ReflectionInvoker<T> implements Invoker<T> {
         return invokeVA(instance, new Object[] {arg0, arg1, arg2, arg3, arg4});
     }
 
-    public static <T> Invoker<T> create(java.lang.reflect.Method method) {
-        method.setAccessible(true);
-        return new ReflectionInvoker<T>(method);
+    public static <T> Invoker<T> create(java.lang.reflect.Executable executable) {
+        executable.setAccessible(true);
+        if (executable instanceof java.lang.reflect.Method) {
+            return new ReflectionMethodInvoker<T>((java.lang.reflect.Method) executable);
+        } else if (executable instanceof java.lang.reflect.Constructor) {
+            return new ReflectionConstructorInvoker<T>((java.lang.reflect.Constructor<?>) executable);
+        } else {
+            throw new IllegalArgumentException("Not a method or constructor");
+        }
+    }
+
+    private static class ReflectionMethodInvoker<T> extends ReflectionInvoker<T> {
+        protected final java.lang.reflect.Method m;
+
+        public ReflectionMethodInvoker(java.lang.reflect.Method method) {
+            this.m = method;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public T invokeVA(Object instance, Object... args) {
+            try {
+                return (T) m.invoke(instance, args);
+            } catch (InvocationTargetException ex) {
+                Throwable cause = ex.getCause();
+                if (cause instanceof RuntimeException) {
+                    throw ((RuntimeException) cause);
+                } else {
+                    throw new RuntimeException("An error occurred in the invoked method", cause);
+                }
+            } catch (Throwable t) {
+                throw f(m, instance, args, t);
+            }
+        }
+    }
+
+    private static class ReflectionConstructorInvoker<T> extends ReflectionInvoker<T> {
+        protected final java.lang.reflect.Constructor<T> c;
+
+        @SuppressWarnings("unchecked")
+        public ReflectionConstructorInvoker(java.lang.reflect.Constructor<?> constructor) {
+            this.c = (Constructor<T>) constructor;
+        }
+
+        @Override
+        public T invokeVA(Object instance, Object... args) {
+            try {
+                return (T) c.newInstance(args);
+            } catch (InvocationTargetException ex) {
+                Throwable cause = ex.getCause();
+                if (cause instanceof RuntimeException) {
+                    throw ((RuntimeException) cause);
+                } else {
+                    throw new RuntimeException("An error occurred in the invoked method", cause);
+                }
+            } catch (Throwable t) {
+                throw f(c, instance, args, t);
+            }
+        }
     }
 }

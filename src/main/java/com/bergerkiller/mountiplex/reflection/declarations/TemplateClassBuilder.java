@@ -113,6 +113,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
      * 
      * @return constructed Class
      */
+    @SuppressWarnings("deprecation")
     private C buildDefault() {
         try {
             C generatedClass = this.classType.newInstance();
@@ -210,12 +211,12 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
             if (declaration instanceof MethodDeclaration) {
                 MethodDeclaration methodDec = (MethodDeclaration) declaration;
 
-                if (!methodDec.modifiers.isStatic()) {
+                if (!methodDec.modifiers.isStatic() && methodDec.constructor == null) {
                     // public int() declaration, while only public static int() is supported
                     cw.visitMethodUnsupported(method, "Local methods cannot be called statically");
                     continue;
                 }
-                if (methodDec.body == null && methodDec.method == null) {
+                if (methodDec.body == null && methodDec.method == null && methodDec.constructor == null) {
                     // not a generated method, but the method could not be found
                     cw.visitMethodUnsupported(method, "Static method '" + methodDec.name.toString() + "' was not found");
                     continue;
@@ -244,11 +245,20 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     continue;
                 }
 
-                if (methodDec.body == null && Modifier.isPublic(methodDec.method.getModifiers()) && Resolver.isPublic(this.instanceType)) {
+                boolean isPublic = (methodDec.method != null && Modifier.isPublic(methodDec.method.getModifiers())) ||
+                                   (methodDec.constructor != null && Modifier.isPublic(methodDec.constructor.getModifiers()));
+
+                if (methodDec.body == null && isPublic && Resolver.isPublic(this.instanceType)) {
+                    // static method can be called from within the method body just fine
                     mv = cw.visitMethod(ACC_PUBLIC, MPLType.getName(method), MPLType.getMethodDescriptor(method), null, null);
                     mv.visitCode();
 
-                    // static method can be called from within the method body just fine
+                    // for constructors we must perform a NEW and DUP up-front, before loading parameters
+                    if (methodDec.constructor != null) {
+                        mv.visitTypeInsn(NEW, MPLType.getInternalName(methodDec.constructor.getDeclaringClass()));
+                        mv.visitInsn(DUP);
+                    }
+
                     // load all the parameters onto the stack
                     int varIdx = 1;
                     for (ParameterDeclaration param : methodDec.parameters.parameters) {
@@ -258,20 +268,33 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                         }
                     }
 
-                    // call static method directly and proxy-return the return value
-                    mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), methodDec.name.value(),
-                            MPLType.getInternalMethodDescriptor(methodDec), false);
+                    if (methodDec.constructor != null) {
+                        // call static constructor directly and proxy-return the return value
+                        mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(this.instanceType), "<init>",
+                                MPLType.getInternalMethodDescriptor(methodDec), false);
+                    } else {
+                        // call static method directly and proxy-return the return value
+                        mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(this.instanceType), methodDec.name.value(),
+                                MPLType.getInternalMethodDescriptor(methodDec), false);
+                    }
                     if (methodDec.returnType.cast != null) {
                         ExtendedClassWriter.visitUnboxVariable(mv, methodDec.returnType.cast.type);
                     }
                     mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
-                    mv.visitMaxs(varIdx, varIdx);
+                    if (methodDec.constructor != null) {
+                        mv.visitMaxs(varIdx + 1, varIdx);
+                    } else {
+                        mv.visitMaxs(varIdx, varIdx);
+                    }
                     mv.visitEnd();
                 } else {
                     // we need to use reflection or runtime-code-gen to call this method.
                     // for this we add a static Invoker field to handle initialization/execution for us
                     // the invoker is initialized in such a way that, when first called, it will update the field storing it
                     String invoker_name = methodDec.name.real() + "_invoker_" + (fieldNameIdx++);
+                    if (invoker_name.startsWith("<init>_")) {
+                        invoker_name = "initializer_" + invoker_name.substring(7); // Fix invalid names
+                    }
                     cw.visitStaticInvokerField(invoker_name, methodDec);
 
                     // Add a method body that calls the invoker's invoke() method

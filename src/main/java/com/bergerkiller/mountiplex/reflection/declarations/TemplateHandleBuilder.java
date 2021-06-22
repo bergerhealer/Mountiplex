@@ -13,7 +13,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastConstructor;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
-import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedInvoker;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedExactSignatureInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
 import org.objectweb.asm.ClassWriter;
@@ -55,7 +55,7 @@ public class TemplateHandleBuilder<H extends Handle> {
 
     private static boolean isGeneratedInvoker(Template.TemplateElement<?> templateElement) {
         return templateElement instanceof Template.AbstractMethod &&
-               ((Template.AbstractMethod<?>) templateElement).invoker instanceof GeneratedInvoker;
+               ((Template.AbstractMethod<?>) templateElement).invoker instanceof GeneratedExactSignatureInvoker;
     }
 
     @SuppressWarnings("unchecked")
@@ -297,7 +297,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                 } else if (isGeneratedInvoker(templateElement)) {
                     // Can cast invoker to a runtime-generated interface and call that directly
                     // Note: these are only local methods, static methods aren't generated here
-                    GeneratedInvoker<?> invoker = (GeneratedInvoker<?>) ((Template.AbstractMethod<?>) templateElement).invoker;
+                    GeneratedExactSignatureInvoker<?> invoker = (GeneratedExactSignatureInvoker<?>) ((Template.AbstractMethod<?>) templateElement).invoker;
                     String interfaceType = MPLType.getInternalName(invoker.getInterface());
 
                     mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);

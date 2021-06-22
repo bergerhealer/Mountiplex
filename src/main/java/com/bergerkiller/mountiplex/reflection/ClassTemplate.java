@@ -782,7 +782,7 @@ public class ClassTemplate<T> {
 
         // Find the exact method
         for (MethodDeclaration method : typeMethods) {
-            if (declare.match(method)) {
+            if (declare.match(method) && method.method != null) {
                 try {
                     method.method.setAccessible(true);
                     return method.method;

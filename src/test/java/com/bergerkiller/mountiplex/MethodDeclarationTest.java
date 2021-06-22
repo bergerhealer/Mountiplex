@@ -382,4 +382,63 @@ public class MethodDeclarationTest {
         method.init(dec);
         assertEquals("success", method.invoke(null).toString());
     }
+
+    // Tests that when generating a #require body that involves a public type
+    // and public constructor, it puts a 'new' expression as a replacement
+    @Test
+    public void testMethodWithPublicClassConstructorRequirement() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(TestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public static com.bergerkiller.mountiplex.types.TestObject makeTestClass() {\n" +
+                "  #require com.bergerkiller.mountiplex.types.TestObject public TestObject constr_name:<init>();\n" +
+                "  return #constr_name();\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        assertEquals(
+                "{\n" +
+                "  return new MPL_NOREMAP$com.bergerkiller.mountiplex.types.TestObject();\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("public TestObject constr_name:<init>();", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Object> method = new FastMethod<Object>();
+        method.init(dec);
+        assertTrue(method.invoke(null) instanceof TestObject);
+    }
+
+    // Tests that when generating a #require body that involves a private type,
+    // it correctly uses Object in place of the actual type to avoid illegal access errors.
+    // Calls a constructor.
+    @Test
+    public void testMethodWithPrivateClassConstructorRequirement() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(SpeedTestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver, 
+                "public static com.bergerkiller.mountiplex.types.HiddenClass makeHiddenClass() {\n" +
+                "  #require com.bergerkiller.mountiplex.types.HiddenClass public HiddenClass constr_name:<init>();\n" +
+                "  return #constr_name();\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        assertEquals(
+                "{\n" +
+                "  return this.constr_name(null);\n" +
+                "}\n",
+                dec.body);
+        assertEquals(1, dec.bodyRequirements.length);
+        assertEquals("public HiddenClass constr_name:<init>();", dec.bodyRequirements[0].declaration.toString());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Object> method = new FastMethod<Object>();
+        method.init(dec);
+        assertEquals("success", method.invoke(null).toString());
+    }
 }

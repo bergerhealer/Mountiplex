@@ -198,7 +198,10 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
             return (InitInvoker<T>) InitGeneratedCodeInvoker.generate(instance, accessor, method);
         } else if (method.method != null) {
             // Runtime-generated method invoker, or one using reflection
-            return new InitGeneratedMethodInvoker<T>(instance, accessor, method.method);
+            return new InitGeneratedExecutableInvoker<T>(instance, accessor, method.method);
+        } else if (method.constructor != null) {
+            // Runtime-generated constructor invoker, or one using reflection
+            return new InitGeneratedExecutableInvoker<T>(instance, accessor, method.constructor);
         } else {
             return unavailable("method", method.toString());
         }
@@ -271,26 +274,26 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
     }
 
     /**
-     * Helper class that initializes a runtime-generated invoker based on a Method signature.
-     * Generates a class that calls the method directly. If calling the method is not possible,
+     * Helper class that initializes a runtime-generated invoker based on a Method or Constructor signature.
+     * Generates a class that calls the method or constructor directly. If calling is not possible,
      * reflection is initialized and a reflection invoker is created instead.
      *
      * @param <T>
      */
-    private static final class InitGeneratedMethodInvoker<T> extends InitInvoker<T> {
-        private final java.lang.reflect.Method method;
+    private static final class InitGeneratedExecutableInvoker<T> extends InitInvoker<T> {
+        private final java.lang.reflect.Executable executable;
 
-        protected InitGeneratedMethodInvoker(Object instance, FieldAccessor<Invoker<T>> accessor, java.lang.reflect.Method method) {
+        protected InitGeneratedExecutableInvoker(Object instance, FieldAccessor<Invoker<T>> accessor, java.lang.reflect.Executable executable) {
             super(instance, accessor);
-            this.method = method;
+            this.executable = executable;
         }
 
         @Override
         protected Invoker<T> create() {
-            if (GeneratedMethodInvoker.canCreate(method)) {
-                return GeneratedMethodInvoker.create(method);
+            if (GeneratedInvoker.canCreate(executable)) {
+                return GeneratedInvoker.create(executable);
             } else {
-                return ReflectionInvoker.create(method);
+                return ReflectionInvoker.create(executable);
             }
         }
     }
@@ -302,7 +305,7 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
      *
      * @param <T>
      */
-    public static abstract class InitGeneratedCodeInvoker extends InitInvoker<Object> implements GeneratedInvoker<Object> {
+    public static abstract class InitGeneratedCodeInvoker extends InitInvoker<Object> implements GeneratedExactSignatureInvoker<Object> {
         private final MethodDeclaration method;
 
         protected InitGeneratedCodeInvoker(Object instance, FieldAccessor<Invoker<Object>> accessor, MethodDeclaration methodDeclaration) {
@@ -317,7 +320,7 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
 
         public static <T> InitGeneratedCodeInvoker generate(Object instance, FieldAccessor<Invoker<T>> accessor, MethodDeclaration methodDeclaration) {
             // Generate the interface implementing the method signature
-            Class<?> interfaceClass = GeneratedInvoker.generateInterface(methodDeclaration);
+            Class<?> interfaceClass = GeneratedExactSignatureInvoker.generateInterface(methodDeclaration);
 
             // Extend InitGeneratedMethodInvoker and implement the interface class
             ExtendedClassWriter<InitGeneratedCodeInvoker> cw = ExtendedClassWriter.builder(InitGeneratedCodeInvoker.class)

@@ -778,7 +778,7 @@ public class Template {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
             for (MethodDeclaration methodDec : dec.methods) {
-                if ((methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
+                if ((methodDec.constructor != null || methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
                     if (!methodDec.isResolved()) {
                         initFail("Method '" + name + "' has an unresolved declaration: " + methodDec);
                         return null;

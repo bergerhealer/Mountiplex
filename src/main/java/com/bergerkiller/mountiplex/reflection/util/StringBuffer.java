@@ -77,6 +77,14 @@ public final class StringBuffer implements CharSequence {
         return new StringBuffer(this, start, this.buffer_length - start);
     }
 
+    public boolean substringEquals(int start, int end, String text) {
+        if (start < 0 || ((end - start) > this.length())) {
+            return false;
+        } else {
+            return this.substringToString(start, end).equals(text);
+        }
+    }
+
     public StringBuffer prepend(String token) {
         int token_len = token.length();
         if (token_len == 0) {
