@@ -2,13 +2,10 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import static org.objectweb.asm.Opcodes.*;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -58,15 +55,15 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
 
         // Identify what instance type is represented by this Class
         // If we can't deduce it, assume Object for maximum compatibility
-        this.instanceClassPath = recurseFindAnnotationValue(classType, Template.InstanceType.class,
+        this.instanceClassPath = ReflectionUtil.recurseFindAnnotationValue(classType, Template.InstanceType.class,
                 Template.InstanceType::value, "java.lang.Object");
 
         // Identify whether the Optional annotation is specified
-        this.isOptional = recurseFindAnnotationValue(classType, Template.Optional.class,
+        this.isOptional = ReflectionUtil.recurseFindAnnotationValue(classType, Template.Optional.class,
                 (a) -> Boolean.TRUE, Boolean.FALSE);
 
         // Identify package path that is used while parsing signatures
-        this.classPackage = recurseFindAnnotationValue(classType, Template.Package.class,
+        this.classPackage = ReflectionUtil.recurseFindAnnotationValue(classType, Template.Package.class,
                 Template.Package::value, null);
 
         // Identify all the imports that will be used by this class
@@ -370,24 +367,5 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
         C generatedClass = cw.generateInstance(new Class[0], new Object[0]);
         generatedClass.init(this);
         return generatedClass;
-    }
-
-    /**
-     * Recursively looks up the Class hierarchy to find the first annotation of a given type.
-     * If found, the property of the annotation as specified is returned. If not found, the
-     * default value is returned instead.
-     * 
-     * @param type The Class type from which to recursively look for the annotation
-     * @param annotationClass Annotation class type to find
-     * @param method Method of the annotation class type to call
-     * @param defaultValue Default value to return if the annotation is not found
-     * @return value
-     */
-    private static <A extends Annotation, V> V recurseFindAnnotationValue(java.lang.Class<?> type, java.lang.Class<A> annotationClass, Function<A, V> method, V defaultValue) {
-        return ReflectionUtil.getAllDeclaringClasses(type)
-            .map(t -> t.getAnnotation(annotationClass))
-            .filter(Objects::nonNull)
-            .map(method)
-            .findFirst().orElse(defaultValue);
     }
 }

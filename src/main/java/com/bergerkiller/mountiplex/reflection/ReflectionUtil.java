@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -8,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -330,6 +333,25 @@ public class ReflectionUtil {
             }
         }
         return lowestSubClass;
+    }
+
+    /**
+     * Recursively looks up the Class hierarchy to find the first annotation of a given type.
+     * If found, the property of the annotation as specified is returned. If not found, the
+     * default value is returned instead.
+     * 
+     * @param type The Class type from which to recursively look for the annotation
+     * @param annotationClass Annotation class type to find
+     * @param method Method of the annotation class type to call
+     * @param defaultValue Default value to return if the annotation is not found
+     * @return value
+     */
+    public static <A extends Annotation, V> V recurseFindAnnotationValue(java.lang.Class<?> type, java.lang.Class<A> annotationClass, Function<A, V> method, V defaultValue) {
+        return getAllDeclaringClasses(type)
+            .map(t -> t.getAnnotation(annotationClass))
+            .filter(Objects::nonNull)
+            .map(method)
+            .findFirst().orElse(defaultValue);
     }
 
     /**

@@ -12,15 +12,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
+import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedHook;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
@@ -153,6 +156,25 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         HookImport[] value();
     }
 
+    /**
+     * Declares what Class Declaration Resolver to use as a source
+     * for variables when evaluating method conditionals.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface HookLoadVariables {
+        String value();
+    }
+
+    /**
+     * Declares that for the method to be hooked, the conditional
+     * in the text body must evaluate true
+     */
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface HookMethodCondition {
+        String value();
+    }
+
     private static HookMethodList loadMethodList(Class<?> hookClass) {
         if (!ClassHook.class.isAssignableFrom(hookClass)) {
             return new HookMethodList();
@@ -167,8 +189,11 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             for (Method method : hookClass.getDeclaredMethods()) {
                 HookMethod hm = method.getAnnotation(HookMethod.class);
                 if (hm != null) {
-                    list.entries.add(new HookMethodEntry(list,
-                            method, hm.value(), hm.optional()));
+                    HookMethodEntry entry = new HookMethodEntry(list,
+                            method, hm.value(), hm.optional());
+                    if (entry.enabled) {
+                        list.entries.add(entry);
+                    }
                 }
             }
 
@@ -184,11 +209,13 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         public final List<HookMethodEntry> entries = new ArrayList<HookMethodEntry>();
         public final String[] classImports;
         public final String classPackage;
+        public final ClassDeclarationResolver variablesResolver;
 
         public HookMethodList() {
             this.hookClassLoader = HookMethodList.class.getClassLoader();
             this.classImports = new String[0];
             this.classPackage = null;
+            this.variablesResolver = null;
         }
 
         public HookMethodList(Class<?> hookClassType) {
@@ -201,6 +228,9 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
             HookPackage packageAnnot = hookClassType.getAnnotation(HookPackage.class);
             this.classPackage = (packageAnnot == null) ? null : packageAnnot.value();
+            this.variablesResolver = loadHookVariablesResolver(hookClassType,
+                    ReflectionUtil.recurseFindAnnotationValue(hookClassType,
+                            HookLoadVariables.class, HookLoadVariables::value, null));
         }
     }
 
@@ -228,6 +258,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         public final HookMethodList owner;
         public final String declaration;
         public final boolean optional;
+        public final boolean enabled;
         public final Method method;
         public final String[] hookImports;
         public final String hookPackage;
@@ -281,6 +312,23 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
             HookPackage hookAnnot = method.getAnnotation(HookPackage.class);
             this.hookPackage = (hookAnnot == null) ? null : hookAnnot.value();
+
+            HookMethodCondition conditionAnnot = method.getAnnotation(HookMethodCondition.class);
+            if (conditionAnnot != null) {
+                ClassResolver resolver = new ClassResolver();
+                resolver.setDeclaredClass(Object.class); // Eh.
+                {
+                    HookLoadVariables loadVarsAnnot = method.getAnnotation(HookLoadVariables.class);
+                    ClassDeclarationResolver variablesLoader = (loadVarsAnnot == null) ? list.variablesResolver
+                            : loadHookVariablesResolver(method.getDeclaringClass(), loadVarsAnnot.value());
+                    if (variablesLoader != null) {
+                        resolver.setAllVariables(variablesLoader);
+                    }
+                }
+                this.enabled = resolver.evaluateExpression(conditionAnnot.value());
+            } else {
+                this.enabled = true;
+            }
         }
 
         @Override
@@ -329,6 +377,26 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
                 }
             }
             return m;
+        }
+    }
+
+    private static ClassDeclarationResolver loadHookVariablesResolver(Class<?> declaringClass, String code) {
+        if (code == null) {
+            return null;
+        }
+        try {
+            ClassResolver resolver = new ClassResolver();
+            resolver.setDeclaredClass(ClassDeclarationResolver.class);
+            MethodDeclaration decl = new MethodDeclaration(resolver,
+                    "public static ClassDeclarationResolver run() {\n" +
+                    "    return " +code + ";\n" +
+                    "}");
+            GeneratedCodeInvoker<ClassDeclarationResolver> invoker = GeneratedCodeInvoker.create(decl);
+            return invoker.invoke(null);
+        } catch (Throwable t) {
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize hook load variables: " + code, t);
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to load Hook Variables for " + declaringClass.getName());
+            return null;
         }
     }
 }

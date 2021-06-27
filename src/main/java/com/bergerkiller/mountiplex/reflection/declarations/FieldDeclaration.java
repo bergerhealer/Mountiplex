@@ -410,7 +410,7 @@ public class FieldDeclaration extends Declaration {
                     .toArray(FieldDeclaration[]::new);
         }
         sortSimilarity(this, alternatives);
-        FieldLCSResolver.logAlternatives("field", alternatives, this, true);
+        FieldLCSResolver.logAlternatives("field", alternatives, this.resolveName(), true);
     }
 
     /**
