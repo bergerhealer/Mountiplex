@@ -153,6 +153,35 @@ public interface FieldAccessor<T> {
     }
 
     /**
+     * Wraps a getter and setter converted template method to get and set a 'field' value
+     *
+     * @param <T> Value type
+     * @param getter Getter template method
+     * @param setter Setter template method
+     * @return field accessor
+     */
+    public static <T> FieldAccessor<T> wrapMethods(final Template.Method.Converted<T> getter, final Template.Method.Converted<Void> setter) {
+        final boolean valid = getter.isAvailable() && setter.isAvailable();
+        return new SafeDirectField<T>() {
+            @Override
+            public T get(Object instance) {
+                return getter.invoke(instance);
+            }
+
+            @Override
+            public boolean set(Object instance, T value) {
+                setter.invoke(instance, value);
+                return true;
+            }
+
+            @Override
+            public boolean isValid() {
+                return valid;
+            }
+        };
+    }
+
+    /**
      * Wraps a getter and setter method accessor to get and set a 'field' value
      *
      * @param <T> Value type
