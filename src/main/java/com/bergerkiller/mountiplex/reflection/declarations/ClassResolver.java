@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.logic.TextValueSequence;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -553,7 +554,7 @@ public class ClassResolver {
         }
         String operand = expression.substring(0, logicEndIdx);
         String value2 = expression.substring(logicEndIdx + 1).trim();
-        return MountiplexUtil.evaluateText(value1, operand, value2) != inverted;
+        return TextValueSequence.evaluateText(value1, operand, value2) != inverted;
     }
 
     /**
