@@ -5,6 +5,7 @@ import java.util.logging.Level;
 import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
 /**
@@ -15,15 +16,13 @@ public class MethodMatchResolver {
     public static void match(Class<?> declaringClass, ClassResolver resolver, MethodDeclaration[] methods) {
         // Merge declared and public methods as one long array
         // Skip declared methods that are public - they are already in the list
-        // Skip methods that are volatile, they are duplicates of non-volatile methods
-        // declared in a base class
         MethodDeclaration[] realMethods;
         try {
             realMethods = Stream.concat(
-                    Stream.of(declaringClass.getMethods()),
-                    Stream.of(declaringClass.getDeclaredMethods())
-                            .filter(m -> !Modifier.isPublic(m.getModifiers()))
-            ).filter(m -> !Modifier.isVolatile(m.getModifiers()))
+                    ReflectionUtil.getDeclaredMethods(declaringClass),
+                    ReflectionUtil.getMethods(declaringClass)
+                        .filter(m -> !Modifier.isStatic(m.getModifiers()))
+            ).filter(ReflectionUtil.createDuplicateMethodFilter())
              .map(m -> new MethodDeclaration(resolver, m))
              .toArray(MethodDeclaration[]::new);
         } catch (Throwable t) {

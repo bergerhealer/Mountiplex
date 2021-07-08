@@ -8,14 +8,19 @@ import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.util.function.Supplier;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
@@ -46,9 +51,9 @@ public class ClassBytecodeLoader {
      */
     public static InputStream getResourceAsStream(Class<?> clazz) {
         String filename = '/' + MPLType.getInternalName(clazz) + ".class";
-        InputStream stream = ClassBytecodeLoader.class.getResourceAsStream(filename);
+        InputStream stream = cleanBytecode(() -> ClassBytecodeLoader.class.getResourceAsStream(filename));
         if (stream == null) {
-            stream = new ByteArrayInputStream(generateMockByteCode(clazz));
+            return new ByteArrayInputStream(generateMockByteCode(clazz));
         }
         return stream;
     }
@@ -149,7 +154,7 @@ public class ClassBytecodeLoader {
 
         // Add all the methods
         for (Method method : clazz.getDeclaredMethods()) {
-            mv = cw.visitMethod(method.getModifiers(),
+            mv = cw.visitMethod(method.getModifiers() & ~Modifier.VOLATILE,
                     MPLType.getName(method),
                     MPLType.getMethodDescriptor(method),
                     null, /* signature */
@@ -160,6 +165,45 @@ public class ClassBytecodeLoader {
         // Done
         cw.visitEnd();
         return cw.toByteArray();
+    }
+
+    /**
+     * Cleans up the Bytecode of a .class file resource before javassist processes it.
+     * This primarily fixes a problem that occurs when class files contain methods with
+     * the 'BRIDGE' modifier set. It causes Javassist to not find those methods anymore.
+     *
+     * @param streamSupplier Supplies the input stream to read. May be called upon twice.
+     * @return input stream
+     */
+    private static InputStream cleanBytecode(Supplier<InputStream> streamSupplier) {
+        try (InputStream stream = streamSupplier.get()) {
+            if (stream == null) {
+                return null;
+            }
+
+            // Modify the class bytecode so that methods do not get the 'bridge' (volatile) modifier
+            // Keeping that modifier in causes javassist to break completely and be unable to locate
+            // any of the methods in the class.
+            ClassReader reader = new ClassReader(stream);
+            ClassWriter writer = new ClassWriter(0);
+            reader.accept(new ClassVisitor(Opcodes.ASM7, writer) {
+                @Override
+                public MethodVisitor visitMethod(
+                        final int access,
+                        final String name,
+                        final String descriptor,
+                        final String signature,
+                        final String[] exceptions
+                ) {
+                    return super.visitMethod(access & ~Opcodes.ACC_BRIDGE, name, descriptor, signature, exceptions);
+                }
+            }, 0);
+
+            return new ByteArrayInputStream(writer.toByteArray());
+        } catch (IOException | IllegalArgumentException ex) { /* ignore */ }
+
+        // If this operation fails for any reason, just return the original inputstream.
+        return streamSupplier.get();
     }
 
     // Used to resolve Java's own types
@@ -183,15 +227,15 @@ public class ClassBytecodeLoader {
             // Ask ClassLoader first
             // Check loading from .class is allowed
             if (Resolver.canLoadClassPath(classname)) {
-                String filename = classname.replace('.', '/') + ".class";
+                final String filename = classname.replace('.', '/') + ".class";
 
                 // The world!
-                if ((result = fallbackClassLoader.getResourceAsStream(filename)) != null) {
+                if ((result = cleanBytecode(() -> fallbackClassLoader.getResourceAsStream(filename))) != null) {
                     return result;
                 }
 
                 // Mountiplex's own types
-                if (!fallbackIsMountiplex && (result = mountiplexClassLoader.getResourceAsStream(filename)) != null) {
+                if (!fallbackIsMountiplex && (result = cleanBytecode(() -> mountiplexClassLoader.getResourceAsStream(filename))) != null) {
                     return result;
                 }
 

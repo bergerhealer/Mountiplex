@@ -70,7 +70,7 @@ public class MethodDeclaration extends Declaration {
 
         this.method = method;
         this.constructor = null;
-        this.modifiers = new ModifierDeclaration(resolver, method.getModifiers());
+        this.modifiers = new ModifierDeclaration(resolver, method.getModifiers() & ~Modifier.VOLATILE);
         this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
         this.name = new NameDeclaration(resolver, name, alias);
         this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());

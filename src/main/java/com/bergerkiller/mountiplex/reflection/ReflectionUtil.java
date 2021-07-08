@@ -209,27 +209,63 @@ public class ReflectionUtil {
     }
 
     /**
-     * Gets a stream of methods declared inside a Class
+     * Gets a stream of methods declared inside a Class.
+     * The methods are sorted in such a way that overriding methods
+     * are returned before the base-class (synthetic) methods.
      * 
      * @param clazz
      * @return declared methods
      */
     public static Stream<Method> getDeclaredMethods(Class<?> clazz) {
-        return Stream.of(clazz.getDeclaredMethods());
+        return Stream.of(sortSyntheticMethods(clazz.getDeclaredMethods()));
+    }
+
+    /**
+     * Gets a stream of methods publicly visible inside a Class.
+     * The methods are sorted in such a way that overriding methods
+     * are returned before the base-class (synthetic) methods.
+     * 
+     * @param clazz
+     * @return public methods
+     */
+    public static Stream<Method> getMethods(Class<?> clazz) {
+        return Stream.of(sortSyntheticMethods(clazz.getMethods()));
+    }
+
+    private static Method[] sortSyntheticMethods(Method[] methods) {
+        Arrays.sort(methods, 0, methods.length, (m1, m2) -> {
+            // Method signature must match, otherwise preserve the natural method order
+            // We check in such a way to be most performant
+            int mods = m1.getModifiers() | m2.getModifiers();
+            if (Modifier.isPrivate(mods) || Modifier.isStatic(mods)
+                || !MPLType.getName(m1).equals(MPLType.getName(m2))
+                || !Arrays.equals(m1.getParameterTypes(), m2.getParameterTypes())
+                || m1.getReturnType().equals(m2.getReturnType())
+            ) {
+                return 0;
+            } else if (m1.getReturnType().isAssignableFrom(m2.getReturnType())) {
+                return 1;
+            } else {
+                return -1;
+            }
+        });
+        return methods;
     }
 
     /**
      * Gets all methods declared in a Class, its superclasses and
      * all its interfaces all the way down. If the input class is null,
      * then an empty stream is returned. Duplicate method
-     * signatures are not removed.
+     * signatures are excluded, so methods overrided from base classes
+     * get the type signatures of the implementing class.
      * 
      * @param clazz
      * @return stream of methods declared in the clazz, its superclasses and interfaces
      */
     public static Stream<Method> getAllMethods(Class<?> clazz) {
         return getAllClassesAndInterfaces(clazz)
-                .flatMap(ReflectionUtil::getDeclaredMethods);
+                .flatMap(ReflectionUtil::getDeclaredMethods)
+                .filter(createDuplicateMethodFilter());
     }
 
     /**
@@ -287,7 +323,7 @@ public class ReflectionUtil {
      * @return stringified method signature
      */
     public static String stringifyMethodSignature(Method method) {
-        String str = Modifier.toString(method.getModifiers());
+        String str = Modifier.toString(method.getModifiers() & ~Modifier.VOLATILE);
         str += " " + stringifyType(method.getReturnType());
         str += " " + MPLType.getName(method);
         str += "(";

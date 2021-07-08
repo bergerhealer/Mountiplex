@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
@@ -49,11 +50,10 @@ public class ClassDeclaration extends Declaration {
         for (java.lang.reflect.Field field : type.getDeclaredFields()) {
             fields.add(new FieldDeclaration(getResolver(), field));
         }
-        for (java.lang.reflect.Method method : type.getDeclaredMethods()) {
-            if (!Modifier.isVolatile(method.getModifiers())) {
-                methods.add(new MethodDeclaration(getResolver(), method));
-            }
-        }
+        ReflectionUtil.getDeclaredMethods(type)
+            .filter(ReflectionUtil.createDuplicateMethodFilter())
+            .map(m -> new MethodDeclaration(getResolver(), m))
+            .forEachOrdered(methods::add);
         for (java.lang.Class<?> decClass : type.getDeclaredClasses()) {
             classes.add(new ClassDeclaration(getResolver(), decClass));
         }
