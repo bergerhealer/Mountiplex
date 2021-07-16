@@ -19,6 +19,9 @@ public class SourceDeclarationTest {
                            "#else\n" +
                              "THIS SHOULD NOT EVALUATE, PREVIOUS CLASS EXISTED\n" +
                            "#endif\n" +
+                           "#if exists java.lang.String public String toString(); && !exists java.lang.MissingType;\n" +
+                             "THIS SHOULD EVALUATE BECAUSE BOTH EXPRESSIONS ARE TRUE\n" +
+                           "#endif\n" +
                            "#if test >= 1.22.0\n" +
                              "THIS SHOULD EVALUATE\n" +
                              "#if dummy == 11\n" +
@@ -74,6 +77,7 @@ public class SourceDeclarationTest {
         String expected = "#set test 1.23.55\n" +
                           "#set dummy 12\n" +
                           "THIS SHOULD EVALUATE BECAUSE THE CLASS EXISTS\n" +
+                          "THIS SHOULD EVALUATE BECAUSE BOTH EXPRESSIONS ARE TRUE\n" +
                           "THIS SHOULD EVALUATE\n" +
                           "DUMMY==12 SHOULD EVALUATE\n" +
                           "AFTER ENDIF SHOULD EVALUATE\n" +

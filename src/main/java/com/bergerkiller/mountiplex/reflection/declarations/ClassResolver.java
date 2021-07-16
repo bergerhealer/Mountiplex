@@ -474,7 +474,7 @@ public class ClassResolver {
         String varName = null;
         for (int cIdx = 0; cIdx < expression.length(); cIdx++) {
             char c = expression.charAt(cIdx);
-            if (cIdx == ' ' || (!Character.isLetter(c) && c != '_')) {
+            if (c == ' ' || (!Character.isLetter(c) && c != '_' && c != '!')) {
                 varName = expression.substring(0, cIdx);
                 expression = expression.substring(cIdx).trim();
                 break;
@@ -504,6 +504,9 @@ public class ClassResolver {
             } else {
                 classPath = expression.substring(0, signatureStart);
                 signatureStart++;
+            }
+            while (classPath.endsWith(";")) {
+                classPath = classPath.substring(0, classPath.length() - 1);
             }
 
             // Find class that the object is declared in
