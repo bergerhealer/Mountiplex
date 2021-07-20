@@ -27,7 +27,7 @@ import javassist.compiler.ast.Symbol;
  */
 public final class MPLMemberResolver extends MemberResolver {
     /**
-     * Field and method names with this prefix are ignored when doing name remapping.
+     * Field, method and class names with this prefix are ignored when doing name remapping.
      * The prefix is removed prior to compiling.
      */
     public static final String IGNORE_PREFIX = "MPL_NOREMAP$";
@@ -43,10 +43,35 @@ public final class MPLMemberResolver extends MemberResolver {
      */
     private final ResolvedClassPool resolvedClassPool;
     private FailedLocalFieldLookup lastFailedLocalFieldLookup = null;
+    /**
+     * See {@link #setIsResolvingMethodCallFieldType(boolean)} javadoc!
+     */
+    private boolean isResolvingMethodCallFieldType = false;
 
     public MPLMemberResolver(ResolvedClassPool cp) {
         super(cp);
         resolvedClassPool = cp;
+    }
+
+    /**
+     * While resolving a method call inside a method body, it is not sure whether the method
+     * is called on a (in-method) field or on the class (static). While in this state it will
+     * call either lookupClass() or lookupClassByJvmName(). If lookupClass is called, it was
+     * a static invoke (or Object) and resolving the type is fine. If lookupClassByJvmName()
+     * was called, then it's being invoked on an existing field type, and we must make sure
+     * not to resolve again!
+     *
+     * Make sure to call with false in a finally block to properly reset state!
+     *
+     * @param isResolving Whether currently resolving
+     */
+    public void setIsResolvingMethodCallFieldType(boolean isResolving) {
+        isResolvingMethodCallFieldType = isResolving;
+    }
+
+    @Override
+    public ResolvedClassPool getClassPool() {
+        return resolvedClassPool;
     }
 
     // Remaps the methodName symbol of a local or static method call
@@ -56,9 +81,19 @@ public final class MPLMemberResolver extends MemberResolver {
             int[] argTypes, int[] argDims,
             String[] argClassNames) throws CompileError
     {
-        return super.lookupMethod(clazz, currentClass, current,
-                preprocessMethodName(clazz, methodName, argTypes, argDims, argClassNames),
-                argTypes, argDims, argClassNames);
+        // Resolve 'true' name of the method
+        String actualMethodName = preprocessMethodName(clazz, methodName, argTypes, argDims, argClassNames);
+
+        // While looking up method, do not resolve any more types
+        // After all, all types are already resolved, including the CtClass super classes and such
+        // TODO: Should we resolve the input argClassNames? It looks like the types are inferred,
+        //       so there should be no further need to resolve.
+        try {
+            resolvedClassPool.setIgnoreRemapper(true);
+            return super.lookupMethod(clazz, currentClass, current, actualMethodName, argTypes, argDims, argClassNames);
+        } finally {
+            resolvedClassPool.setIgnoreRemapper(false);
+        }
     }
 
     // Remaps the fieldName symbol of a local field
@@ -77,7 +112,13 @@ public final class MPLMemberResolver extends MemberResolver {
         }
 
         try {
-            return cc.getField(fieldName.get());
+            // No remapping, in case fields are queried of super classes this can cause a resolving loop!
+            try {
+                resolvedClassPool.setIgnoreRemapper(true);
+                return cc.getField(fieldName.get());
+            } finally {
+                resolvedClassPool.setIgnoreRemapper(false);
+            }
         }
         catch (NotFoundException e) {}
 
@@ -157,6 +198,10 @@ public final class MPLMemberResolver extends MemberResolver {
     public CtClass lookupClass(String name, boolean notCheckInner)
             throws CompileError
     {
+        // Nope! We're resolving a (static) class name. No (local) field name was matched.
+        // Make sure resolving is allowed like normal.
+        isResolvingMethodCallFieldType = false;
+
         Map<String,String> cache;
         try {
             cache = (Map<String,String>) getInvalidNamesMethod.invoke(this);
@@ -179,6 +224,23 @@ public final class MPLMemberResolver extends MemberResolver {
         return super.lookupClass(name, notCheckInner);
     }
 
+    @Override
+    public CtClass lookupClassByJvmName(String jvmName) throws CompileError {
+        if (isResolvingMethodCallFieldType) {
+            isResolvingMethodCallFieldType = false; // Only once
+            String name = jvmToJavaName(jvmName);
+
+            // If name could potentially clash, slap an IGNORE_PREFIX in front
+            if (!name.startsWith(IGNORE_PREFIX) && !Resolver.resolveClassPath(name).equals(name)) {
+                name = IGNORE_PREFIX + name;
+            }
+
+            return lookupClass(name, false);
+        } else {
+            return lookupClass(jvmToJavaName(jvmName), false);
+        }
+    }
+
     // Remaps the name of a field
     // If it starts with the IGNORE_PREFIX, then the original field name
     // without the IGNORE_PREFIX is returned.
@@ -193,7 +255,13 @@ public final class MPLMemberResolver extends MemberResolver {
 
         // Check for GeneratedCodeInvoker first, for better performance, since this one occurs all the time
         try {
-            CtClass superClazz = clazz.getSuperclass();
+            CtClass superClazz;
+            try {
+                this.resolvedClassPool.setIgnoreRemapper(true);
+                superClazz = clazz.getSuperclass();
+            } finally {
+                this.resolvedClassPool.setIgnoreRemapper(false);
+            }
             if (superClazz != null && superClazz.getName().equals(GENERATED_CODE_INVOKER_NAME)) {
                 return fieldName;
             }

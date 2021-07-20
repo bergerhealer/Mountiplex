@@ -48,6 +48,7 @@ public final class MPLJvstCodeGen extends JvstCodeGen {
 
     public MPLJvstCodeGen(Bytecode b, CtClass cc, ResolvedClassPool cp) {
         super(b, cc, cp);
+        this.setTypeChecker(new MPLJvstTypeChecker(cc, cp, this));
         this.resolver = new MPLMemberResolver(cp);
 
         // Also change MemberResolver of the TypeChecker
@@ -64,6 +65,7 @@ public final class MPLJvstCodeGen extends JvstCodeGen {
             ASTList args, boolean isStatic, boolean isSpecial,
             int aload0pos, MemberResolver.Method found) throws CompileError
     {
+        // Normal code resumes here
         int nargs = getMethodArgsLength(args);
         int[] types = new int[nargs];
         int[] dims = new int[nargs];

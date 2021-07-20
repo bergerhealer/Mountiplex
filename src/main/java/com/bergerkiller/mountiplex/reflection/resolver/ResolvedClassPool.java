@@ -95,6 +95,17 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
         }
     }
 
+    /**
+     * Sets whether to ignore the class name remapper for all following class
+     * resolving instructions. This flag should always be cleared in a
+     * finally block!
+     *
+     * @param ignore
+     */
+    public void setIgnoreRemapper(boolean ignore) {
+        this.ignoreRemapper = ignore;
+    }
+
     @Override
     public CtClass get(String classname) throws NotFoundException {
         if (ignoreRemapper) {
