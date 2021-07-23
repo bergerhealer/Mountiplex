@@ -436,7 +436,11 @@ public class MPLType {
      * @throws ClassNotFoundException if not found
      */
     public static Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
-        return helper.getClassByName(name, initialize, classLoader);
+        try {
+            return helper.getClassByName(name, initialize, classLoader);
+        } catch (IllegalStateException ex) {
+            throw new ClassNotFoundException("Failed to load class " + name, ex);
+        }
     }
 
     /**
@@ -447,7 +451,11 @@ public class MPLType {
      * @throws ClassNotFoundException if not found
      */
     public static Class<?> getClassByName(String name) throws ClassNotFoundException {
-        return helper.getClassByName(name, false, MPLType.class.getClassLoader());
+        try {
+            return helper.getClassByName(name, false, MPLType.class.getClassLoader());
+        } catch (IllegalStateException ex) {
+            throw new ClassNotFoundException("Failed to load class " + name, ex);
+        }
     }
 
     /*
@@ -460,6 +468,7 @@ public class MPLType {
     }
     */
 
+    @SuppressWarnings("deprecation")
     private static MPLTypeHelper generateNoRemappingHelper() {
         String interfaceName = MPLTypeHelper.class.getName().replace('.', '/');
         String internalName = MPLType.class.getName().replace('.', '/') + "$HelperImpl";
