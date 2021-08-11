@@ -225,7 +225,7 @@ public class FieldDeclaration extends Declaration {
                 StringBuilder replacement = new StringBuilder();
                 if (Modifier.isStatic(modifiers)) {
                     // Replace with ClassName.fieldName
-                    replacement.append(MPLType.getName(fieldDeclaringClass));
+                    replacement.append(ReflectionUtil.getAccessibleTypeName(fieldDeclaringClass));
                 } else {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
@@ -285,7 +285,7 @@ public class FieldDeclaration extends Declaration {
                 // Get the field directly, not using the requirements
                 if (Modifier.isStatic(modifiers)) {
                     // Replace with ClassName.fieldName
-                    replacement.append(MPLType.getName(fieldDeclaringClass));
+                    replacement.append(ReflectionUtil.getAccessibleTypeName(fieldDeclaringClass));
                 } else {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
