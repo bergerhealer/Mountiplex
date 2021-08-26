@@ -889,15 +889,12 @@ public class TypeDeclaration extends Declaration {
     /**
      * Gets the Type Declaration of a standard Class type
      * 
-     * @param classType to turn into a Type Declaration
+     * @param classType to turn into a Type Declaration.
+     *        Using null with yield {@link #INVALID}
      * @return Type Declaration
      */
     public static TypeDeclaration fromClass(Class<?> classType) {
-        if (classType == null) {
-            return INVALID;
-        } else {
-            return Resolver.getMeta(classType).typeDec;
-        }
+        return Resolver.getMeta(classType).typeDec;
     }
 
     /**

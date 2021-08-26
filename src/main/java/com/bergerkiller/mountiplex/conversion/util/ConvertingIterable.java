@@ -19,6 +19,10 @@ public class ConvertingIterable<T> implements Iterable<T> {
         this.converter = converter;
     }
 
+    public Converter<?, T> getConverter() {
+        return this.converter;
+    }
+
     @Override
     public Iterator<T> iterator() {
         return new ConvertingIterator<T>(base.iterator(), converter);

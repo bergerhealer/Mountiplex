@@ -37,7 +37,7 @@ public class CollectionConversion {
 
                         @Override
                         protected Iterable<?> create(Iterable<?> original, DuplexConverter<Object, Object> elementConverter) {
-                            return new ConvertingIterable<Object>(original, elementConverter);
+                            return new ConvertingIterable<Object>(original, elementConverter.getInputConverter());
                         }
                     });
                 }

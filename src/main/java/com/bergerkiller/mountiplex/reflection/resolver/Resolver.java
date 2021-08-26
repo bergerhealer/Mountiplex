@@ -3,8 +3,10 @@ package com.bergerkiller.mountiplex.reflection.resolver;
 import java.lang.reflect.GenericSignatureFormatError;
 import java.lang.reflect.MalformedParameterizedTypeException;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -32,7 +34,7 @@ public class Resolver {
     private MethodNameResolver methodNameResolverChain = NoOpResolver.INSTANCE;
     private boolean enableClassLoaderRemapping = false;
     private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
-    private final HashMap<Class<?>, ClassMeta> classTypeCache = new HashMap<Class<?>, ClassMeta>();
+    private final Map<Class<?>, ClassMeta> classTypeCache = new ConcurrentHashMap<Class<?>, ClassMeta>();
 
     static {
         MountiplexUtil.registerUnloader(new Runnable() {
@@ -113,19 +115,12 @@ public class Resolver {
     /**
      * Retrieves the metadata for a particular class type
      * 
-     * @param type to get the metadata for
+     * @param type to get the metadata for. Is permitted to be null,
+     *        in which case a ClassMeta is returned with invalid value placeholders.
      * @return class metadata
      */
     public static ClassMeta getMeta(Class<?> type) {
-        HashMap<Class<?>, ClassMeta> classTypeCache = resolver.classTypeCache;
-        synchronized (classTypeCache) {
-            ClassMeta meta = classTypeCache.get(type);
-            if (meta == null) {
-                meta = new ClassMeta(type, false);
-                classTypeCache.put(type, meta);
-            }
-            return meta;
-        }
+        return resolver.classTypeCache.computeIfAbsent(type, ClassMeta::new);
     }
 
     /**
@@ -458,6 +453,10 @@ public class Resolver {
         public final TypeDeclaration superType;
         public final boolean isPublic;
 
+        public ClassMeta(Class<?> type) {
+            this(type, false);
+        }
+
         public ClassMeta(Class<?> type, boolean loaded) {
             this.type = type;
             this.loaded = loaded;
@@ -489,10 +488,10 @@ public class Resolver {
         private static TypeDeclaration findSuperType(TypeDeclaration type) {
             try {
                 java.lang.reflect.Type s = type.type.getGenericSuperclass();
-                return (s == null) ? null : TypeDeclaration.fromType(s);
+                return (s == null) ? null : toTypeDec(s);
             } catch (MalformedParameterizedTypeException | GenericSignatureFormatError ex) {
                 Class<?> s = type.type.getSuperclass();
-                return (s == null) ? null : fixResolveGenericTypes(type, TypeDeclaration.fromClass(s));
+                return (s == null) ? null : fixResolveGenericTypes(type, toTypeDec(s));
             }
         }
 
@@ -501,16 +500,25 @@ public class Resolver {
                 java.lang.reflect.Type[] interfaces = type.type.getGenericInterfaces();
                 TypeDeclaration[] result = new TypeDeclaration[interfaces.length];
                 for (int i = 0; i < result.length; i++) {
-                    result[i] = TypeDeclaration.fromType(interfaces[i]);
+                    result[i] = toTypeDec(interfaces[i]);
                 }
                 return result;
             } catch (MalformedParameterizedTypeException | GenericSignatureFormatError ex) {
                 Class<?>[] interfaces = type.type.getInterfaces();
                 TypeDeclaration[] result = new TypeDeclaration[interfaces.length];
                 for (int i = 0; i < result.length; i++) {
-                    result[i] = fixResolveGenericTypes(type, TypeDeclaration.fromClass(interfaces[i]));
+                    result[i] = fixResolveGenericTypes(type, toTypeDec(interfaces[i]));
                 }
                 return result;
+            }
+        }
+
+        private static TypeDeclaration toTypeDec(Type type) {
+            ClassMeta meta;
+            if (type instanceof Class && (meta = resolver.classTypeCache.get(type)) != null) {
+                return meta.typeDec; // Return cached
+            } else {
+                return new TypeDeclaration(ClassResolver.DEFAULT, type); // Cannot store new ones in cache
             }
         }
     }

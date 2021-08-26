@@ -117,6 +117,28 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     /**
+     * Gets the converter for converting the input type to the output type
+     * only. Some duplex converters already wrap an existing converter.
+     * This method allows for optimizing that out.
+     *
+     * @return input converter
+     */
+    public Converter<A, B> getInputConverter() {
+        return this;
+    }
+
+    /**
+     * Gets the converter for reverse-converting the output type to the input type
+     * only. Some duplex converters already wrap an existing converter.
+     * This method allows for optimizing that out.
+     *
+     * @return input converter
+     */
+    public Converter<B, A> getOutputConverter() {
+        return this.reverse;
+    }
+
+    /**
      * Gets the reversed version of this Duplex Converter
      * 
      * @return reversed duplex converter
@@ -228,6 +250,16 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         public boolean acceptsNullOutput() {
             return DuplexConverter.this.acceptsNullInput();
         }
+
+        @Override
+        public Converter<B, A> getInputConverter() {
+            return DuplexConverter.this.getOutputConverter();
+        }
+
+        @Override
+        public Converter<A, B> getOutputConverter() {
+            return DuplexConverter.this.getInputConverter();
+        }
     }
 
     private static final class DuplexAdapter<A, B> extends DuplexConverter<A, B> {
@@ -267,6 +299,16 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         }
 
         @Override
+        public Converter<A, B> getInputConverter() {
+            return this.input_converter;
+        }
+
+        @Override
+        public Converter<B, A> getOutputConverter() {
+            return this.output_converter;
+        }
+
+        @Override
         public String toString() {
             return "DuplexAdapter{" + this.output_converter.output.toString() + " <> " + this.input_converter.output.toString() + "}";
         }
@@ -303,6 +345,17 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         @Override
         public boolean acceptsNullOutput() {
             return true;
+        }
+
+        @Override
+        public Converter<A, B> getInputConverter() {
+            return this.converter;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Converter<B, A> getOutputConverter() {
+            return (Converter<B, A>) new NullConverter(this.converter.output, this.reverseOutput);
         }
 
         @Override

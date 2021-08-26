@@ -17,8 +17,10 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
+import com.bergerkiller.mountiplex.conversion.builtin.ToStringConversion;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
+import com.bergerkiller.mountiplex.conversion.util.ConvertingIterable;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.types.AnnotatedConverters;
@@ -426,6 +428,22 @@ public class ConversionTest {
         assertNotNull(Conversion.find(t_wildCardAny, t_string));
         assertNotNull(Conversion.find(t_wildCardRaw, t_wildCardAny));
         assertNotNull(Conversion.find(t_wildCardAny, t_wildCardRaw));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testIterableElement() {
+        Converter<Object, Object> conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, Integer.class),
+                        TypeDeclaration.createGeneric(Iterable.class, String.class));
+        Iterable<String> stringIterable = (Iterable<String>) conv.convert(Arrays.asList(1, 2, 3, 4, 5));
+        assertTrue(stringIterable instanceof ConvertingIterable);
+        Converter<?, String> converter = ((ConvertingIterable<String>) stringIterable).getConverter();
+        assertTrue(converter.getClass().getName().startsWith(ToStringConversion.class.getName()));
+        int n = 0;
+        for (String s : stringIterable) {
+            assertEquals(Integer.toString(++n), s);
+        }
+        assertEquals(5, n);
     }
 
     public static class TestWildCardType<T> {
