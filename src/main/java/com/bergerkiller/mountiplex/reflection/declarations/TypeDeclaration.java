@@ -33,9 +33,9 @@ public class TypeDeclaration extends Declaration {
     /** A type declaration that has no type information */
     public static final TypeDeclaration INVALID = new TypeDeclaration(ClassResolver.DEFAULT, (Type) null);
     /** Object Class type */
-    public static final TypeDeclaration OBJECT = fromClass(Object.class);
+    public static final TypeDeclaration OBJECT = new TypeDeclaration(ClassResolver.DEFAULT, Object.class);
     /** Enum Class type */
-    public static final TypeDeclaration ENUM = fromClass(Enum.class);
+    public static final TypeDeclaration ENUM = new TypeDeclaration(ClassResolver.DEFAULT, Enum.class);
     /** Represents any type (that extends Object), which basically makes it the '?' type */
     public static final TypeDeclaration ANY = parse("?");
     /** Whether this TypeDeclaration starts with '? extends <type>', and the type field refers to what it extends */

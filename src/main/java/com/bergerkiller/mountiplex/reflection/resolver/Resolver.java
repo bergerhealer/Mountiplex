@@ -120,7 +120,17 @@ public class Resolver {
      * @return class metadata
      */
     public static ClassMeta getMeta(Class<?> type) {
-        return resolver.classTypeCache.computeIfAbsent(type, ClassMeta::new);
+        // This might somehow result in a recursive update
+        // If so, silently ignore it and do a standard put() instead to recover.
+        try {
+            return resolver.classTypeCache.computeIfAbsent(type, ClassMeta::new);
+        } catch (IllegalStateException ex) {
+            MountiplexUtil.LOGGER.log(Level.WARNING, "Recursive getMeta called while initializing " + type, ex);
+        }
+
+        ClassMeta meta = new ClassMeta(type);
+        resolver.classTypeCache.put(type, meta);
+        return meta;
     }
 
     /**
