@@ -11,8 +11,14 @@ import javassist.compiler.CompileError;
 import javassist.compiler.JvstCodeGen;
 import javassist.compiler.MemberCodeGen;
 import javassist.compiler.MemberResolver;
+import javassist.compiler.NoFieldException;
 import javassist.compiler.TypeChecker;
 import javassist.compiler.ast.ASTList;
+import javassist.compiler.ast.ASTree;
+import javassist.compiler.ast.CallExpr;
+import javassist.compiler.ast.Expr;
+import javassist.compiler.ast.Keyword;
+import javassist.compiler.ast.Symbol;
 
 /**
  * Overrides several methods that are used to resolve field and method names.
@@ -58,6 +64,67 @@ public final class MPLJvstCodeGen extends JvstCodeGen {
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
+    }
+
+    @Override
+    public void atCallExpr(CallExpr expr) throws CompileError {
+        if (MPLJvstTypeChecker.mustSuppressResolvingOfCallExpr(expr)) {
+            atCallExprSuppressLookup(expr);
+        } else {
+            super.atCallExpr(expr);
+        }
+    }
+
+    /**
+     * Full mirror implementation of atCallExpr, but filtered for an Expr type and for a
+     * static class definition. We avoid resolving the class name.
+     *
+     * @param expr
+     * @throws CompileError
+     */
+    private void atCallExprSuppressLookup(CallExpr expr) throws CompileError {
+        String mname = null;
+        CtClass targetClass = null;
+        Expr e = (Expr) expr.oprand1(); // method
+        ASTList args = (ASTList)expr.oprand2();
+        boolean isStatic = false;
+        boolean isSpecial = false;
+        int aload0pos = -1;
+
+        MemberResolver.Method cached = expr.getMethod();
+        mname = ((Symbol)e.oprand2()).get();
+        ASTree target = e.oprand1();
+        if (target instanceof Keyword)
+            if (((Keyword)target).get() == SUPER)
+                isSpecial = true;
+
+        boolean resolveClassName = false;
+        try {
+            target.accept(this);
+        }
+        catch (NoFieldException nfe) {
+            if (nfe.getExpr() != target)
+                throw nfe;
+
+            // it should be a static method.
+            resolveClassName = true;
+            exprType = CLASS;
+            arrayDim = 0;
+            className = nfe.getField(); // JVM-internal
+            isStatic = true;
+        }
+
+        MPLMemberResolver resolver = (MPLMemberResolver) this.resolver;
+        if (arrayDim > 0)
+            targetClass = resolver.lookupClass("java.lang.Object", true);
+        else if (exprType == CLASS /* && arrayDim == 0 */)
+            targetClass = resolveClassName ? resolver.lookupClassByJvmName(className)
+                                           : resolver.lookupClassByJvmNameIgnoreResolver(className);
+        else
+            throw new CompileError("bad method");
+
+        atMethodCallCore(targetClass, mname, args, isStatic, isSpecial,
+                         aload0pos, cached);
     }
 
     @Override

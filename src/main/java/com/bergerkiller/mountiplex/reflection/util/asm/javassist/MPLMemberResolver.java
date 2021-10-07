@@ -43,30 +43,10 @@ public final class MPLMemberResolver extends MemberResolver {
      */
     private final ResolvedClassPool resolvedClassPool;
     private FailedLocalFieldLookup lastFailedLocalFieldLookup = null;
-    /**
-     * See {@link #setIsResolvingMethodCallFieldType(boolean)} javadoc!
-     */
-    private boolean isResolvingMethodCallFieldType = false;
 
     public MPLMemberResolver(ResolvedClassPool cp) {
         super(cp);
         resolvedClassPool = cp;
-    }
-
-    /**
-     * While resolving a method call inside a method body, it is not sure whether the method
-     * is called on a (in-method) field or on the class (static). While in this state it will
-     * call either lookupClass() or lookupClassByJvmName(). If lookupClass is called, it was
-     * a static invoke (or Object) and resolving the type is fine. If lookupClassByJvmName()
-     * was called, then it's being invoked on an existing field type, and we must make sure
-     * not to resolve again!
-     *
-     * Make sure to call with false in a finally block to properly reset state!
-     *
-     * @param isResolving Whether currently resolving
-     */
-    public void setIsResolvingMethodCallFieldType(boolean isResolving) {
-        isResolvingMethodCallFieldType = isResolving;
     }
 
     @Override
@@ -198,10 +178,6 @@ public final class MPLMemberResolver extends MemberResolver {
     public CtClass lookupClass(String name, boolean notCheckInner)
             throws CompileError
     {
-        // Nope! We're resolving a (static) class name. No (local) field name was matched.
-        // Make sure resolving is allowed like normal.
-        isResolvingMethodCallFieldType = false;
-
         Map<String,String> cache;
         try {
             cache = (Map<String,String>) getInvalidNamesMethod.invoke(this);
@@ -224,21 +200,28 @@ public final class MPLMemberResolver extends MemberResolver {
         return super.lookupClass(name, notCheckInner);
     }
 
+    /**
+     * Same as {@link #lookupClassByJvmName(String)} but won't attempt to use
+     * a class resolver to remap the input name
+     *
+     * @param jvmName
+     * @return found class
+     * @throws CompileError
+     */
+    public CtClass lookupClassByJvmNameIgnoreResolver(String jvmName) throws CompileError {
+        String name = jvmToJavaName(jvmName);
+
+        // If name could potentially clash, slap an IGNORE_PREFIX in front
+        if (!name.startsWith(IGNORE_PREFIX) && !Resolver.resolveClassPath(name).equals(name)) {
+            name = IGNORE_PREFIX + name;
+        }
+
+        return lookupClass(name, false);
+    }
+
     @Override
     public CtClass lookupClassByJvmName(String jvmName) throws CompileError {
-        if (isResolvingMethodCallFieldType) {
-            isResolvingMethodCallFieldType = false; // Only once
-            String name = jvmToJavaName(jvmName);
-
-            // If name could potentially clash, slap an IGNORE_PREFIX in front
-            if (!name.startsWith(IGNORE_PREFIX) && !Resolver.resolveClassPath(name).equals(name)) {
-                name = IGNORE_PREFIX + name;
-            }
-
-            return lookupClass(name, false);
-        } else {
-            return lookupClass(jvmToJavaName(jvmName), false);
-        }
+        return lookupClass(jvmToJavaName(jvmName), false);
     }
 
     // Remaps the name of a field
