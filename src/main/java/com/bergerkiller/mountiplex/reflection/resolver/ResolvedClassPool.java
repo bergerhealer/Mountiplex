@@ -96,14 +96,16 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     }
 
     /**
-     * Sets whether to ignore the class name remapper for all following class
-     * resolving instructions. This flag should always be cleared in a
-     * finally block!
+     * Ignores the resolver remapping while the IgnoreToken returned by this
+     * method remains unclosed. Use with try-with-resources to disable
+     * remapping for a code block
      *
-     * @param ignore
+     * @return Token to restore the original ignoring state
      */
-    public void setIgnoreRemapper(boolean ignore) {
-        this.ignoreRemapper = ignore;
+    public IgnoreToken ignoreResolver() {
+        boolean current = this.ignoreRemapper;
+        this.ignoreRemapper = true;
+        return new IgnoreToken(current);
     }
 
     @Override
@@ -163,6 +165,23 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
             return classname.substring(MPLMemberResolver.IGNORE_PREFIX.length());
         } else {
             return Resolver.resolveClassPath(classname);
+        }
+    }
+
+    /**
+     * Used with try-with-resources to temporarily ignore resolving,
+     * and automatically re-enable the previous state
+     */
+    public final class IgnoreToken implements AutoCloseable {
+        private final boolean ignoreResolver;
+
+        private IgnoreToken(boolean ignoreResolver) {
+            this.ignoreResolver = ignoreResolver;
+        }
+
+        @Override
+        public void close() {
+            ResolvedClassPool.this.ignoreRemapper = this.ignoreResolver;
         }
     }
 }

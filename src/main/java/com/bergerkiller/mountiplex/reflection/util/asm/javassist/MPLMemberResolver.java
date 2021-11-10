@@ -68,42 +68,37 @@ public final class MPLMemberResolver extends MemberResolver {
         // After all, all types are already resolved, including the CtClass super classes and such
         // TODO: Should we resolve the input argClassNames? It looks like the types are inferred,
         //       so there should be no further need to resolve.
-        try {
-            resolvedClassPool.setIgnoreRemapper(true);
+        try (ResolvedClassPool.IgnoreToken t = this.resolvedClassPool.ignoreResolver()) {
             return super.lookupMethod(clazz, currentClass, current, actualMethodName, argTypes, argDims, argClassNames);
-        } finally {
-            resolvedClassPool.setIgnoreRemapper(false);
         }
     }
 
     // Remaps the fieldName symbol of a local field
     @Override
-    public CtField lookupField(String className, Symbol fieldName)
+    public CtField lookupField(String className, final Symbol fieldNameSymbol)
             throws CompileError
     {
-        CtClass cc = lookupClass(className, false);
+        CtClass cc;
+        try (ResolvedClassPool.IgnoreToken t = this.resolvedClassPool.ignoreResolver()) {
+            cc = lookupClass(className, false);
+        }
+        String fieldName = fieldNameSymbol.get();
 
         // Remapping happens here
-        if (fieldName instanceof Member) {
-            String newFieldName = preprocessFieldName(cc, fieldName.get());
-            if (!newFieldName.equals(fieldName.get())) {
-                fieldName = new Member(newFieldName);
-            }
+        if (fieldNameSymbol instanceof Member) {
+            fieldName = preprocessFieldName(cc, fieldName);
         }
 
         try {
             // No remapping, in case fields are queried of super classes this can cause a resolving loop!
-            try {
-                resolvedClassPool.setIgnoreRemapper(true);
-                return cc.getField(fieldName.get());
-            } finally {
-                resolvedClassPool.setIgnoreRemapper(false);
+            try (ResolvedClassPool.IgnoreToken t = this.resolvedClassPool.ignoreResolver()) {
+                return cc.getField(fieldName);
             }
         }
         catch (NotFoundException e) {}
 
-        this.lastFailedLocalFieldLookup = new FailedLocalFieldLookup(cc.getName(), fieldName.get());
-        throw new CompileError("no such field: " + cc.getName() + " -> " + fieldName.get());
+        this.lastFailedLocalFieldLookup = new FailedLocalFieldLookup(cc.getName(), fieldNameSymbol.get());
+        throw new CompileError("no such field: " + cc.getName() + " -> " + fieldNameSymbol.get());
     }
 
     // Remaps the fieldName symbol of a static field
@@ -186,15 +181,16 @@ public final class MPLMemberResolver extends MemberResolver {
         }
 
         String found = cache.get(name);
-        if (found == INVALID)
+        if (found == INVALID) {
             throw new CompileError("no such class: " + name);
-        else if (found != null)
+        } else if (found != null) {
             try {
                 return resolvedClassPool.getWithoutResolving(found);
             } catch (NotFoundException e) {
                 // Remove from cache to prevent a classPool.get()
                 cache.remove(name);
             }
+        }
 
         // Fallback to default lookupClass0 / searchImports
         return super.lookupClass(name, notCheckInner);
@@ -239,11 +235,8 @@ public final class MPLMemberResolver extends MemberResolver {
         // Check for GeneratedCodeInvoker first, for better performance, since this one occurs all the time
         try {
             CtClass superClazz;
-            try {
-                this.resolvedClassPool.setIgnoreRemapper(true);
+            try (ResolvedClassPool.IgnoreToken t = this.resolvedClassPool.ignoreResolver()) {
                 superClazz = clazz.getSuperclass();
-            } finally {
-                this.resolvedClassPool.setIgnoreRemapper(false);
             }
             if (superClazz != null && superClazz.getName().equals(GENERATED_CODE_INVOKER_NAME)) {
                 return fieldName;
