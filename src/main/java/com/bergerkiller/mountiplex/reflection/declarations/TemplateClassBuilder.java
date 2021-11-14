@@ -176,6 +176,37 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     resolver.setPackage(this.classPackage, false);
                 }
                 resolver.addImports(this.classImports);
+
+                // Add all requirement annotations to this class resolver
+                {
+                    StringBuilder requirementsText = new StringBuilder();
+                    for (Template.Require require : classType.getAnnotationsByType(Template.Require.class)) {
+                        String body = SourceDeclaration.preprocess(require.value(), resolver).trim();
+                        if (body.isEmpty()) {
+                            continue; // Skip, conditional requirements
+                        }
+
+                        if (!require.declaring().isEmpty()) {
+                            requirementsText.append("#require ");
+                            requirementsText.append(require.declaring()).append(' ');
+                        } else if (!body.startsWith("#")) {
+                            // Omit if the body already puts a #require (or other?) there
+                            requirementsText.append("#require ");
+                        }
+                        requirementsText.append(body).append('\n');
+                    }
+                    if (requirementsText.length() > 0) {
+                        // Kind of hacky, but make use of a ClassDeclaration to parse these requirements
+                        // The parsing code has a bunch of code of advancing the text, so this is easier
+                        // Add some mockup of a class to make it valid
+                        requirementsText.insert(0, "class DummyClassPleaseIgnore {\n");
+                        requirementsText.append("}");
+                        ClassDeclaration cc = new ClassDeclaration(resolver, requirementsText.toString());
+                        for (Requirement r : cc.getResolver().getRequirements()) {
+                            resolver.storeRequirement(r);
+                        }
+                    }
+                }
             }
 
             // Preprocess the source declaration to handle things like #if

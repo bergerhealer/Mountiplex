@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -16,6 +18,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.AnnotationReplacer;
 import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
+import com.bergerkiller.mountiplex.types.AnnotationTestClass;
 
 public class AnnotationReplacerTest {
 
@@ -89,17 +92,24 @@ public class AnnotationReplacerTest {
     }
 
     @Test
-    public void testDetectAnnotationsMojo() throws IOException {
+    public void testAnnotationsMojoVariableParsing() throws IOException {
         File inputFile = new File("src/test/java/com/bergerkiller/mountiplex/types/AnnotationTestClass.java");
         ProcessedSourceFile sourceFile = new ProcessedSourceFile(inputFile, inputFile.lastModified());
         assertNotEquals(0, sourceFile.lastModified);
         sourceFile.load(inputFile);
 
-        // All 4 should be loaded
-        assertEquals(4, sourceFile.variables.size());
+        // All 7 should be loaded
+        assertEquals(7, sourceFile.variables.size());
 
-        // All 4 should have the same expected body
-        for (int n = 1; n <= sourceFile.variables.size(); n++) {
+        // Check the requirements in the class body are resolved
+        assertEquals("com.bergerkiller.mountiplex.types.AnnotationTestClass public static String generatedBody() {\n" +
+                     "    // This is a comment\n" +
+                     "    return \"generated123\";\n" +
+                     "}", sourceFile.variables.get("TEST_REQUIREMENT_A"));
+        assertEquals("public static String testMethod();", sourceFile.variables.get("TEST_REQUIREMENT_B"));
+
+        // All last 4 methods should have the same expected body
+        for (int n = 1; n <= 4; n++) {
             assertEquals("public void test() {\n" + 
                          "    System.out.println(\"Hello, world!\");\n" + 
                          "\n" + 
@@ -108,5 +118,80 @@ public class AnnotationReplacerTest {
                          "    // Spaces\n" + 
                          "}", sourceFile.variables.get("TEST_REPLACEMENT" + n));
         }
+    }
+
+    private static boolean is_remapped = false;
+    private void remapAnnotationTestClass() {
+        if (is_remapped) {
+            return;
+        }
+        File classFile = new File("target/test-classes/com/bergerkiller/mountiplex/types/AnnotationTestClass.class");
+        File inputFile = new File("src/test/java/com/bergerkiller/mountiplex/types/AnnotationTestClass.java");
+        ProcessedSourceFile sourceFile = new ProcessedSourceFile(inputFile, inputFile.lastModified());
+        assertNotEquals(0, sourceFile.lastModified);
+        try {
+            sourceFile.load(inputFile);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load source file", e);
+        }
+        sourceFile.createRemapTask(classFile).remap();
+        is_remapped = true;
+    }
+
+    @Test
+    public void testAnnotationsMojoRemapping() {
+        // Normally runs in a mojo, but do it manually here
+        remapAnnotationTestClass();
+
+        // Actually load the class itself and confirm that the generated annotations are all correct
+
+        // Require annotations of class
+        {
+            Template.Require[] requires = AnnotationTestClass.class.getAnnotationsByType(Template.Require.class);
+            assertEquals(3, requires.length);
+
+            assertEquals("", requires[0].declaring());
+            assertEquals("com.bergerkiller.mountiplex.types.AnnotationTestClass public static String generatedBody() {\n" +
+                         "    // This is a comment\n" +
+                         "    return \"generated123\";\n" +
+                         "}", requires[0].value());
+
+            assertEquals("com.bergerkiller.mountiplex.types.AnnotationTestClass", requires[1].declaring());
+            assertEquals("public static String testMethod();", requires[1].value());
+
+            assertEquals("com.bergerkiller.mountiplex.types.AnnotationTestClass", requires[2].declaring());
+            assertEquals("public static int testFieldAlias:testFieldUsedInRequirement;", requires[2].value());
+        }
+
+        // Generated annotations of methods of class
+        {
+            Template.Generated[] generated = Stream.of(AnnotationTestClass.class.getDeclaredMethods())
+                    .map(m -> m.getAnnotation(Template.Generated.class))
+                    .filter(Objects::nonNull)
+                    .toArray(Template.Generated[]::new);
+            assertEquals(5, generated.length);
+
+            // All last 4 methods should have the same expected body
+            for (int n = 1; n <= 4; n++) {
+                assertEquals("public void test() {\n" +
+                             "    System.out.println(\"Hello, world!\");\n" +
+                             "\n" +
+                             "    // Comment\n" +
+                             "\n" +
+                             "    // Spaces\n" +
+                             "}", generated[n].value());
+            }
+        }
+    }
+
+    @Test
+    public void testAnnotationBasedTemplateClass() {
+        // Normally runs in a mojo, but do it manually here
+        remapAnnotationTestClass();
+
+        // Instantiate the test class
+        AnnotationTestClass testClass = Template.Class.create(AnnotationTestClass.class);
+        testClass.forceInitialization();
+        assertEquals("generated123/hello123/200", testClass.testRequirements());
     }
 }

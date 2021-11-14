@@ -1,8 +1,10 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -2339,6 +2341,46 @@ public class Template {
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Generated {
         String value() default "";
+    }
+
+    /**
+     * Declares a requirement declaration that can be used by all methods
+     * defined inside the {@link Class}. This is similar to the #require
+     * declaration that can be used inside method bodies, but instead becomes
+     * available for all {@link Generated} methods.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    @Repeatable(RequirementsList.class)
+    public @interface Require {
+        /**
+         * The class name in which the requirement is defined can be set here.
+         * If left empty, one is parsed from the {@link #value()} body.
+         *
+         * @return Class name where the requirement is defined
+         */
+        String declaring() default "";
+
+        /**
+         * Value of the requirement, which should contain the field, method (with or without body)
+         * or constructor to #require. If {@link #className()} is left empty, the class in which
+         * the method is defined should be prefixed.
+         *
+         * it is permitted to use #if to pre-process and select the right requirement. The result,
+         * post-pre-processing, is stored as a requirement.
+         *
+         * @return Body of the requirement
+         */
+        String value();
+    }
+
+    /**
+     * List of {@link Require} annotations
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface RequirementsList {
+        Require[] value();
     }
 
     /**

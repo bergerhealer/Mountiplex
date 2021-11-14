@@ -76,7 +76,7 @@ public class MountiplexCreateGenerateAnnotationsMojo extends AbstractMojo {
                 try (DataInputStream input = new DataInputStream(new GZIPInputStream(new FileInputStream(psf_cache_file)))) {
                     int num_processed = input.readInt();
                     for (int i = 0; i < num_processed; i++) {
-                        ProcessedSourceFile psf = ProcessedSourceFile.load(input);
+                        ProcessedSourceFile psf = ProcessedSourceFile.loadCached(input);
                         processed.put(psf.relativeFile, psf);
                     }
                 }
@@ -115,7 +115,7 @@ public class MountiplexCreateGenerateAnnotationsMojo extends AbstractMojo {
                 try (DataOutputStream stream = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(psf_cache_file)))) {
                     stream.writeInt(processed.size());
                     for (ProcessedSourceFile psf : processed.values()) {
-                        psf.save(stream);
+                        psf.saveCached(stream);
                     }
                 }
             } catch (IOException ex) {
@@ -147,7 +147,7 @@ public class MountiplexCreateGenerateAnnotationsMojo extends AbstractMojo {
                         System.err.println("Failed to process " + psf.relativeFile + ": Directory not found");
                         return Stream.empty();
                     }
-                    return classFiles.stream().map(f -> new RemapTask(f, psf.variables));
+                    return classFiles.stream().map(psf::createRemapTask);
                 })
                 .parallel().forEach(RemapTask::remap);
     }
@@ -213,7 +213,11 @@ public class MountiplexCreateGenerateAnnotationsMojo extends AbstractMojo {
             this.found = false;
         }
 
-        public void save(DataOutputStream savedDataStream) throws IOException {
+        public RemapTask createRemapTask(File classFile) {
+            return new RemapTask(classFile, variables);
+        }
+
+        public void saveCached(DataOutputStream savedDataStream) throws IOException {
             savedDataStream.writeUTF(this.relativeFile.getPath());
             savedDataStream.writeLong(this.lastModified);
             savedDataStream.writeInt(variables.size());
@@ -223,7 +227,7 @@ public class MountiplexCreateGenerateAnnotationsMojo extends AbstractMojo {
             }
         }
 
-        public static ProcessedSourceFile load(DataInputStream savedDataStream) throws IOException {
+        public static ProcessedSourceFile loadCached(DataInputStream savedDataStream) throws IOException {
             File relativeFile = new File(savedDataStream.readUTF());
             long lastModified = savedDataStream.readLong();
             int num_variables = savedDataStream.readInt();
@@ -407,7 +411,7 @@ public class MountiplexCreateGenerateAnnotationsMojo extends AbstractMojo {
         }
     }
 
-    private static class RemapTask {
+    public static class RemapTask {
         public final Path classFile;
         public final Map<String, String> variables;
 

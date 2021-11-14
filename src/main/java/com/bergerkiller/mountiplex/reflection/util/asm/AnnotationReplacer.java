@@ -83,6 +83,16 @@ public class AnnotationReplacer {
                     super.visit(name, value);
                 }
             }
+
+            @Override
+            public AnnotationVisitor visitArray(final String name) {
+                return new AnnotationVisitor(Adapter.this.api, super.visitArray(name)) {
+                    @Override
+                    public AnnotationVisitor visitAnnotation(final String name, final String descriptor) {
+                        return new AnnotationAdapter(super.visitAnnotation(name, descriptor), descriptor);
+                    }
+                };
+            }
         }
     }
 }
