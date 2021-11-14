@@ -166,6 +166,7 @@ public class AnnotationReplacerTest {
         // Generated annotations of methods of class
         {
             Template.Generated[] generated = Stream.of(AnnotationTestClass.class.getDeclaredMethods())
+                    .sorted((m1, m2) -> m1.getName().compareTo(m2.getName()))
                     .map(m -> m.getAnnotation(Template.Generated.class))
                     .filter(Objects::nonNull)
                     .toArray(Template.Generated[]::new);
@@ -179,7 +180,7 @@ public class AnnotationReplacerTest {
                              "    // Comment\n" +
                              "\n" +
                              "    // Spaces\n" +
-                             "}", generated[n].value());
+                             "}", generated[n-1].value());
             }
         }
     }
