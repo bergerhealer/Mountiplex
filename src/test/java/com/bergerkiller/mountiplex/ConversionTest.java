@@ -29,6 +29,7 @@ import com.bergerkiller.mountiplex.types.CustomSetType;
 import com.bergerkiller.mountiplex.types.CustomType;
 import com.bergerkiller.mountiplex.types.CustomTypedListType;
 import com.bergerkiller.mountiplex.types.EnumWithBooleanNames;
+import com.bergerkiller.mountiplex.types.TestEnumWithSubclasses;
 import com.bergerkiller.mountiplex.types.TestObject;
 import com.bergerkiller.mountiplex.types.UniqueType;
 import com.bergerkiller.mountiplex.types.UniqueTypeExtension1;
@@ -38,6 +39,13 @@ public class ConversionTest {
 
     static {
         Conversion.registerConverters(ConversionTest.class);
+    }
+
+    @Test
+    public void testEnumWithSubclasses() {
+        Converter<String, ? extends TestEnumWithSubclasses> converter = Conversion.find(String.class, TestEnumWithSubclasses.ONE.getClass());
+        assertNotNull(converter);
+        assertEquals(TestEnumWithSubclasses.TWO, converter.convert("TWO"));
     }
 
     @Test

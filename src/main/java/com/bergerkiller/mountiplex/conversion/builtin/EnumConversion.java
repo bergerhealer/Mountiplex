@@ -22,6 +22,12 @@ public class EnumConversion {
                     return;
                 }
 
+                // Check type is not a subclass of the actual enum it is stored inside of
+                // This happens when enums are declared with bodies (method overrides)
+                if (outputType.type != null && !outputType.type.isEnum() && outputType.type.getSuperclass().isEnum()) {
+                    outputType = outputType.getSuperType();
+                }
+
                 // Used down below
                 final EnumStringCache cache = new EnumStringCache(outputType.type);
 
