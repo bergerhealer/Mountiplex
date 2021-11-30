@@ -30,7 +30,7 @@ public class AnnotationReplacer {
         private final Transformer transformer;
 
         public Adapter(ClassVisitor cv, Transformer transformer) {
-            super(org.objectweb.asm.Opcodes.ASM6, cv);
+            super(org.objectweb.asm.Opcodes.ASM9, cv);
             this.transformer = transformer;
         }
 

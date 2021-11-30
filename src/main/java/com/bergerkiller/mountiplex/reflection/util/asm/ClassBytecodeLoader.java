@@ -186,7 +186,7 @@ public class ClassBytecodeLoader {
             // any of the methods in the class.
             ClassReader reader = new ClassReader(stream);
             ClassWriter writer = new ClassWriter(0);
-            reader.accept(new ClassVisitor(Opcodes.ASM7, writer) {
+            reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
                 @Override
                 public MethodVisitor visitMethod(
                         final int access,

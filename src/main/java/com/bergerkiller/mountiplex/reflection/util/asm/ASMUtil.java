@@ -20,7 +20,7 @@ import org.objectweb.asm.Type;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ASMUtil {
-    private static final int ASM_VERSION = Opcodes.ASM6;
+    private static final int ASM_VERSION = Opcodes.ASM9;
 
     /**
      * Rewrites class data to remove the signatures of methods defined in the class
