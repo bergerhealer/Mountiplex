@@ -57,15 +57,9 @@ public class MethodDeclaration extends Declaration {
         // If classloader loading this class altered the bytecode, the result of alias will differ from name
         // In that case, store the name the classloader gives the method as an alias
         String name = MPLType.getName(method);
-        String alias = null;
-        try {
-            alias = method.getName();
-            if (alias.equals(name)) {
-                alias = null;
-            }
-        } catch (Throwable t) {
-            String decName = MPLType.getName(method.getDeclaringClass());
-            MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to retrieve method name alias for " + decName + ":" + name + ":", t);
+        String alias = Resolver.resolveMethodAlias(method, name);
+        if (name.equals(alias)) {
+            alias = null;
         }
 
         this.method = method;

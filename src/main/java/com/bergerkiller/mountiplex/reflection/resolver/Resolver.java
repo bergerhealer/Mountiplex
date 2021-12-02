@@ -32,6 +32,7 @@ public class Resolver {
     private FieldNameResolver fieldNameResolverChain = NoOpResolver.INSTANCE;
     private FieldAliasResolver fieldAliasResolverChain = NoOpResolver.INSTANCE;
     private MethodNameResolver methodNameResolverChain = NoOpResolver.INSTANCE;
+    private MethodAliasResolver methodAliasResolverChain = NoOpResolver.INSTANCE;
     private boolean enableClassLoaderRemapping = false;
     private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
     private final Map<Class<?>, ClassMeta> classTypeCache = new ConcurrentHashMap<Class<?>, ClassMeta>();
@@ -296,6 +297,11 @@ public class Resolver {
                 Resolver.resolver.methodNameResolverChain, resolver);
     }
 
+    public static void registerMethodAliasResolver(MethodAliasResolver resolver) {
+        Resolver.resolver.methodAliasResolverChain = ChainResolver.chain(
+                Resolver.resolver.methodAliasResolverChain, resolver);
+    }
+
     /**
      * Discovers the Class Declaration registered for a Class by class path.
      * If the Class does not exist, null is returned also.
@@ -362,6 +368,10 @@ public class Resolver {
 
     public static String resolveMethodName(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {
         return Resolver.resolver.methodNameResolverChain.resolveMethodName(declaringClass, methodName, parameterTypes);
+    }
+
+    public static String resolveMethodAlias(java.lang.reflect.Method method, String name) {
+        return Resolver.resolver.methodAliasResolverChain.resolveMethodAlias(method, name);
     }
 
     public static String resolveCompiledFieldName(Class<?> declaringClass, String fieldName) {
@@ -453,6 +463,44 @@ public class Resolver {
      */
     public static MethodDeclaration findMethod(MethodDeclaration declaration) {
         return declaration.discover();
+    }
+
+    /**
+     * Uses this Resolver to find the true method name of a provided method name, and then
+     * calls {@link java.lang.Class#getDeclaredMethod(n, p)} using the resolved method name.
+     *
+     * @param declaringClass Class that declares the method
+     * @param methodName Name of the method to be resolved
+     * @param parameterTypes Parameter types of the method
+     * @return The declared method
+     * @throws NoSuchMethodException
+     * @throws SecurityException
+     */
+    public static java.lang.reflect.Method resolveAndGetDeclaredMethod(
+            Class<?> declaringClass,
+            String methodName,
+            Class<?>... parameterTypes) throws NoSuchMethodException, SecurityException
+    {
+        String trueName = Resolver.resolveMethodName(declaringClass, methodName, parameterTypes);
+        return MPLType.getDeclaredMethod(declaringClass, trueName, parameterTypes);
+    }
+
+    /**
+     * Uses this Resolver to find the true field name of a provided field name, and then
+     * calls {@link java.lang.Class#getDeclaredField(n)} using the resolved field name.
+     *
+     * @param declaringClass Class that declares the field
+     * @param fieldName Name of the field to be resolved
+     * @return The declared field
+     * @throws NoSuchMethodException
+     * @throws SecurityException
+     * @throws NoSuchFieldException 
+     */
+    public static java.lang.reflect.Field resolveAndGetDeclaredField(
+            Class<?> declaringClass, String fieldName) throws NoSuchFieldException, SecurityException
+    {
+        String trueName = Resolver.resolveFieldName(declaringClass, fieldName);
+        return MPLType.getDeclaredField(declaringClass, trueName);
     }
 
     public static final class ClassMeta {

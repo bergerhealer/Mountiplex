@@ -109,17 +109,18 @@ public class ChainResolver {
     }
 
     /**
-     * Chains two resolvers so that first the previous one is called, then the second.
-     * If the previous resolver is a no-op, then next is returned instead.
+     * Chains two resolvers so that first the new one is called, then the previous.
+     * Since the no-op resolver returns a valid alias by calling getName(), chaining
+     * that one still calls it.
      * 
      * @param previous
      * @param next
      * @return chained
      */
     public static FieldAliasResolver chain(final FieldAliasResolver previous, final FieldAliasResolver next) {
-        return (previous == NoOpResolver.INSTANCE) ? next : (field, name) -> {
-            String alias = previous.resolveFieldAlias(field, name);
-            return (alias != null) ? alias : next.resolveFieldAlias(field, name);
+        return (field, name) -> {
+            String alias = next.resolveFieldAlias(field, name);
+            return (alias != null) ? alias : previous.resolveFieldAlias(field, name);
         };
     }
 
@@ -136,6 +137,22 @@ public class ChainResolver {
             methodName = previous.resolveMethodName(declaringClass, methodName, parameterTypes);
             methodName = next.resolveMethodName(declaringClass, methodName, parameterTypes);
             return methodName;
+        };
+    }
+
+    /**
+     * Chains two resolvers so that first the new one is called, then the previous.
+     * Since the no-op resolver returns a valid alias by calling getName(), chaining
+     * that one still calls it.
+     * 
+     * @param previous
+     * @param next
+     * @return chained
+     */
+    public static MethodAliasResolver chain(final MethodAliasResolver previous, final MethodAliasResolver next) {
+        return (method, name) -> {
+            String alias = next.resolveMethodAlias(method, name);
+            return (alias != null) ? alias : previous.resolveMethodAlias(method, name);
         };
     }
 }

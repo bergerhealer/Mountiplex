@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.resolver;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -13,7 +14,8 @@ import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
  * When during registering this type is encountered, this type is replaced.
  */
 public final class NoOpResolver implements ClassPathResolver, FieldNameResolver, MethodNameResolver,
-        CompiledFieldNameResolver, CompiledMethodNameResolver, ClassDeclarationResolver, FieldAliasResolver
+        CompiledFieldNameResolver, CompiledMethodNameResolver, ClassDeclarationResolver, FieldAliasResolver,
+        MethodAliasResolver
 {
     public static final NoOpResolver INSTANCE = new NoOpResolver();
 
@@ -61,6 +63,17 @@ public final class NoOpResolver implements ClassPathResolver, FieldNameResolver,
         } catch (Throwable t) {
             String decName = MPLType.getName(field.getDeclaringClass());
             MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to retrieve field name alias for " + decName + ":" + name + ":", t);
+            return null;
+        }
+    }
+
+    @Override
+    public String resolveMethodAlias(Method method, String name) {
+        try {
+            return method.getName();
+        } catch (Throwable t) {
+            String decName = MPLType.getName(method.getDeclaringClass());
+            MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to retrieve method name alias for " + decName + ":" + name + ":", t);
             return null;
         }
     }
