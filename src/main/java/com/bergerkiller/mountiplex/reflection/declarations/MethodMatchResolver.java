@@ -46,7 +46,8 @@ public class MethodMatchResolver {
 
                     // Log a warning when modifiers differ, but do not fail the matching
                     if (!realMethod.modifiers.match(method.modifiers)) {
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " + method.toString() +
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " +
+                                resolver.getDeclaredClassName() + " " + method.toString() +
                                 " do not match (" + realMethod.modifiers + " expected)");
                     }
 

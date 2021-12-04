@@ -50,8 +50,13 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
 
     @Override
     protected Invoker<?> getCallback(Method method) {
+        throw new UnsupportedOperationException("Should not be called");
+    }
+
+    @Override
+    protected Invoker<?> getCallback(Class<?> hookedType, Method method) {
         TypeDeclaration method_type = TypeDeclaration.fromClass(method.getDeclaringClass());
-        MethodDeclaration methodDec = Resolver.resolveMethodAlias(method);
+        MethodDeclaration methodDec = Resolver.resolveMethodAlias(TypeDeclaration.fromClass(hookedType), method);
 
         // Create class-level resolver, which adds all the imports declared at class level
         ClassResolver classLevelResolver = methodDec.getResolver();

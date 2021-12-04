@@ -298,6 +298,10 @@ public class ClassDeclaration extends Declaration {
      */
     public String resolveMethodAlias(java.lang.reflect.Method method) {
         if (Modifier.isPrivate(method.getModifiers())) {
+            // Note: In practise this branch is never even used
+            //       The only caller of this method is ClassHook for resolving aliases
+            //       Only public/protected (overridable) methods are handled there
+
             // Private methods are only matchable when the Class is exactly the same
             if (!this.type.type.equals(method.getDeclaringClass())) {
                 return null;
@@ -313,9 +317,13 @@ public class ClassDeclaration extends Declaration {
             return null; // not found
         } else {
             // First check if the methods declared in this Class Declaration even apply
-            if (!this.type.type.isAssignableFrom(method.getDeclaringClass())) {
-                return null;
-            }
+            // Note: Removed, because we can declare methods in both directions
+            //       A method defined in Car can refer to one in superclass Vehicle
+            //       And a method defined in Vehicle can refer to one overrided in Car
+            //       As such, this check makes no sense really.
+            //if (!method.getDeclaringClass().isAssignableFrom(this.type.type)) {
+            //    return null;
+            //}
 
             // Check all non-private methods to see if they match
             Class<?>[] mParams = method.getParameterTypes();

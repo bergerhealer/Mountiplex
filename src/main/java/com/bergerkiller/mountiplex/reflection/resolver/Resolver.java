@@ -386,13 +386,12 @@ public class Resolver {
      * Checks all class declarations that have been loaded in to see what the alias
      * name for a method is. If none are found, then a default declaration is returned
      * without an explicit alias set.
-     * 
-     * @param method to find
+     *
+     * @param declaringClass Class where the method should be declared. Can be declared in a superclass/interface of it.
+     * @param method The method to find
      * @return method declaration for the method with the alias name, if found
      */
-    public static MethodDeclaration resolveMethodAlias(java.lang.reflect.Method method) {
-        TypeDeclaration type = TypeDeclaration.fromClass(method.getDeclaringClass());
-
+    public static MethodDeclaration resolveMethodAlias(TypeDeclaration declaringClass, java.lang.reflect.Method method) {
         // First attempt resolving it, which will provide metadata information such as aliases
 
         // Not found. Simply return a new Method Declaration from the method.
@@ -401,11 +400,11 @@ public class Resolver {
         MethodDeclaration result = new MethodDeclaration(resolver, method);
 
         // Figure out the alias that is set
-        String alias = resolveMethodAliasInType(type, method);
+        String alias = resolveMethodAliasInType(declaringClass, method);
         if (alias != null) {
             return result.setAlias(alias);
         }
-        for (TypeDeclaration superType : type.getSuperTypes()) {
+        for (TypeDeclaration superType : declaringClass.getSuperTypes()) {
             alias = resolveMethodAliasInType(superType, method);
             if (alias != null) {
                 return result.setAlias(alias);

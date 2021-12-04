@@ -60,12 +60,31 @@ public abstract class ClassInterceptor {
 
     /**
      * Retrieves the callback delegate for handling a certain Method call in the base object.
-     * To not intercept the Method, return NULL.
-     * 
-     * @param method
+     * To not intercept the Method, return NULL.<br>
+     * <br>
+     * If you require information about what Class this interceptor is handling, override
+     * {@link #getCallback(Class, Method)} as well. If that method is overrided, and the
+     * super method is not called, then this method isn't called anymore.
+     *
+     * @param method Method potentially being hooked
      * @return Callback delegate to execute, or NULL to not intercept the Method
      */
     protected abstract Invoker<?> getCallback(Method method);
+
+    /**
+     * Retrieves the callback delegate for handling a certain Method call in the base object.
+     * To not intercept the Method, return NULL.<br>
+     * <br>
+     * Default implementation calls {@link #getCallback(Method)}. When overriding you can
+     * call super.getCallback(hookedType, method) to call it.
+     * 
+     * @param hookedType Class type that is currently being hooked, and this method is of
+     * @param method Method potentially being hooked
+     * @return Callback delegate to execute, or NULL to not intercept the Method
+     */
+    protected Invoker<?> getCallback(Class<?> hookedType, Method method) {
+        return getCallback(method);
+    }
 
     /**
      * Callback function called when a new intercepted hooked class type has been generated.
@@ -312,7 +331,7 @@ public abstract class ClassInterceptor {
                 }
 
                 // Ask interceptor what methods to intercept
-                Invoker<?> callback = interceptor.getCallback(method);
+                Invoker<?> callback = interceptor.getCallback(objectType, method);
                 if (callback == null) {
                     return null;
                 }
@@ -481,7 +500,7 @@ public abstract class ClassInterceptor {
                         callback = interceptor.globalMethodDelegates.get(method);
                     }
                     if (callback == null) {
-                        callback = interceptor.getCallback(method);
+                        callback = interceptor.getCallback(interceptor.instanceBaseType(), method);
                         if (callback == null) {
                             callback = GeneratedHook.createSuperInvoker(instance.getClass(), method);
                         }
