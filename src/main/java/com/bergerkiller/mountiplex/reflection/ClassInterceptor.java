@@ -303,6 +303,10 @@ public abstract class ClassInterceptor {
                                                           Class<?> objectType, T object,
                                                           Class<?>[] paramTypes, Object[] params)
     {
+        if (objectType == null) {
+            throw new IllegalArgumentException("Input class type to be intercepted is null");
+        }
+
         // The key used to access the EnhancedClass instance for creating this instance
         final ClassPair key = new ClassPair(interceptor.getClass(), objectType);
 

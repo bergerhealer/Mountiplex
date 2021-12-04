@@ -1,7 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
 import java.lang.reflect.Constructor;
-import java.net.URLClassLoader;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -113,22 +112,18 @@ public abstract class GeneratorClassLoader extends ClassLoader {
         super(base);
     }
 
-    private Class<?> superFindClass(String name) throws LoaderClosedException {
+    private Class<?> superFindClass(String name) throws MPLType.LoaderClosedException {
         Class<?> loaded = this.findLoadedClass(name);
         return (loaded != null) ? loaded : tryFindClass(this.getParent(), name);
     }
 
-    private static Class<?> tryFindClass(ClassLoader loader, String name) throws LoaderClosedException {
+    private static Class<?> tryFindClass(ClassLoader loader, String name) throws MPLType.LoaderClosedException {
         try {
             return MPLType.getClassByName(name, false, loader);
+        } catch (MPLType.LoaderClosedException ex) {
+            throw ex; // Do throw this one - we want it
         } catch (ClassNotFoundException ex) {
             return null;
-            //URLClassLoader
-        } catch (IllegalStateException ex) {
-            if ("zip file closed".equals(ex.getMessage()) && loader instanceof URLClassLoader) {
-                throw new LoaderClosedException();
-            }
-            throw ex;
         }
     }
 
@@ -174,7 +169,7 @@ public abstract class GeneratorClassLoader extends ClassLoader {
                             return loaded;
                         }
                     }
-                } catch (LoaderClosedException ex) {
+                } catch (MPLType.LoaderClosedException ex) {
                     loaders.remove(ExtendedClassWriter.class.getClassLoader());
                 }
             }
@@ -191,7 +186,7 @@ public abstract class GeneratorClassLoader extends ClassLoader {
                     if ((loaded = otherLoader.superFindClass(name)) != null) {
                         return loaded;
                     }
-                } catch (LoaderClosedException ex) {
+                } catch (MPLType.LoaderClosedException ex) {
                     // ClassLoader no longer loaded, stop querying it
                     loaderIter.remove();
                 }
@@ -248,19 +243,6 @@ public abstract class GeneratorClassLoader extends ClassLoader {
      * @return defined class
      */
     protected abstract Class<?> defineClassFromBytecode(String name, byte[] b, ProtectionDomain protectionDomain);
-
-    /**
-     * Exception thrown when an attempt is made to load a Class from
-     * a ClassLoader that has been closed. The caller should clean up
-     * and avoid using the ClassLoader a second time.
-     */
-    public static class LoaderClosedException extends Exception {
-        private static final long serialVersionUID = -2465209759941212720L;
-
-        public LoaderClosedException() {
-            super("This ClassLoader is closed");
-        }
-    }
 
     /**
      * Exception thrown when during the initialization of the GeneratorClassLoader

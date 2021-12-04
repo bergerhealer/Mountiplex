@@ -5,6 +5,7 @@ import static org.objectweb.asm.Opcodes.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URLClassLoader;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
@@ -437,9 +438,23 @@ public class MPLType {
      */
     public static Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
         try {
-            return helper.getClassByName(name, initialize, classLoader);
-        } catch (IllegalStateException ex) {
-            throw new ClassNotFoundException("Failed to load class " + name, ex);
+            try {
+                return helper.getClassByName(name, initialize, classLoader);
+            } catch (IllegalStateException is_ex) {
+                if ("zip file closed".equals(is_ex.getMessage()) && classLoader instanceof URLClassLoader) {
+                    throw new LoaderClosedException();
+                }
+                throw new ClassNotFoundException("Failed to load class " + name, is_ex);
+            }
+        } catch (ClassNotFoundException ex) {
+            // Try to load a previously generated class, which might otherwise be difficult to load
+            Class<?> generated = GeneratorClassLoader.findGeneratedClass(name);
+            if (generated != null) {
+                return generated;
+            }
+
+            // Failed! Time to throw.
+            throw ex;
         }
     }
 
@@ -452,9 +467,23 @@ public class MPLType {
      */
     public static Class<?> getClassByName(String name) throws ClassNotFoundException {
         try {
-            return helper.getClassByName(name, false, MPLType.class.getClassLoader());
-        } catch (IllegalStateException ex) {
-            throw new ClassNotFoundException("Failed to load class " + name, ex);
+            try {
+                return helper.getClassByName(name, false, MPLType.class.getClassLoader());
+            } catch (IllegalStateException is_ex) {
+                if ("zip file closed".equals(is_ex.getMessage())) {
+                    throw new LoaderClosedException();
+                }
+                throw new ClassNotFoundException("Failed to load class " + name, is_ex);
+            }
+        } catch (ClassNotFoundException ex) {
+            // Try to load a previously generated class, which might otherwise be difficult to load
+            Class<?> generated = GeneratorClassLoader.findGeneratedClass(name);
+            if (generated != null) {
+                return generated;
+            }
+
+            // Failed! Time to throw.
+            throw ex;
         }
     }
 
@@ -611,6 +640,19 @@ public class MPLType {
         @Override
         public Class<?> getClassByName(String name, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
             return Class.forName(name, initialize, classLoader);
+        }
+    }
+
+    /**
+     * Exception thrown when an attempt is made to load a Class from
+     * a ClassLoader that has been closed. The caller should clean up
+     * and avoid using the ClassLoader a second time.
+     */
+    public static final class LoaderClosedException extends ClassNotFoundException {
+        private static final long serialVersionUID = -2465209759941212720L;
+
+        public LoaderClosedException() {
+            super("This ClassLoader is closed");
         }
     }
 }

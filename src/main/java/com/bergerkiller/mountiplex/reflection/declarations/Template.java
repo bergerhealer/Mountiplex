@@ -161,9 +161,16 @@ public class Template {
         @Override
         public final void forceInitialization() {
             if (this.isAvailable()) {
+                boolean success = true;
                 for (TemplateElement<?> element : this.elements) {
                     if (!element.isOptional() || element.isAvailable()) {
-                        element.forceInitialization();
+                        try {
+                            element.forceInitialization();
+                        } catch (Throwable t) {
+                            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize " + this.classPath +
+                                    " " + element.getElementName(), t);
+                            success = false;
+                        }
                     }
                 }
 
@@ -180,10 +187,20 @@ public class Template {
                                 continue; // ignore
                             }
                             if (staticFieldValue instanceof LazyInitializedObject) {
-                                ((LazyInitializedObject) staticFieldValue).forceInitialization();
+                                try {
+                                    ((LazyInitializedObject) staticFieldValue).forceInitialization();
+                                } catch (Throwable t) {
+                                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize " + this.classPath +
+                                            " field " + field.getName(), t);
+                                    success = false;
+                                }
                             }
                         }
                     }
+                }
+
+                if (!success) {
+                    throw new IllegalStateException("Not all members of template for " + this.classPath + " could be initialized!");
                 }
             }
         }
