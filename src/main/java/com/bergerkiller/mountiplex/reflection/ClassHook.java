@@ -49,7 +49,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     }
 
     @Override
-    protected Invoker<?> getCallback(Method method) {
+    protected final Invoker<?> getCallback(Method method) {
         throw new UnsupportedOperationException("Should not be called");
     }
 
