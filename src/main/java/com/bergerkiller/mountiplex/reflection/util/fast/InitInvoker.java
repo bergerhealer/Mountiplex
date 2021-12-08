@@ -454,13 +454,18 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         }
 
         @Override
-        @SuppressWarnings("unchecked")
-        public Invoker<T> get(Object instance) {
+        @SuppressWarnings({ "unchecked", "deprecation" })
+        public synchronized Invoker<T> get(Object instance) {
             try {
                 java.lang.reflect.Field field = getField();
-                field.setAccessible(true);
-                Object value = field.get(instance);
-                field.setAccessible(false);
+                boolean wasAccessible = field.isAccessible();
+                Object value;
+                try {
+                    field.setAccessible(true);
+                    value = field.get(instance);
+                } finally {
+                    field.setAccessible(wasAccessible);
+                }
                 return (Invoker<T>) value;
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);
@@ -468,12 +473,17 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         }
 
         @Override
-        public boolean set(Object instance, Invoker<T> value) {
+        @SuppressWarnings("deprecation")
+        public synchronized boolean set(Object instance, Invoker<T> value) {
             try {
                 java.lang.reflect.Field field = getField();
-                field.setAccessible(true);
-                field.set(instance, value);
-                field.setAccessible(false);
+                boolean wasAccessible = field.isAccessible();
+                try {
+                    field.setAccessible(true);
+                    field.set(instance, value);
+                } finally {
+                    field.setAccessible(wasAccessible);
+                }
                 return true;
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);
