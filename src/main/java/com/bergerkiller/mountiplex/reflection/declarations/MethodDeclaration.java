@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -41,14 +42,18 @@ public class MethodDeclaration extends Declaration {
     public MethodDeclaration(ClassResolver resolver, Constructor<?> constructor) {
         super(resolver);
 
-        this.method = null;
-        this.constructor = (Constructor<Object>) constructor;
-        this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers());
-        this.returnType = TypeDeclaration.fromClass(constructor.getDeclaringClass());
-        this.name = new NameDeclaration(resolver, "<init>", null);
-        this.parameters = new ParameterListDeclaration(resolver, constructor.getGenericParameterTypes());
-        this.body = null;
-        this.bodyRequirements = new Requirement[0];
+        try {
+            this.method = null;
+            this.constructor = (Constructor<Object>) constructor;
+            this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers());
+            this.returnType = TypeDeclaration.fromClass(constructor.getDeclaringClass());
+            this.name = new NameDeclaration(resolver, "<init>", null);
+            this.parameters = new ParameterListDeclaration(resolver, constructor.getGenericParameterTypes());
+            this.body = null;
+            this.bodyRequirements = new Requirement[0];
+        } catch (Throwable t) {
+            throw new IllegalStateException("Failed to read details of " + toDebugString(constructor), t);
+        }
     }
 
     public MethodDeclaration(ClassResolver resolver, Method method) {
@@ -62,14 +67,18 @@ public class MethodDeclaration extends Declaration {
             alias = null;
         }
 
-        this.method = method;
-        this.constructor = null;
-        this.modifiers = new ModifierDeclaration(resolver, method.getModifiers() & ~Modifier.VOLATILE);
-        this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
-        this.name = new NameDeclaration(resolver, name, alias);
-        this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
-        this.body = null;
-        this.bodyRequirements = new Requirement[0];
+        try {
+            this.method = method;
+            this.constructor = null;
+            this.modifiers = new ModifierDeclaration(resolver, method.getModifiers() & ~Modifier.VOLATILE);
+            this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
+            this.name = new NameDeclaration(resolver, name, alias);
+            this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
+            this.body = null;
+            this.bodyRequirements = new Requirement[0];
+        } catch (Throwable t) {
+            throw new IllegalStateException("Failed to read details of " + toDebugString(method), t);
+        }
     }
 
     public MethodDeclaration(ClassResolver resolver, String declaration) {
@@ -982,5 +991,55 @@ public class MethodDeclaration extends Declaration {
      */
     protected String getAccessedName() {
         return method != null ? MPLType.getName(method) : this.name.value();
+    }
+
+    /**
+     * Tries really hard to stringify a method or constructor that might be corrupted
+     *
+     * @param method
+     * @return String representation
+     */
+    private static String toDebugString(Executable executable) {
+        if (executable == null) {
+            return "<null>";
+        }
+
+        try {
+            return executable.toGenericString();
+        } catch (Throwable t) {}
+
+        try {
+            return executable.toString();
+        } catch (Throwable t) {}
+
+        StringBuilder str = new StringBuilder();
+        if (executable instanceof Method) {
+            try {
+                str.append(((Method) executable).getReturnType());
+                str.append(' ');
+            } catch (Throwable t) {}
+        }
+        try {
+            str.append(executable.getDeclaringClass());
+            str.append('.');
+        } catch (Throwable t) {}
+        try {
+            str.append(executable.getName());
+        } catch (Throwable t) {}
+        str.append('(');
+        try {
+            Class<?>[] params = executable.getParameterTypes();
+            for (int i = 0; i < params.length; i++) {
+                if (i > 0) {
+                    str.append(", ");
+                }
+                str.append(params[i]);
+            }
+        } catch (Throwable t) {
+            str.append("???");
+        }
+        str.append(')');
+
+        return str.toString();
     }
 }
