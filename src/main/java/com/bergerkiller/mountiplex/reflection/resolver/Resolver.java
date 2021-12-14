@@ -36,6 +36,7 @@ public class Resolver {
     private boolean enableClassLoaderRemapping = false;
     private final HashMap<String, ClassMeta> classCache = new HashMap<String, ClassMeta>();
     private final Map<Class<?>, ClassMeta> classTypeCache = new ConcurrentHashMap<Class<?>, ClassMeta>();
+    private final PackageNameCache packageNameCache = new PackageNameCache();
 
     static {
         MountiplexUtil.registerUnloader(new Runnable() {
@@ -44,6 +45,16 @@ public class Resolver {
                 resolver = new Resolver();
             }
         });
+    }
+
+    /**
+     * Gets the package name cache, which is used to reject class names
+     * being loaded that violate known package paths
+     *
+     * @return Package name cache
+     */
+    public static PackageNameCache getPackageNameCache() {
+        return resolver.packageNameCache;
     }
 
     /**
@@ -219,10 +230,17 @@ public class Resolver {
             }
         }
 
+        // Before we bother trying to load an invalid class name, filter those out
+        if (!resolver.packageNameCache.canExist(path)) {
+            return null;
+        }
+
         /* ===================== */
         String alterPath = resolveClassPath(path);
         try {
-            return MPLType.getClassByName(alterPath, initialize, loader);
+            Class<?> result = MPLType.getClassByName(alterPath, initialize, loader);
+            resolver.packageNameCache.addPackageOfClassName(path);
+            return result;
         } catch (ExceptionInInitializerError e) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + alterPath + "':", e.getCause());
             return null;
@@ -270,6 +288,7 @@ public class Resolver {
         Resolver.resolver.classPathResolverChain = ChainResolver.chain(
                 Resolver.resolver.classPathResolverChain, resolver);
         Resolver.resolver.classCache.clear();
+        Resolver.resolver.packageNameCache.reset();
     }
 
     public static void registerCompiledFieldResolver(CompiledFieldNameResolver resolver) {

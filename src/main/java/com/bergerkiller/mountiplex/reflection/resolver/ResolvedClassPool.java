@@ -114,11 +114,33 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
             return super.get(classname);
         }
 
-        classname = resolveClassPath(classname);
+        // This happens, apparently
+        if (classname == null) {
+            return null;
+        }
 
+        // Resolve it. If it returns null, name is invalid
+        String resolvedName = resolveClassPath(classname);
+        if (resolvedName == null) {
+            throw new NotFoundException(classname);
+        }
+
+        // First try cache, no need to add package to cache if found
+        CtClass fromCache = this.getCached(resolvedName);
+        if (fromCache != null) {
+            return fromCache;
+        }
+
+        // Look it up (slow way), if found it will be added to the cache
+        // Also add name of class to package name discovery
         try {
             ignoreRemapper = true;
-            return super.get(classname);
+            CtClass found = super.get0(resolvedName, false);
+            if (found == null) {
+                throw new NotFoundException(classname);
+            }
+            Resolver.getPackageNameCache().addPackageOfClassName(classname);
+            return found;
         } finally {
             ignoreRemapper = false;
         }
@@ -126,44 +148,80 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
 
     @Override
     public URL find(String classname) {
-        return super.find(resolveClassPath(classname));
+        if (ignoreRemapper) {
+            return super.find(classname);
+        }
+
+        //TODO: This happens?
+        if (classname == null) {
+            return null;
+        }
+
+        String resolvedName = resolveClassPath(classname);
+        if (resolvedName == null) {
+            return null;
+        }
+
+        URL url = super.find(resolvedName);
+        if (url == null) {
+            return null;
+        }
+
+        Resolver.getPackageNameCache().addPackage(classname);
+        return url;
     }
 
     @Override
-    protected CtClass createCtClass(String classname, boolean useCache) {
+    protected CtClass createCtClass(final String classname, boolean useCache) {
         if (ignoreRemapper) {
             return super.createCtClass(classname, useCache);
         }
 
-        // accept "[L<class name>;" as a class name. 
-        if (classname.charAt(0) == '[')
-            classname = Descriptor.toClassName(classname);
+        // accept "[L<class name>;" as a class name.
+        String resolvedName = classname;
+        if (resolvedName.charAt(0) == '[')
+            resolvedName = Descriptor.toClassName(classname);
 
         // Resolve, make sure to undo array [] in class name
-        boolean isArray = classname.endsWith("[]");
-        if (isArray) {
-            classname = classname.substring(0, classname.length() - 2);
+        int numArrayDims = 0;
+        while (resolvedName.endsWith("[]")) {
+            resolvedName = resolvedName.substring(0, resolvedName.length() - 2);
+            numArrayDims++;
         }
-        classname = resolveClassPath(classname);
-        if (isArray) {
-            classname += "[]";
+
+        // Resolve it
+        resolvedName = resolveClassPath(resolvedName);
+        if (resolvedName == null) {
+            return null; // Invalid class name
+        }
+        while (numArrayDims-- > 0) {
+            resolvedName += "[]";
         }
 
         // Don't double-resolve inside find()
         try {
             ignoreRemapper = true;
-            return super.createCtClass(classname, useCache);
+            CtClass found = super.createCtClass(resolvedName, useCache);
+            if (found != null) {
+                Resolver.getPackageNameCache().addPackageOfClassName(classname);
+            }
+            return found;
         } finally {
             ignoreRemapper = false;
         }
     }
 
     private final String resolveClassPath(String classname) {
-        if (classname == null || ignoreRemapper) {
-            return classname;
-        } else if (classname.startsWith(MPLMemberResolver.IGNORE_PREFIX)) {
-            return classname.substring(MPLMemberResolver.IGNORE_PREFIX.length());
+        if (classname.startsWith(MPLMemberResolver.IGNORE_PREFIX)) {
+            String cleanedName = classname.substring(MPLMemberResolver.IGNORE_PREFIX.length());
+            if (!Resolver.getPackageNameCache().canExist(cleanedName)) {
+                return null;
+            }
+            return cleanedName;
         } else {
+            if (!Resolver.getPackageNameCache().canExist(classname)) {
+                return null;
+            }
             return Resolver.resolveClassPath(classname);
         }
     }
