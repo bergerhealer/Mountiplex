@@ -260,7 +260,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         String resultName = name;
         for (int i = 1;; i++) {
             try {
-                Class.forName(resultName);
+                MPLType.getClassByName(resultName);
                 resultName = name + "_" + i;
             } catch (ClassNotFoundException ex) {
                 return resultName;
