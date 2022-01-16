@@ -138,7 +138,14 @@ public abstract class GeneratorClassLoader extends ClassLoader {
         if (foundInStaticClasses != null) {
             return foundInStaticClasses;
         } else {
-            return super.loadClass(name, resolve);
+            try {
+                return super.loadClass(name, resolve);
+            } catch (IllegalStateException is_ex) {
+                if ("zip file closed".equals(is_ex.getMessage())) {
+                    throw new MPLType.LoaderClosedException();
+                }
+                throw new ClassNotFoundException("Failed to load class " + name, is_ex);
+            }
         }
     }
 
