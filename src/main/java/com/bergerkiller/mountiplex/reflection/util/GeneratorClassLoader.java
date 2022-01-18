@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
 import java.lang.reflect.Constructor;
+import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -202,6 +203,23 @@ public abstract class GeneratorClassLoader extends ClassLoader {
 
         // Failed to find it
         throw new ClassNotFoundException(name);
+    }
+
+    // make public
+    @Override
+    public Package definePackage(String name, String specTitle,
+            String specVersion, String specVendor,
+            String implTitle, String implVersion,
+            String implVendor, URL sealBase)
+    {
+        return super.definePackage(name, specTitle, specVersion, specVendor, implTitle, implVersion, implVendor, sealBase);
+    }
+
+    // make public
+    @Override
+    @Deprecated
+    public Package getPackage(String name) {
+        return super.getPackage(name);
     }
 
     /**
