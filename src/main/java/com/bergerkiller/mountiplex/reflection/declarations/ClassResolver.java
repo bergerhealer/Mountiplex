@@ -203,7 +203,7 @@ public class ClassResolver {
 
     /**
      * Gets the declared class name. If the class does not exist,
-     * and it was set using setDeclaredClassName, it still returns then name.
+     * and it was set using setDeclaredClassName, it still returns the name.
      * 
      * @return declared class name
      */
