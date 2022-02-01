@@ -19,19 +19,36 @@ public class GeneratorArgumentStore {
     private static final AtomicInteger _constructionArgCtr = new AtomicInteger(0);
 
     /**
-     * Uses this store to create a one-time field initializer
-     * 
+     * Uses this store to create a one-time field initializer.
+     * The value is cast to the true value class type during assignment.
+     *
      * @param value
      * @return initializer
      */
     public static CtField.Initializer initializeField(Object value) {
         if (value == null) {
             return CtField.Initializer.byExpr("null");
+        } else {
+            return initializeField(value, value.getClass());
+        }
+    }
+
+    /**
+     * Uses this store to create a one-time field initializer.
+     * The value is cast to the type specified before assigning.
+     *
+     * @param value Value to assign
+     * @param cast What type to cast the value to during assignment
+     * @return initializer
+     */
+    public static CtField.Initializer initializeField(Object value, Class<?> cast) {
+        if (value == null) {
+            return CtField.Initializer.byExpr("null");
         }
 
         // TODO: This is ew. Is there no more efficient way to do it?
         int record = store(value);
-        return CtField.Initializer.byExpr("(" + MPLType.getName(value.getClass()) + ") "+
+        return CtField.Initializer.byExpr("(" + MPLType.getName(cast) + ") "+
             GeneratorArgumentStore.class.getName() + ".fetch(" + record + ");");
     }
 

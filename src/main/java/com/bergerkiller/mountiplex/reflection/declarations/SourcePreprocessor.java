@@ -2,9 +2,6 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.util.LinkedList;
 import java.util.Locale;
-import java.util.logging.Level;
-
-import com.bergerkiller.mountiplex.MountiplexUtil;
 
 /**
  * Pre-processes template source code to resolve if,
@@ -187,15 +184,6 @@ public class SourcePreprocessor {
             return;
         }
 
-        // Error / warning handling
-        if (lineLower.startsWith("#error ")) {
-            throw new TemplateError(resolver, lineTrimmed.substring(7).trim());
-        } else if (lineLower.startsWith("#warning ")) {
-            MountiplexUtil.LOGGER.log(Level.WARNING, "Template warning: " +
-                    lineTrimmed.substring(9).trim());
-            return;
-        }
-
         // The below statements are all included in the source
         result.append(line).append('\n');
         if (lineLower.startsWith("#set ")) {
@@ -211,17 +199,6 @@ public class SourcePreprocessor {
             }
             resolver.setVariable(varName, varValue);
             return;
-        }
-    }
-
-    /**
-     * Error thrown when an #error directive is hit
-     */
-    public static class TemplateError extends RuntimeException {
-        private static final long serialVersionUID = 7429146143115133423L;
-
-        public TemplateError(ClassResolver resolver, String error) {
-            super("Template error: " + error);
         }
     }
 }

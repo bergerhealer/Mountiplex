@@ -14,6 +14,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastConvertedField;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
+import com.bergerkiller.mountiplex.reflection.util.MethodBodyBuilder;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
@@ -222,10 +223,10 @@ public class FieldDeclaration extends Declaration {
             // That way no requirement needs to be used to do this
             // Only the instanceName#field portion in the body has to be replaced
             if (Modifier.isPublic(modifiers) && !Modifier.isFinal(modifiers)) {
-                StringBuilder replacement = new StringBuilder();
+                MethodBodyBuilder replacement = new MethodBodyBuilder();
                 if (Modifier.isStatic(modifiers)) {
                     // Replace with ClassName.fieldName
-                    replacement.append(ReflectionUtil.getAccessibleTypeName(fieldDeclaringClass));
+                    replacement.appendAccessibleTypeName(fieldDeclaringClass);
                 } else {
                     // Replace with instanceName.fieldName
                     replacement.append(instanceName);
@@ -259,7 +260,7 @@ public class FieldDeclaration extends Declaration {
             String valueName = body.substring(setOperationValueStartIdx, setOperationValueEndIdx);
 
             // Modify the original body to use the field setter method instead
-            StringBuilder replacement = new StringBuilder();
+            MethodBodyBuilder replacement = new MethodBodyBuilder();
             replacement.append("this.").append(requirementName).append(".set");
             if (fieldType.isPrimitive) {
                 replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
@@ -276,7 +277,7 @@ public class FieldDeclaration extends Declaration {
             // Replace portion in body with replacement
             body.replace(instanceStartIdx, setOperationValueEndIdx, replacement.toString());
         } else {
-            StringBuilder replacement = new StringBuilder();
+            MethodBodyBuilder replacement = new MethodBodyBuilder();
 
             // When getting, and the field is public, we can set the field inline
             // That way no requirement needs to be used to do this
@@ -302,7 +303,7 @@ public class FieldDeclaration extends Declaration {
                     replacement.append(BoxedType.getBoxedType(fieldType.type).getSimpleName());
                 } else {
                     // Get + cast
-                    replacement.append(ReflectionUtil.getAccessibleTypeCast(fieldType.type));
+                    replacement.appendAccessibleTypeCast(fieldType.type);
                     replacement.append("this.").append(requirementName).append(".get");
                 }
                 replacement.append('(');

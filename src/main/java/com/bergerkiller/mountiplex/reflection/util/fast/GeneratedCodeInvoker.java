@@ -161,6 +161,9 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());
         }
 
+        // Make sure warnings/errors are handled before we try to compile anything
+        declaration.checkTemplateErrors();
+
         try (ResolvedClassPool pool = ResolvedClassPool.create()) {
             int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getDeclaringClass();

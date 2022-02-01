@@ -15,6 +15,7 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
+import com.bergerkiller.mountiplex.reflection.util.MethodBodyBuilder;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
@@ -387,7 +388,7 @@ public class MethodDeclaration extends Declaration {
 
         // If method is accessible, call it directly rather than using reflection/generated code
         if (canCallDirectly) {
-            StringBuilder replacement = new StringBuilder();
+            MethodBodyBuilder replacement = new MethodBodyBuilder();
             if (this.method != null) {
                 if (this.modifiers.isStatic()) {
                     // Replace with ClassName.MethodName
@@ -432,7 +433,7 @@ public class MethodDeclaration extends Declaration {
         } else {
             // Replace instanceName#name ( with our invoker
             // For static methods, only #name ( is replaced
-            StringBuilder replacement = new StringBuilder();
+            MethodBodyBuilder replacement = new MethodBodyBuilder();
             replacement.append("this.").append(requirementName);
             replacement.append('(');
             replacement.append(instanceName);
@@ -462,7 +463,7 @@ public class MethodDeclaration extends Declaration {
         }
 
         // Create a new method with the exposed parameter types and return type
-        StringBuilder methodBody = new StringBuilder();
+        MethodBodyBuilder methodBody = new MethodBodyBuilder();
         methodBody.append("private final ");
         methodBody.append(ReflectionUtil.getAccessibleTypeName(this.returnType.exposed().type));
         methodBody.append(' ').append(name).append('(');
@@ -471,11 +472,11 @@ public class MethodDeclaration extends Declaration {
             ParameterDeclaration param = this.parameters.parameters[i];
 
             methodBody.append(", ");
-            methodBody.append(ReflectionUtil.getTypeName(param.type.exposed().type));
+            methodBody.appendTypeName(param.type.exposed().type);
             methodBody.append(' ').append(param.name.real());
 
             // If converted or a primitive type, name the input parameter '_conv_input'
-            if (param.type.cast != null || param.type.isPrimitive) {
+            if ((param.type.cast != null && param.type.cast.type != Object.class) || param.type.isPrimitive) {
                 methodBody.append("_conv_input");
             }
         }
@@ -506,26 +507,31 @@ public class MethodDeclaration extends Declaration {
 
         for (int i = 0; i < this.parameters.parameters.length; i++) {
             ParameterDeclaration param = this.parameters.parameters[i];
+            boolean hasConversion = param.type.cast != null && param.type.cast.type != Object.class;
 
             if (isVarArgsInvoke) {
                 // Assign to varargs element
-                methodBody.append("  ").append(name).append("_input_args");
-                methodBody.append('[').append(i).append("] = ");
-            } else if (param.type.cast != null || param.type.isPrimitive) {
+                methodBody.append("  ")
+                          .appendFieldName(name, "_input_args")
+                          .append('[').append(i).append("] = ");
+            } else if (hasConversion || param.type.isPrimitive) {
                 // Is converted or boxed, assign to its own Object field
-                methodBody.append("  Object ").append(param.name.real());
-                methodBody.append(" = ");
+                methodBody.append("  Object ")
+                          .append(param.name.real())
+                          .append(" = ");
             }
 
-            if (param.type.cast == null) {
-                if (param.type.isPrimitive) {
-                    // Box it before assigning
-                    methodBody.append(BoxedType.getBoxedType(param.type.type).getSimpleName());
-                    methodBody.append(".valueOf(");
-                    methodBody.append(param.name.real()).append("_conv_input);\n");
-                } else if (isVarArgsInvoke) {
-                    // Direct assigning, no need when varargs is not used (method parameter)
-                    methodBody.append(param.name.real()).append(";\n");
+            // Assigning a boxed version of a primitive input parameter
+            if (param.type.cast == null && param.type.isPrimitive) {
+                methodBody.appendBoxPrimitive(param.type.type, param.name.real(), "_conv_input")
+                          .appendEnd();
+                continue;
+            }
+
+            // When no conversion happens, assign to the var-args array right away and/or stop.
+            if (!hasConversion) {
+                if (isVarArgsInvoke) {
+                    methodBody.append(param.name.real()).appendEnd();
                 }
                 continue;
             }
@@ -548,57 +554,62 @@ public class MethodDeclaration extends Declaration {
                 CtClass converterClass = tmp_pool.get(Converter.class.getName());
                 CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
                 ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter));
+                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter, Converter.class));
             }
 
             methodBody.append("this.").append(converterFieldName);
             methodBody.append(".convertInput(");
             if (param.type.cast.isPrimitive) {
-                methodBody.append(BoxedType.getBoxedType(param.type.cast.type).getSimpleName());
-                methodBody.append(".valueOf(");
-                methodBody.append(param.name.real()).append("_conv_input)");
+                methodBody.appendBoxPrimitive(param.type.cast.type, param.name.real(), "_conv_input");
             } else {
-                methodBody.append(param.name.real()).append("_conv_input");
+                methodBody.appendFieldName(param.name.real(), "_conv_input");
             }
-            methodBody.append(");\n");
+            methodBody.append(')').appendEnd();
         }
 
         // If not void, store return type, with possible cast
         // We can use Object when a converter is going to be used
         if (!this.returnType.type.equals(void.class)) {
             methodBody.append("  ");
-            if (this.returnType.cast != null) {
+            if (this.returnType.cast != null && this.returnType.cast.type == Object.class) {
+                // Returns an Object, so no conversion or casting has to occur
+                methodBody.append("Object ");
+                methodBody.appendFieldName(name, "_return").append(" = ");
+            } else if (this.returnType.cast != null) {
                 // Store as Object with _conv_input before conversion
-                methodBody.append("Object ").append(name).append("_return_conv_input = ");
+                methodBody.append("Object ");
+                methodBody.appendFieldName(name, "_return_conv_input").append(" = ");
             } else if (this.returnType.isPrimitive) {
                 // Cast to boxed type
                 Class<?> boxedType = BoxedType.getBoxedType(this.returnType.type);
-                methodBody.append(ReflectionUtil.getTypeName(boxedType)).append(' ');
-                methodBody.append(name).append("_return = ");
-                methodBody.append(ReflectionUtil.getCastString(boxedType));
+                methodBody.appendTypeName(boxedType).append(' ');
+                methodBody.appendFieldName(name, "_return").append(" = ");
+                methodBody.appendTypeCast(boxedType);
             } else {
                 // Cast to returned type
-                methodBody.append(ReflectionUtil.getAccessibleTypeName(this.returnType.type)).append(' ');
-                methodBody.append(name).append("_return = ");
-                methodBody.append(ReflectionUtil.getAccessibleTypeCast(this.returnType.type));
+                methodBody.appendAccessibleTypeName(this.returnType.type).append(' ');
+                methodBody.appendFieldName(name, "_return").append(" = ");
+                methodBody.appendAccessibleTypeCast(this.returnType.type);
             }
         }
 
         // Invoke the method
         methodBody.append("this.").append(methodFieldName);
         if (isVarArgsInvoke) {
-            methodBody.append(".invokeVA(instance, ").append(name).append("_input_args);\n");
+            methodBody.append(".invokeVA(instance, ").appendFieldName(name, "_input_args").append(')')
+                      .appendEnd();
         } else {
             methodBody.append(".invoke(instance");
             for (int i = 0; i < this.parameters.parameters.length; i++) {
                 ParameterDeclaration param = this.parameters.parameters[i];
                 methodBody.append(", ").append(param.name.real());
             }
-            methodBody.append(");\n");
+            methodBody.append(')')
+                      .appendEnd();
         }
 
         // Converter
-        if (this.returnType.cast != null) {
+        if (this.returnType.cast != null && this.returnType.cast.type != Object.class) {
             // Generate name for the return type converter field
             String converterFieldName = name + "_conv_return";
 
@@ -617,7 +628,7 @@ public class MethodDeclaration extends Declaration {
                 CtClass converterClass = tmp_pool.get(Converter.class.getName());
                 CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
                 ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter));
+                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter, Converter.class));
             }
 
             // Perform conversion in body
@@ -628,22 +639,23 @@ public class MethodDeclaration extends Declaration {
                 rType = this.returnType.cast.type;
             }
  
-            methodBody.append("  ").append(ReflectionUtil.getTypeName(rType));
-            methodBody.append(' ').append(name).append("_return = ");
-            methodBody.append(ReflectionUtil.getCastString(rType)).append("this.");
-            methodBody.append(converterFieldName).append(".convertInput(");
-            methodBody.append(name).append("_return_conv_input);\n");
+            methodBody.append("  ")
+                      .appendTypeName(rType).append(' ').appendFieldName(name, "_return")
+                      .append(" = ")
+                      .appendTypeCast(rType)
+                      .append("this.").append(converterFieldName).append(".convertInput(")
+                      .appendFieldName(name, "_return_conv_input").append(')')
+                      .appendEnd();
         }
 
         // Return the result from the method. Unbox it if required. Only if not void.
         if (!this.returnType.type.equals(void.class)) {
             methodBody.append("  return ");
-            methodBody.append(name).append("_return");
+            methodBody.appendFieldName(name, "_return");
             if (this.returnType.exposed().isPrimitive) {
-                methodBody.append('.').append(this.returnType.exposed().type.getSimpleName());
-                methodBody.append("Value()");
+                methodBody.appendUnboxPrimitive(this.returnType.exposed().type);
             }
-            methodBody.append(";\n");
+            methodBody.appendEnd();
         }
 
         // Close body
@@ -785,6 +797,30 @@ public class MethodDeclaration extends Declaration {
         }
         sortSimilarity(this, alternatives);
         FieldLCSResolver.logAlternatives("method", alternatives, this, true);
+    }
+
+    @Override
+    public String getTemplateLogIdentity() {
+        StringBuilder str = new StringBuilder();
+        if (this.modifiers.isStatic()) {
+            str.append("static ");
+        }
+        str.append("method ");
+        str.append(this.returnType.exposed().typeName);
+        str.append(' ');
+        str.append(name.toString());
+        str.append('(');
+        boolean first = true;
+        for (ParameterDeclaration param : this.parameters.parameters) {
+            if (first) {
+                first = false;
+            } else {
+                str.append(", ");
+            }
+            str.append(param.name.toString());
+        }
+        str.append(')');
+        return str.toString();
     }
 
     private boolean checkPublic(java.lang.reflect.Method method) {

@@ -215,6 +215,11 @@ public class Template {
             this.valid = (this.classType != null && this.classDec != null);
             this.instantiator = NullInstantiator.of(classType);
 
+            // Check for errors and warnings before initializing anything
+            if (this.valid) {
+                this.classDec.checkTemplateErrors();
+            }
+
             // Create duplex converter between handle type and instance type
             if (this.classType != null && this.handleType != null) {
                 this.handleConverter = new DuplexHandleConverter<H>(this);

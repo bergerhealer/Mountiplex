@@ -205,7 +205,18 @@ public class Conversion {
      * @return Converter from input to output, or null if it is not found
      */
     public static Converter<Object, Object> find(TypeDeclaration input, TypeDeclaration output) {
-        TypeTuple key = new TypeTuple(input, output);
+        TypeTuple key;
+        try {
+            key = new TypeTuple(input, output);
+        } catch (RuntimeException ex) {
+            if (input == null) {
+                throw new IllegalArgumentException("Input type is null");
+            }
+            if (output == null) {
+                throw new IllegalArgumentException("Output type is null");
+            }
+            throw ex;
+        }
         synchronized (lock) {
             Converter<Object, Object> result = converters.get(key);
             if (result == null) {

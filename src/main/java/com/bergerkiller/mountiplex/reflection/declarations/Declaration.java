@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -23,6 +24,9 @@ public abstract class Declaration {
     private String _longDeclare = null;
     protected final StringBuffer _initialDeclaration;
     private final ClassResolver _resolver;
+    private List<String> _errors = Collections.emptyList();
+    private List<String> _warnings = Collections.emptyList();
+    private boolean _loggedErrorsAndWarnings = true;
 
     static {
         invalid_name_chars = new char[] {
@@ -135,15 +139,7 @@ public abstract class Declaration {
         // Sets the resolver used to obtain the class declarations
         if (this._postfix.startsWith("#resolver ")) {
             this.trimWhitespace(10);
-
-            int endOfLine = this._postfix.indexOf('\n');
-            if (endOfLine == -1) {
-                setPostfix(StringBuffer.EMPTY);
-            } else {
-                String name = this._postfix.substringToString(0, endOfLine);
-                this._resolver.setClassDeclarationResolverName(name);
-                this.trimWhitespace(endOfLine);
-            }
+            this._resolver.setClassDeclarationResolverName(trimLine());
             return true;
         }
 
@@ -169,15 +165,7 @@ public abstract class Declaration {
             Declaration dec = this.nextDetectMemberDeclaration(requireResolver);
             if (dec == null) {
                 // Trim to end of line
-                String remainder;
-                int endOfLine = this._postfix.indexOf('\n');
-                if (endOfLine == -1) {
-                    remainder = this._postfix.toString();
-                    setPostfix(StringBuffer.EMPTY);
-                } else {
-                    remainder = this._postfix.substringToString(0, endOfLine);
-                    this.trimWhitespace(endOfLine);
-                }
+                String remainder = this.trimLine();
 
                 // Log this
                 if (this._resolver.getLogErrors()) {
@@ -198,6 +186,25 @@ public abstract class Declaration {
 
             // Store it
             this._resolver.storeRequirement(new Requirement(name, dec));
+            return true;
+        }
+
+        // Error / warning handling
+        if (this._postfix.startsWith("#error ")) {
+            this.trimWhitespace(7);
+            if (this._errors.isEmpty()) {
+                this._errors = new ArrayList<>();
+            }
+            this._errors.add(trimLine());
+            this._loggedErrorsAndWarnings = false;
+            return true;
+        } else if (this._postfix.startsWith("#warning ")) {
+            this.trimWhitespace(9);
+            if (this._warnings.isEmpty()) {
+                this._warnings = new ArrayList<>();
+            }
+            this._warnings.add(trimLine());
+            this._loggedErrorsAndWarnings = false;
             return true;
         }
 
@@ -297,24 +304,33 @@ public abstract class Declaration {
 
     /**
      * Removes everything up until the next newline
+     * 
+     * @return contents that were trimmed, excluding the newline character
      */
-    protected final void trimLine() {
+    protected final String trimLine() {
         if (this._postfix == null) {
-            return;
+            return "";
         }
-        boolean foundNewline = false;
+
+        int firstNewLineIdx = -1;
         for (int cidx = 0; cidx < this._postfix.length(); cidx++) {
             char c = this._postfix.charAt(cidx);
             if (c == '\r' || c == '\n') {
-                foundNewline = true;
+                if (firstNewLineIdx == -1) {
+                    firstNewLineIdx = cidx;
+                }
                 continue;
             }
-            if (c != ' ' && foundNewline) {
+            if (c != ' ' && firstNewLineIdx != -1) {
+                String remainder = this._postfix.substringToString(0, firstNewLineIdx);
                 this._postfix = this._postfix.substring(cidx);
-                return;
+                return remainder;
             }
         }
+
+        String remainder = this._postfix.toString();
         this._postfix = StringBuffer.EMPTY;
+        return remainder;
     }
 
     /**
@@ -323,6 +339,84 @@ public abstract class Declaration {
      * @return True if this declaration was fully resolved, False if not
      */
     public abstract boolean isResolved();
+
+    /**
+     * Gets a List of #warning directives encountered while parsing the template
+     *
+     * @return warnings
+     */
+    public final List<String> getTemplateWarnings() {
+        return this._warnings;
+    }
+
+    /**
+     * Gets a List of #error directives encountered while parsing the template
+     *
+     * @return errors
+     */
+    public final List<String> getTemplateErrors() {
+        return this._errors;
+    }
+
+    /**
+     * Logs any warnings encountered during the parsing of this declaration, and
+     * only logs them once. If template errors were declared, those are logged once
+     * and a {@link TemplateError} is thrown every time.
+     * 
+     * @throws TemplateError
+     */
+    public final void checkTemplateErrors() {
+        if (!this._loggedErrorsAndWarnings) {
+            this._loggedErrorsAndWarnings = true;
+
+            // Log warnings
+            if (!this._warnings.isEmpty()) {
+                if (this._warnings.size() > 1) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Warnings in template for declaring class: " + this._resolver.getDeclaredClassName());
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Multiple template warnings for " +
+                            getTemplateLogIdentity() + ":");
+                    for (String warning : this._warnings) {
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "  - " + warning);
+                    }
+                } else {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Warning in template for declaring class: " + this._resolver.getDeclaredClassName());
+                    MountiplexUtil.LOGGER.log(Level.WARNING, "Template warning for " +
+                            getTemplateLogIdentity() + ": " + this._warnings.get(0));
+                }
+            }
+
+            // Format multiple errors so the exception isn't so long and weird
+            if (!this._errors.isEmpty()) {
+                if (this._errors.size() > 1) {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Errors in template for declaring class: " + this._resolver.getDeclaredClassName());
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Multiple template errors for " + getTemplateLogIdentity() + ":");
+                    for (String error : this._errors) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "  - " + error);
+                    }
+                } else {
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Error in template for declaring class: " + this._resolver.getDeclaredClassName());
+                }
+            }
+        }
+
+        if (!this._errors.isEmpty()) {
+            if (this._errors.size() > 1) {
+                throw new TemplateError("Multiple template errors for " + getTemplateLogIdentity());
+            } else {
+                throw new TemplateError("Template error for " + getTemplateLogIdentity() +
+                        ": " + this._errors.get(0));
+            }
+        }
+    }
+
+    /**
+     * Gets a human-readable name to be used when logging warnings and errors about this declaration
+     *
+     * @return template identity
+     */
+    protected String getTemplateLogIdentity() {
+        return this.toString(false);
+    }
 
     /**
      * Checks if the declaration specified matches this declaration.

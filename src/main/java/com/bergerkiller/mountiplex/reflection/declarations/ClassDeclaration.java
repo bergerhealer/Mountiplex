@@ -416,8 +416,12 @@ public class ClassDeclaration extends Declaration {
     }
 
     @Override
+    public String getTemplateLogIdentity() {
+        return "class " + this.type.typeName;
+    }
+
+    @Override
     protected void debugString(StringBuilder str, String indent) {
         
     }
-
 }
