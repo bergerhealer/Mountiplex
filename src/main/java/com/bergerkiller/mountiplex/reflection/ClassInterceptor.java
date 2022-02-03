@@ -12,8 +12,8 @@ import org.objenesis.ObjenesisHelper;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.ClassFieldCopier;
 import com.bergerkiller.mountiplex.reflection.util.fast.ConstantReturningInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedHook;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
@@ -398,11 +398,12 @@ public abstract class ClassInterceptor {
         public final Class<?> baseType;
         public final ObjectInstantiator<?> baseInstantiator;
         public final Invoker<?> getInterceptorCallback;
-        private final FastField<?>[] baseTypeFields;
+        private final ClassFieldCopier<Object> baseFieldCopier;
         public Class<?> enhancedType;
         public ObjectInstantiator<?> enhancedInstantiator;
         public ClassInterceptor currentInterceptor;
 
+        @SuppressWarnings("unchecked")
         public EnhancedClass(Class<?> baseType) {
             this.baseType = baseType;
             this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
@@ -410,9 +411,7 @@ public abstract class ClassInterceptor {
                 throw new RuntimeException("Base Class " + MPLType.getName(baseType) + " has no instantiator");
 
             // These are used for transferring all fields from one Object to another
-            this.baseTypeFields = ReflectionUtil.getAllNonStaticFields(baseType)
-                    .map(FastField::new)
-                    .toArray(FastField[]::new);
+            this.baseFieldCopier = (ClassFieldCopier<Object>) ClassFieldCopier.of(baseType);
 
             // Initializes the CI_getInterceptor() function, stores it in a field
             this.getInterceptorCallback = GeneratedHook.createLocalField(() -> currentInterceptor);
@@ -431,9 +430,7 @@ public abstract class ClassInterceptor {
             if (base == null)
                 throw new RuntimeException("Class " + MPLType.getName(baseType) + " could not be instantiated (newInstance failed)");
 
-            for (FastField<?> ff : this.baseTypeFields) {
-                ff.copy(enhanced, base);
-            }
+            this.baseFieldCopier.copy(enhanced, base);
             return (T) base;
         }
 
@@ -458,9 +455,7 @@ public abstract class ClassInterceptor {
                 throw new RuntimeException("Class " + MPLType.getName(enhancedType) + " could not be instantiated (newInstance failed)");
 
             if (base != null) {
-                for (FastField<?> ff : this.baseTypeFields) {
-                    ff.copy(base, enhanced);
-                }
+                this.baseFieldCopier.copy(base, enhanced);
             }
             return (T) enhanced;
         }

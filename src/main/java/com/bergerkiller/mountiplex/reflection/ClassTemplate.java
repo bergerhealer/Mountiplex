@@ -9,6 +9,7 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.ClassFieldCopier;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class ClassTemplate<T> {
     private Class<T> type;
     private List<SafeField<?>> fields;
+    private ClassFieldCopier<T> copier;
     private NullInstantiator<T> instantiator;
     private List<FieldDeclaration> typeFields;
     private List<MethodDeclaration> typeMethods;
@@ -261,10 +263,12 @@ public class ClassTemplate<T> {
      * @param from instance
      * @param to instance
      */
+    @SuppressWarnings("unchecked")
     public void transfer(Object from, Object to) {
-        for (SafeField<?> field : this.getFields()) {
-            field.getFastField().copy(from, to);
+        if (copier == null) {
+            copier = ClassFieldCopier.of(this.type);
         }
+        copier.copy((T) from, (T) to);
     }
 
     /**

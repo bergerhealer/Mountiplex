@@ -18,7 +18,6 @@ import com.bergerkiller.mountiplex.conversion.util.ParamsConverterList;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.MethodAccessor;
-import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.SafeField;
 import com.bergerkiller.mountiplex.reflection.SafeMethod;
 import com.bergerkiller.mountiplex.reflection.TranslatorFieldAccessor;
@@ -31,6 +30,7 @@ import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.fast.ClassFieldCopier;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
@@ -54,7 +54,7 @@ public class Template {
         private Invoker<H> handleBuilderMethod = null;
         private NullInstantiator<Object> instantiator = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
-        private FastField<?>[] fields = null;
+        private ClassFieldCopier<Object> fieldCopier = null;
         private ClassDeclaration classDec = null;
 
         /**
@@ -424,15 +424,12 @@ public class Template {
          * @param instanceFrom
          * @param instanceTo
          */
+        @SuppressWarnings("unchecked")
         public void copy(Object instanceFrom, Object instanceTo) {
-            if (this.fields == null) {
-                this.fields = ReflectionUtil.getAllNonStaticFields(this.classType)
-                        .map(FastField::new)
-                        .toArray(FastField[]::new);
+            if (fieldCopier == null) {
+                fieldCopier = (ClassFieldCopier<Object>) ClassFieldCopier.of(this.classType);
             }
-            for (FastField<?> field : this.fields) {
-                field.copy(instanceFrom, instanceTo);
-            }
+            fieldCopier.copy(instanceFrom, instanceTo);
         }
     }
 

@@ -3,7 +3,6 @@ package com.bergerkiller.mountiplex;
 import static org.junit.Assert.*;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
@@ -14,10 +13,9 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
-import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedAccessor;
+import com.bergerkiller.mountiplex.reflection.util.fast.ClassFieldCopier;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
-import com.bergerkiller.mountiplex.types.TestObject;
 
 /**
  * This class contains no tests but offers room to play around with ASM utilities
@@ -59,10 +57,42 @@ public class ASMPlaygroundTest {
         }
     }
 
+    public static class Example {
+        public int a = 10;
+        public final String b;
+        @SuppressWarnings("unused")
+        private int c = 11;
+        public String d = "d";
+        public long e = 12;
+        public final int f;
+
+        public Example(String b, int f) {
+            this.b = b;
+            this.f = f;
+        }
+    }
+
+    public static class TestCopier extends ClassFieldCopier<Example> {
+        public static ReflectionCopier[] copiers;
+
+        public static Field field_b;
+        public static Field field_f;
+
+        @Override
+        protected void tryCopy(Example from, Example to) throws Throwable {
+            super.copyAllWithReflection(copiers, from, to);
+
+            to.a = from.a;
+            to.e = from.e;
+            field_b.set(to, from.b);
+            field_f.setInt(to, from.f);
+        }
+    }
+
     @Ignore
     @Test
     public void testShowASM() {
-        TestUtil.printASM(Woo.class);
+        TestUtil.printASM(TestCopier.class);
     }
 
     private Invoker<Object> invoker;
