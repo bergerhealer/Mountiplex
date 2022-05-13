@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -149,7 +150,7 @@ public class ClassTemplate<T> {
         try {
             return this.type.newInstance();
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize new instance of " + this.type, t);
         }
         return null;
     }
@@ -791,7 +792,7 @@ public class ClassTemplate<T> {
                     method.method.setAccessible(true);
                     return method.method;
                 } catch (SecurityException ex) {
-                    ex.printStackTrace();
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Security exception trying to access method " + method, ex);
                 }
             }
         }

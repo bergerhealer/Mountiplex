@@ -136,8 +136,7 @@ public class Conversion {
                     }
                 } catch (Throwable t) {
                     MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
-                    System.err.println("Failed to register static converter method " + m.toString());
-                    t.printStackTrace();
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register static converter method " + m.toString(), t);
                 }
             }
             if (method.getAnnotation(ProviderMethod.class) != null) {
@@ -145,8 +144,7 @@ public class Conversion {
                     registerProvider(new AnnotatedProvider(method));
                 } catch (Throwable t) {
                     MethodDeclaration m = new MethodDeclaration(ClassResolver.DEFAULT, method);
-                    System.err.println("Failed to register static provider method " + m.toString());
-                    t.printStackTrace();
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to register static provider method " + m.toString(), t);
                 }
             }
         }
@@ -315,7 +313,7 @@ public class Conversion {
                 logFile.close();
             }
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "[Debug] Failed to export converter tree", t);
         }
     }
 

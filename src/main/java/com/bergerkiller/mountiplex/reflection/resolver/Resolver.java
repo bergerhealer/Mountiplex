@@ -275,7 +275,7 @@ public class Resolver {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize class '" + className + "':", e.getCause());
         } catch (ClassNotFoundException e) {
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Unhandled error initializing class " + classType, t);
         }
     }
 

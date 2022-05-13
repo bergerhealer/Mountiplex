@@ -386,7 +386,7 @@ public class FieldDeclaration extends Declaration {
         } catch (NoSuchFieldException ex) {
             // Not found
         } catch (Throwable t) {
-            t.printStackTrace(); // wut
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to discover field", t);
         }
         return null;
     }

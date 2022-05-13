@@ -23,6 +23,9 @@ public class SafeField<T> implements FieldAccessor<T> {
     private final FastField<T> field;
 
     public SafeField(FastField<T> field) {
+        if (field == null) {
+            throw new IllegalArgumentException("Backing field can not be null");
+        }
         this.field = field;
     }
 
@@ -43,8 +46,7 @@ public class SafeField<T> implements FieldAccessor<T> {
             Class<?> type = Resolver.loadClass(className, false);
             load(type, fieldName, fieldType);
         } catch (Throwable t) {
-            System.out.println("Failed to load field '" + fieldPath + "':");
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to load field '" + fieldPath + "'", t);
         }
     }
 
@@ -124,7 +126,7 @@ public class SafeField<T> implements FieldAccessor<T> {
         try {
             return this.field.get(object);
         } catch (RuntimeException ex) {
-            ex.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get field " + this.field.getDescription(), ex);
             return null;
         }
     }
@@ -135,7 +137,7 @@ public class SafeField<T> implements FieldAccessor<T> {
             this.field.set(object, value);
             return true;
         } catch (RuntimeException ex) {
-            ex.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to set field " + this.field.getDescription(), ex);
             return false;
         }
     }

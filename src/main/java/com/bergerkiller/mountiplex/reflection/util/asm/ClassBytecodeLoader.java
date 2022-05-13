@@ -14,6 +14,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -22,6 +23,7 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 
@@ -108,7 +110,7 @@ public class ClassBytecodeLoader {
             });
         } catch (MalformedURLException e) {
             // Should never happen
-            e.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Unhandled error parsing generated url for " + clazz, e);
             return null;
         }
     }

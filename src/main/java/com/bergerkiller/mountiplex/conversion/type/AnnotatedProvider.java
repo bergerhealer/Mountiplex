@@ -3,7 +3,9 @@ package com.bergerkiller.mountiplex.conversion.type;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.logging.Level;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
@@ -30,7 +32,7 @@ public class AnnotatedProvider implements ConverterProvider {
         try {
             this.method.invoke(null, output, converters);
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get suitable converters for " + output, t);
         }
     }
 

@@ -18,6 +18,9 @@ public class SafeMethod<T> implements MethodAccessor<T> {
     private final FastMethod<T> method;
 
     public SafeMethod(FastMethod<T> method) {
+        if (method == null) {
+            throw new IllegalArgumentException("Backing method can not be null");
+        }
         this.method = method;
     }
 
@@ -38,8 +41,7 @@ public class SafeMethod<T> implements MethodAccessor<T> {
             Class<?> type = Resolver.loadClass(className, false);
             load(type, methodName, parameterTypes);
         } catch (Throwable t) {
-            System.out.println("Failed to load method '" + methodPath + "':");
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to load method '" + methodPath + "'", t);
         }
     }
 
@@ -55,7 +57,8 @@ public class SafeMethod<T> implements MethodAccessor<T> {
 
     private void load(Class<?> source, String name, Class<?>... parameterTypes) {
         if (source == null) {
-            new Exception("Can not load method '" + name + "' because the class is null!").printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Can not load method '" + name + "' because the class is null!",
+                    new IllegalStateException("Missing source"));
             return;
         }
         // Find real name and display name

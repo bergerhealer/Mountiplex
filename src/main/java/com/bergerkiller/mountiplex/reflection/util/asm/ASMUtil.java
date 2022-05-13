@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Level;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
@@ -17,6 +18,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class ASMUtil {
@@ -270,7 +272,7 @@ public class ASMUtil {
             }, 0);
 
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Unhandled error finding used types of " + type, t);
         }
         return result;
     }
@@ -608,7 +610,7 @@ public class ASMUtil {
                 }
             }, 0);
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Unhandled error finding method details of " + method, t);
         }
         return info.toTrace();
     }

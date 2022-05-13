@@ -8,7 +8,9 @@ import java.nio.file.Files;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Level;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
 public class TemplateGenerator {
@@ -93,7 +95,7 @@ public class TemplateGenerator {
             }
 
         } catch (Throwable t) {
-            t.printStackTrace();
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to generate template class " + classRoot, t);
         }
     }
 
@@ -125,13 +127,13 @@ public class TemplateGenerator {
                 if (path != null) {
                     extendedHandleType = resolveImport(path);
                 } else {
-                    System.err.println("Failed to find super type template class: " + baseType.typePath);
-                    System.err.println("With super template generator: " + baseGen.path);
-                    System.err.println("At template " + classDec.type.typePath);
+                    MountiplexUtil.LOGGER.severe("Failed to find super type template class: " + baseType.typePath);
+                    MountiplexUtil.LOGGER.severe("With super template generator: " + baseGen.path);
+                    MountiplexUtil.LOGGER.severe("At template " + classDec.type.typePath);
                 }
             } else {
-                System.err.println("Super type has no template: " + baseType.typePath);
-                System.err.println("At template " + classDec.type.typePath);
+                MountiplexUtil.LOGGER.severe("Super type has no template: " + baseType.typePath);
+                MountiplexUtil.LOGGER.severe("At template " + classDec.type.typePath);
             }
         }
 

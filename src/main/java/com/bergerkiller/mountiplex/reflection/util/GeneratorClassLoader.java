@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
@@ -50,6 +51,7 @@ public abstract class GeneratorClassLoader extends ClassLoader {
                 theImplementationFactory = (Constructor<? extends GeneratorClassLoader>) theImplementationType.getConstructor(ClassLoader.class);
             } catch (Throwable t) {
                 theImplementationTypeFailure = new GeneratorNotSupportedException(t);
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize generator class builder", t);
             }
 
             implementationFactory = theImplementationFactory;

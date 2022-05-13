@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.UnaryOperator;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -267,7 +268,7 @@ public class MountiplexUtil {
                 }
                 return toArray(constants, type);
             } catch (Throwable t) {
-                t.printStackTrace();
+                LOGGER.log(Level.WARNING, "Failed to find class constants of " + theClass, t);
                 return createArray(type, 0);
             }
         }

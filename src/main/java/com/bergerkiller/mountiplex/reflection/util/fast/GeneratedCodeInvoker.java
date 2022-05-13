@@ -299,7 +299,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                 Class<?> invokerClass = invoker.toClass(generatorLoader, null);
                 return (GeneratedCodeInvoker<T>) invokerClass.newInstance();
             } catch (java.lang.VerifyError ex) {
-                System.err.println("Failed to verify generated method: " + declaration.body);
+                MountiplexUtil.LOGGER.severe("Failed to verify generated method: " + declaration.body);
                 throw ex;
             }
         } catch (Throwable t) {
