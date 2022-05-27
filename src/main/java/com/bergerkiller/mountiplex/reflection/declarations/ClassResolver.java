@@ -542,6 +542,30 @@ public class ClassResolver {
             return (declaration.discover() != null) != inverted;
         }
 
+        if (varName.equals("assignable")) {
+            int secondClassStart = expression.indexOf(' ');
+            String firstClassPath, secondClassPath;
+            if (secondClassStart == -1) {
+                firstClassPath = expression;
+                secondClassPath = Object.class.getName();
+            } else {
+                firstClassPath = expression.substring(0, secondClassStart);
+                secondClassPath = expression.substring(secondClassStart + 1).trim();
+            }
+
+            firstClassPath = this.resolvePath(firstClassPath);
+            secondClassPath = this.resolvePath(secondClassPath);
+
+            Class<?> firstClass = Resolver.loadClass(firstClassPath, false, this.classLoader);
+            Class<?> secondClass = Resolver.loadClass(secondClassPath, false, this.classLoader);
+            if (firstClass == null || secondClass == null) {
+                return !inverted; // Either class not available
+            }
+
+            // Check assignable
+            return firstClass.isAssignableFrom(secondClass) != inverted;
+        }
+
         String value1 = this.variables.get(varName);
         if (value1 == null) {
             // Edge cases: true/false constants

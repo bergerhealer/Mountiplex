@@ -100,4 +100,35 @@ public class SourceDeclarationTest {
         }
     }
 
+    @Test
+    public void testProcessAssignable() {
+        String sourceDec = "#if assignable java.util.List java.util.Collection\n" +
+                           "YES\n" +
+                           "#else\n" +
+                           "NO\n" +
+                           "#endif\n" +
+                           "#if assignable java.util.Collection java.util.List\n" +
+                           "YES\n" +
+                           "#else\n" +
+                           "NO\n" +
+                           "#endif\n" +
+                           "#if assignable java.util.List String\n" +
+                           "YES\n" +
+                           "#else\n" +
+                           "NO\n" +
+                           "#endif\n";
+
+        String expected = "NO\n" +
+                          "YES\n" +
+                          "NO\n";
+
+        String result = SourceDeclaration.preprocess(sourceDec);
+        if (!result.equals(expected)) {
+            System.out.println("== EXPECTED ==");
+            System.out.println(expected);
+            System.out.println("== BUT GOT ==");
+            System.out.println(result);
+            fail("Source declaration was not correctly parsed");
+        }
+    }
 }
