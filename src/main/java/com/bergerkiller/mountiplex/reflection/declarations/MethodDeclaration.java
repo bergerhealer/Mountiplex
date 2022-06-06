@@ -18,6 +18,7 @@ import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.MethodBodyBuilder;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLCtNewMethod;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
@@ -26,7 +27,6 @@ import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
-import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
 public class MethodDeclaration extends Declaration {
@@ -472,7 +472,7 @@ public class MethodDeclaration extends Declaration {
             ParameterDeclaration param = this.parameters.parameters[i];
 
             methodBody.append(", ");
-            methodBody.appendTypeName(param.type.exposed().type);
+            methodBody.appendAccessibleTypeName(param.type.exposed().type);
             methodBody.append(' ').append(param.name.real());
 
             // If converted or a primitive type, name the input parameter '_conv_input'
@@ -640,9 +640,9 @@ public class MethodDeclaration extends Declaration {
             }
  
             methodBody.append("  ")
-                      .appendTypeName(rType).append(' ').appendFieldName(name, "_return")
+                      .appendAccessibleTypeName(rType).append(' ').appendFieldName(name, "_return")
                       .append(" = ")
-                      .appendTypeCast(rType)
+                      .appendAccessibleTypeCast(rType)
                       .append("this.").append(converterFieldName).append(".convertInput(")
                       .appendFieldName(name, "_return_conv_input").append(')')
                       .appendEnd();
@@ -663,7 +663,7 @@ public class MethodDeclaration extends Declaration {
 
         // Create the method and add it to the class
         try {
-            CtMethod method = CtNewMethod.make(methodBody.toString(), invokerClass);
+            CtMethod method = MPLCtNewMethod.make(methodBody.toString(), invokerClass);
             invokerClass.addMethod(method);
         } catch (CannotCompileException ex) {
             MountiplexUtil.LOGGER.severe("Failed to compile method: " + methodBody.toString());

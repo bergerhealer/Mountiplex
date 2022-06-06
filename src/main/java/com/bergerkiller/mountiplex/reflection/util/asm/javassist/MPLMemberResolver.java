@@ -220,6 +220,21 @@ public final class MPLMemberResolver extends MemberResolver {
         return lookupClass(jvmToJavaName(jvmName), false);
     }
 
+    @Override
+    public CtClass lookupClass(int type, int dim, String classname) throws CompileError
+    {
+        if (type == CLASS && dim > 0) {
+            // For Class type arrays we must prevent double-resolving issues
+            CtClass clazz = lookupClassByJvmName(classname);
+            String cname = clazz.getName();
+            while (dim-- > 0)
+                cname += "[]";
+            return lookupClass(IGNORE_PREFIX + cname, false);
+        } else {
+            return super.lookupClass(type, dim, classname);
+        }
+    }
+
     // Remaps the name of a field
     // If it starts with the IGNORE_PREFIX, then the original field name
     // without the IGNORE_PREFIX is returned.
