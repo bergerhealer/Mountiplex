@@ -565,7 +565,7 @@ public class Resolver {
             try {
                 java.lang.reflect.Type s = type.type.getGenericSuperclass();
                 return (s == null) ? null : toTypeDec(s);
-            } catch (MalformedParameterizedTypeException | GenericSignatureFormatError ex) {
+            } catch (GenericSignatureFormatError | TypeNotPresentException | MalformedParameterizedTypeException ex) {
                 Class<?> s = type.type.getSuperclass();
                 return (s == null) ? null : fixResolveGenericTypes(type, toTypeDec(s));
             }
@@ -579,7 +579,7 @@ public class Resolver {
                     result[i] = toTypeDec(interfaces[i]);
                 }
                 return result;
-            } catch (MalformedParameterizedTypeException | GenericSignatureFormatError ex) {
+            } catch (GenericSignatureFormatError | TypeNotPresentException | MalformedParameterizedTypeException ex) {
                 Class<?>[] interfaces = type.type.getInterfaces();
                 TypeDeclaration[] result = new TypeDeclaration[interfaces.length];
                 for (int i = 0; i < result.length; i++) {

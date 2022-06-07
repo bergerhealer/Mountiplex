@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericSignatureFormatError;
+import java.lang.reflect.MalformedParameterizedTypeException;
 import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 
@@ -57,7 +58,7 @@ public class FieldDeclaration extends Declaration {
         TypeDeclaration fieldType;
         try {
             fieldType = TypeDeclaration.fromType(resolver, field.getGenericType());
-        } catch (GenericSignatureFormatError ex) {
+        } catch (GenericSignatureFormatError | TypeNotPresentException | MalformedParameterizedTypeException ex) {
             fieldType = TypeDeclaration.fromType(resolver, field.getType());
         }
 

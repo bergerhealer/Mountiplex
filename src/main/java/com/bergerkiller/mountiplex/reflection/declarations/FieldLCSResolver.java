@@ -184,7 +184,7 @@ public class FieldLCSResolver {
         // Log all fields we could not find in our template
         // The fields in the underlying Class are not important (yet)
         for (FieldLCSResolver.Pair failPair : pairs) {
-            if (failPair.b == null && !failPair.a.modifiers.isOptional()) {
+            if (failPair.b == null && failPair.a != null && !failPair.a.modifiers.isOptional()) {
                 if (failPair.bb.length > 0) {
                     logAlternatives("field", failPair.bb, failPair.a, false);
                 } else {
