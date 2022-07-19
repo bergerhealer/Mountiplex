@@ -126,6 +126,12 @@ public class ClassBytecodeLoader {
             superClass = Object.class;
         }
 
+        // Verify superclass isn't also extending class, as that would cause an infinite loop
+        if (clazz.isAssignableFrom(superClass)) {
+            throw new IllegalStateException("Super class '"  + MPLType.getName(superClass) + "' of '" +
+                    MPLType.getName(clazz) + "' implements itself!");
+        }
+
         // Generate class definition
         cw.visit(V1_8,
                 clazz.getModifiers(),
@@ -254,12 +260,13 @@ public class ClassBytecodeLoader {
             }
 
             // Generate the Class Bytecode by this path
+            Class<?> clazz;
             try {
-                Class<?> clazz = Resolver.getClassByExactName(classname);
-                return new ByteArrayInputStream(generateMockByteCode(clazz));
-            } catch (Throwable t) {
+                clazz = Resolver.getClassByExactName(classname);
+            } catch (ClassNotFoundException e) {
                 return null;
             }
+            return new ByteArrayInputStream(generateMockByteCode(clazz));
         }
 
         @Override
