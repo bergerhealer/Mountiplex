@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map.Entry;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -78,14 +79,14 @@ public abstract class TypeMap<T> {
     public void add(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
         if (bin.values.isEmpty()) {
-            bin.values = Arrays.asList(value);
+            bin.values = Collections.singletonList(value);
         } else {
             T[] newValues = (T[]) new Object[bin.values.size() + 1];
             bin.values.toArray(newValues);
             newValues[newValues.length - 1] = value;
             bin.values = Arrays.asList(newValues);
         }
-        bin.clearCache();
+        bin.invalidateCache(1);
     }
 
     /**
@@ -106,13 +107,26 @@ public abstract class TypeMap<T> {
      * @param type to remove at
      * @param value to remove
      */
+    @SuppressWarnings("unchecked")
     public void remove(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
-        if (!bin.values.isEmpty()) {
-            ArrayList<T> newValues = new ArrayList<T>(bin.values);
-            newValues.remove(value);
-            bin.values = MountiplexUtil.createUmodifiableList(newValues);
-            bin.clearCache();
+        List<T> values = bin.values;
+        int index = values.indexOf(value);
+        if (index != -1) {
+            int numValues = values.size();
+            if (numValues == 1) {
+                bin.values = Collections.emptyList();
+            } else {
+                T[] newValues = (T[]) new Object[numValues - 1];
+                for (int i = 0; i < index; i++) {
+                    newValues[i] = values.get(i);
+                }
+                for (int i = index + 1; i < numValues; i++) {
+                    newValues[i - 1] = values.get(i);
+                }
+                bin.values = Arrays.asList(newValues);
+            }
+            bin.invalidateCache(-1);
         }
     }
 
@@ -134,8 +148,9 @@ public abstract class TypeMap<T> {
      */
     public void put(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
-        bin.values = Arrays.asList(value);
-        bin.clearCache();
+        int sizeChange = 1 - bin.values.size();
+        bin.values = Collections.singletonList(value);
+        bin.invalidateCache(sizeChange);
     }
 
     /**
@@ -156,8 +171,10 @@ public abstract class TypeMap<T> {
      */
     public void putAll(TypeDeclaration type, Collection<T> values) {
         Bin bin = getBin(type);
+        int sizeChange = -bin.values.size();
         bin.values = MountiplexUtil.createUmodifiableList(values);
-        bin.clearCache();
+        sizeChange += bin.values.size();
+        bin.invalidateCache(sizeChange);
     }
 
     /**
@@ -170,8 +187,8 @@ public abstract class TypeMap<T> {
     public boolean amend(TypeDeclaration type, T value) {
         Bin bin = getBin(type);
         if (bin.values.isEmpty()) {
-            bin.values = Arrays.asList(value);
-            bin.clearCache();
+            bin.values = Collections.singletonList(value);
+            bin.invalidateCache(1);
             return true;
         } else {
             return false;
@@ -189,7 +206,7 @@ public abstract class TypeMap<T> {
         Bin bin = getBin(type);
         if (bin.values.isEmpty()) {
             bin.values = MountiplexUtil.createUmodifiableList(values);
-            bin.clearCache();
+            bin.invalidateCache(bin.values.size());
             return true;
         } else {
             return false;
@@ -256,10 +273,11 @@ public abstract class TypeMap<T> {
 
     private class Bin implements Comparable<Bin> {
         public final TypeDeclaration type;
-        public Collection<T> values = Collections.emptyList();
+        public List<T> values = Collections.emptyList();
         private final ArrayList<Bin> parents = new ArrayList<Bin>(1);
         private final ArrayList<Bin> children = new ArrayList<Bin>(1);
         private ArrayList<T> cache = null;
+        private int expectedCacheSize = 0;
 
         public Bin(TypeDeclaration type) {
             this.type = type;
@@ -268,15 +286,20 @@ public abstract class TypeMap<T> {
         public final void link(Bin other) {
             this.parents.add(other);
             Collections.sort(this.parents);
+            this.invalidateOwnCache(other.values.size());
             other.children.add(this);
-            other.clearCache();
         }
 
-        public void clearCache() {
-            this.cache = null;
+        public void invalidateCache(int cacheChange) {
+            this.invalidateOwnCache(cacheChange);
             for (Bin parent : this.children) {
-                parent.clearCache();
+                parent.invalidateOwnCache(cacheChange);
             }
+        }
+
+        private void invalidateOwnCache(int cacheChange) {
+            this.cache = null;
+            this.expectedCacheSize += cacheChange;
         }
 
         public boolean isEmpty() {
@@ -285,10 +308,12 @@ public abstract class TypeMap<T> {
 
         public Collection<T> getCache() {
             if (this.cache == null) {
-                this.cache = new ArrayList<T>(this.values);
+                this.cache = new ArrayList<T>(this.expectedCacheSize);
+                this.cache.addAll(this.values);
                 for (Bin parent : this.parents) {
                     this.cache.addAll(parent.values);
                 }
+                this.expectedCacheSize = this.cache.size(); // Sync up in case of error
             }
             return this.cache;
         }

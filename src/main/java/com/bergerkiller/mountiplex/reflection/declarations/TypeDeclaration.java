@@ -569,7 +569,7 @@ public class TypeDeclaration extends Declaration {
             return true;
         }
 
-        TypeDeclaration selfType = this.castAsType(other.type);
+        TypeDeclaration selfType = this.type.equals(other.type) ? this : this.castAsSuperType(other.type);
         if (selfType == null || other.genericTypes.length != selfType.genericTypes.length) {
             return false; // should never happen!
         }
@@ -611,10 +611,15 @@ public class TypeDeclaration extends Declaration {
             return this;
         }
         if (classType.isAssignableFrom(this.type)) {
-            for (TypeDeclaration type : this.getSuperTypes()) {
-                if (type.type.equals(classType)) {
-                    return type;
-                }
+            return castAsSuperType(classType);
+        }
+        return null;
+    }
+
+    private TypeDeclaration castAsSuperType(Class<?> classType) {
+        for (TypeDeclaration type : this.getSuperTypes()) {
+            if (type.type.equals(classType)) {
+                return type;
             }
         }
         return null;
@@ -653,15 +658,22 @@ public class TypeDeclaration extends Declaration {
             TypeDeclaration[] newTypeParams = superType.genericTypes.clone();
             TypeVariable<?>[] params = this.type.getTypeParameters();
             if (params.length == this.genericTypes.length) {
+                boolean sameParamTypeCount = (params.length == superType.genericTypes.length);
                 for (int i = 0; i < superType.genericTypes.length; i++) {
                     String name = superType.genericTypes[i].variableName;
                     if (name == null) {
                         continue;
                     }
-                    for (int j = 0; j < params.length; j++) {
-                        if (params[j].getName().equals(name)) {
-                            newTypeParams[i] = this.genericTypes[j];
-                            break;
+                    if (sameParamTypeCount && params[i].getName().equals(name)) {
+                        // Correct assumption
+                        newTypeParams[i] = this.genericTypes[i];
+                    } else {
+                        // Out of order or different parameter count, find it
+                        for (int j = 0; j < params.length; j++) {
+                            if (params[j].getName().equals(name)) {
+                                newTypeParams[i] = this.genericTypes[j];
+                                break;
+                            }
                         }
                     }
                 }

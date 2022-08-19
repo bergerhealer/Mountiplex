@@ -679,11 +679,14 @@ public class Conversion {
                     provider.getConverters(this.output, tmp);
                     if (!tmp.isEmpty()) {
                         for (Converter<?, ?> converter : tmp) {
-                            if (!this.converters.containsKey(converter.input)) {
+                            if (this.converters.putIfAbsent(converter.input, converter) == null) {
+                                // No value was stored, and now is stored.
+                                // Verify the converter. If this fails, remove the converter again.
+                                // This way we can leverage contains + put
                                 try {
                                     verifyConverter(converter);
-                                    this.converters.put(converter.input, converter);
                                 } catch (Throwable t) {
+                                    this.converters.remove(converter.input);
                                     MountiplexUtil.LOGGER.warning(t.getMessage() + ": " + converter);
                                 }
                             }
@@ -694,9 +697,7 @@ public class Conversion {
                 for (OutputConverterList parent : this.parents) {
                     parent.genConverters();
                     for (Converter<?, ?> converter : parent.converters.values()) {
-                        if (!this.converters.containsKey(converter.input)) {
-                            this.converters.put(converter.input, converter);
-                        }
+                        this.converters.putIfAbsent(converter.input, converter);
                     }
                 }
             }
