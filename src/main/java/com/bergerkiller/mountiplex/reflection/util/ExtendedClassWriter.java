@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.util;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -213,6 +214,21 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
+     * Generates the class and obtains a suitable Constructor for it
+     *
+     * @param parameterTypes Parameters of the constructor
+     * @return Constructor of the generated class
+     */
+    public Constructor<T> generateConstructor(Class<?>... parameterTypes) {
+        Class<T> type = this.generate();
+        try {
+            return type.getConstructor(parameterTypes);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to generate class", t);
+        }
+    }
+
+    /**
      * Generates a new instance by calling the empty constructor
      * 
      * @return constructed instance of the generated class
@@ -222,9 +238,9 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     public T generateInstance(Class<?>[] parameterTypes, Object[] initArgs) {
-        Class<T> type = this.generate();
+        Constructor<T> constructor = this.generateConstructor(parameterTypes);
         try {
-            return (T) type.getConstructor(parameterTypes).newInstance(initArgs);
+            return (T) constructor.newInstance(initArgs);
         } catch (Throwable t) {
             throw new RuntimeException("Failed to generate class", t);
         }

@@ -18,6 +18,10 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
         this.init(method);
     }
 
+    public FastMethod(java.lang.reflect.Constructor<?> constructor) {
+        this.init(constructor);
+    }
+
     public FastMethod(MethodDeclaration method) {
         this.init(method);
     }
@@ -28,6 +32,15 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
             this.invoker = InitInvoker.unavailableMethod();
         } else {
             this.init(new MethodDeclaration(ClassResolver.DEFAULT, method));
+        }
+    }
+
+    public final void init(java.lang.reflect.Constructor<?> constructor) {
+        if (constructor == null) {
+            this.method = null;
+            this.invoker = InitInvoker.unavailableMethod();
+        } else {
+            this.init(new MethodDeclaration(ClassResolver.DEFAULT, constructor));
         }
     }
 
