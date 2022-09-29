@@ -2,11 +2,16 @@ package com.bergerkiller.mountiplex.reflection.resolver;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
@@ -16,6 +21,7 @@ import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.NotFoundException;
 import javassist.bytecode.Descriptor;
+import javassist.compiler.MemberResolver;
 
 /**
  * A Javassist ClassPool implementation that remaps class names using
@@ -24,6 +30,7 @@ import javassist.bytecode.Descriptor;
  */
 public final class ResolvedClassPool extends ClassPool implements Closeable {
     private static final List<ResolvedClassPool> CACHED_CLASS_POOLS = new ArrayList<ResolvedClassPool>();
+    private static final Map<ClassPool, Reference<Map<String,String>>> globalInvalidNamesMap = findInvalidNamesMap();
     private boolean ignoreRemapper = false;
 
     /**
@@ -46,6 +53,7 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     @Override
     public void close() {
         clearImportedPackages();
+        resetInvalidNames(this);
         synchronized (CACHED_CLASS_POOLS) {
             CACHED_CLASS_POOLS.add(this);
         }
@@ -223,6 +231,32 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
                 return null;
             }
             return Resolver.resolveClassPath(classname);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<ClassPool, Reference<Map<String,String>>> findInvalidNamesMap() {
+        try {
+            java.lang.reflect.Field invalidNamesMapField = MemberResolver.class.getDeclaredField("invalidNamesMap");
+            invalidNamesMapField.setAccessible(true);
+            Object map = invalidNamesMapField.get(null);
+            invalidNamesMapField.setAccessible(false);
+            return (Map<ClassPool, Reference<Map<String,String>>>) map;
+        } catch (Throwable t) {
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
+    }
+
+    private static void resetInvalidNames(ClassPool pool) {
+        synchronized (MemberResolver.class) {
+            globalInvalidNamesMap.computeIfPresent(pool, (p, curr) -> {
+                Map<String, String> invalidNames = curr.get();
+                if (invalidNames == null || invalidNames.isEmpty()) {
+                    return curr;
+                } else {
+                    return new WeakReference<Map<String,String>>(new Hashtable<String,String>());
+                }
+            });
         }
     }
 
