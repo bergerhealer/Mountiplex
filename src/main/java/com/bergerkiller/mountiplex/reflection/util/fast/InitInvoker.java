@@ -142,20 +142,22 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
     /**
      * Creates an init invoker that invokes a method defined by a method declaration. The invoker field is updated
      * using reflection by setting a field in the field instance specified.
-     * 
+     *
      * @param fieldInstance Object on which to set the invoker field
      * @param fieldName The name of the invoker field in fieldInstance
      * @param method The method to create an invoker for
      * @return init invoker
      */
-    public static <T> InitInvoker<T> forMethod(Object fieldInstance, String fieldName, java.lang.reflect.Method method) {
-        return forMethod(fieldInstance, fieldName, new MethodDeclaration(ClassResolver.DEFAULT, method));
+    public static <T> InitInvoker<T> forMethod(ClassLoader classLoader, Object fieldInstance, String fieldName, java.lang.reflect.Method method) {
+        ClassResolver resolver = new ClassResolver();
+        resolver.setClassLoader(classLoader);
+        return forMethod(fieldInstance, fieldName, new MethodDeclaration(resolver, method));
     }
 
     /**
      * Creates an init invoker that invokes a method defined by a method declaration. The invoker field is updated
      * using reflection by setting a field in the field instance specified.
-     * 
+     *
      * @param fieldInstance Object on which to set the invoker field
      * @param fieldName The name of the invoker field in fieldInstance
      * @param method The method to create an invoker for
@@ -169,21 +171,21 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
      * Creates an init invoker that invokes a method defined by a method declaration. The static invoker field is updated
      * using reflection by setting a field declared in the class by the name specified. Meant to be used
      * with generated code, when the declaring class name is not yet known.
-     * 
-     * @param classLoader The ClassLoader to use to find the Class again
+     *
      * @param fieldDeclaringClass Class in which the field to update is stored
      * @param fieldName The name of the invoker field in the declaring class
      * @param method The method to create an invoker for
      * @return init invoker
      */
-    public static <T> InitInvoker<T> forMethodLate(ClassLoader classLoader, String fieldDeclaringClass, String fieldName, MethodDeclaration method) {
+    public static <T> InitInvoker<T> forMethodLate(String fieldDeclaringClass, String fieldName, MethodDeclaration method) {
+        ClassLoader classLoader = (method == null) ? InitInvoker.class.getClassLoader() : method.getResolver().getClassLoader();
         return forMethod(null, new ReflectionFieldAccessorLate<T>(classLoader, fieldDeclaringClass, fieldName), method);
     }
 
     /**
      * Creates an init invoker that invokes a method defined by a method declaration. The invoker field is updated
      * using the field accessor, on the instance specified.
-     * 
+     *
      * @param instance Object on which to set the invoker field
      * @param accessor Accessor for the invoker field
      * @param method The method to create an invoker for

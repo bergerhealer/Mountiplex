@@ -295,7 +295,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             }
 
             try {
-                ClassLoader generatorLoader = GeneratorClassLoader.get(GeneratedCodeInvoker.class.getClassLoader());
+                ClassLoader generatorLoader = GeneratorClassLoader.get(declaration.getResolver().getClassLoader());
                 Class<?> invokerClass = invoker.toClass(generatorLoader, null);
                 return (GeneratedCodeInvoker<T>) invokerClass.newInstance();
             } catch (java.lang.VerifyError ex) {

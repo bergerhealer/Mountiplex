@@ -310,7 +310,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             this.method = method;
             this.declaration = name;
             this.optional = optional;
-            this.interceptorCallback = InitInvoker.forMethod(this, "interceptorCallback", method);
+            this.interceptorCallback = InitInvoker.forMethod(this.getClass().getClassLoader(), this, "interceptorCallback", method);
             this.hookImports = Stream.of(method.getDeclaredAnnotationsByType(HookImport.class))
                     .map(HookImport::value)
                     .toArray(String[]::new);
@@ -391,6 +391,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         }
         try {
             ClassResolver resolver = new ClassResolver();
+            resolver.setClassLoader(declaringClass.getClassLoader());
             resolver.setDeclaredClass(ClassDeclarationResolver.class);
             MethodDeclaration decl = new MethodDeclaration(resolver,
                     "public static ClassDeclarationResolver run() {\n" +

@@ -147,6 +147,10 @@ public class ClassResolver {
         this.classLoader = loader;
     }
 
+    public ClassLoader getClassLoader() {
+        return this.classLoader;
+    }
+
     public void setDeclaredClassName(String typeName) {
         ResolveResult result = this.resolve(typeName);
         this.setDeclaredClass(result.classType, result.classPath);

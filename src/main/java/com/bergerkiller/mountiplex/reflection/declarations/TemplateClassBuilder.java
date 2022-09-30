@@ -131,6 +131,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
         ExtendedClassWriter<C> cw = ExtendedClassWriter.builder(this.classType)
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setAccess(ACC_FINAL)
+                .setClassLoader(this.classType.getClassLoader())
                 .setPostfix("$impl").build();
 
         MethodVisitor mv;
@@ -166,6 +167,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
             // First-time initialization of ClassResolver used while loading declarations
             if (resolver == null) {
                 resolver = new ClassResolver();
+                resolver.setClassLoader(cw.getClassLoader());
                 resolver.setDeclaredClass(this.instanceType, this.instanceClassPath);
                 if (this.classDeclarationResolver != null) {
                     resolver.setAllVariables(this.classDeclarationResolver);

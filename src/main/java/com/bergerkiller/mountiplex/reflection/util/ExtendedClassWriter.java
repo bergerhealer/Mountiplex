@@ -577,7 +577,6 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      */
     public void visitStaticInvokerField(String fieldName, MethodDeclaration methodDec) {
         visitStaticField(fieldName, Invoker.class, InitInvoker.forMethodLate(
-                getClassLoader(),
                 getName(),
                 fieldName, methodDec));
     }
