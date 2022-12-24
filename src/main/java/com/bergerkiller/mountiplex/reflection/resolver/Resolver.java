@@ -192,12 +192,13 @@ public class Resolver {
             if (meta == null) {
                 Class<?> type = loadClassImpl(path, initialize, loader);
                 if (type == null) {
-                    meta = new ClassMeta(null, initialize);
+                    classCache.put(path, ClassMeta.MISSING);
+                    return null;
                 } else {
                     meta = getMeta(type);
                     meta.loaded = initialize;
+                    classCache.put(path, meta);
                 }
-                classCache.put(path, meta);
             }
 
             // Load the class if required
@@ -522,6 +523,7 @@ public class Resolver {
     }
 
     public static final class ClassMeta {
+        public static final ClassMeta MISSING = new ClassMeta(null, true);
         public final Class<?> type;
         protected boolean loaded;
         public final TypeDeclaration typeDec;
