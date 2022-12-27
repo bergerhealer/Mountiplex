@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -43,7 +44,7 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.InputTypeMap;
 
 public class Conversion {
-    private static final Object lock = new Object();
+    private static final DeferLock deferLock = new DeferLock();
     private static final Map<TypeTuple, Converter<Object, Object>> converters = new HashMap<TypeTuple, Converter<Object, Object>>();
     private static final ArrayList<ConverterProvider> providers = new ArrayList<ConverterProvider>();
 
@@ -105,12 +106,13 @@ public class Conversion {
         if (provider == null) {
             throw new IllegalArgumentException("Provider is null");
         }
-        synchronized (lock) {
+
+        deferLock.schedule(() -> {
             providers.add(provider);
             OutputConverterList.resetAll();
             OutputConverterTree.resetAll();
             converters.clear();
-        }
+        });
     }
 
     /**
@@ -190,8 +192,11 @@ public class Conversion {
     }
 
     public static InputConverter<?> find(TypeDeclaration output) {
-        synchronized (lock) {
+        deferLock.lock();
+        try {
             return OutputConverterTree.get(output).converter;
+        } finally {
+            deferLock.unlock();
         }
     }
 
@@ -215,7 +220,9 @@ public class Conversion {
             }
             throw ex;
         }
-        synchronized (lock) {
+
+        deferLock.lock();
+        try {
             Converter<Object, Object> result = converters.get(key);
             if (result == null) {
                 // Check if the input type can be assigned to the output type
@@ -240,6 +247,8 @@ public class Conversion {
                 }
             }
             return result;
+        } finally {
+            deferLock.unlock();
         }
     }
 
@@ -303,11 +312,14 @@ public class Conversion {
         try {
             OutputStreamWriter logFile = new OutputStreamWriter(new FileOutputStream(filePath));
             try {
-                synchronized (lock) {
+                deferLock.lock();
+                try {
                     for (Converter<Object, Object> converter : converters.values()) {
                         logFile.write(converter.toString());
                         logFile.write("\r\n\r\n");
                     }
+                } finally {
+                    deferLock.unlock();
                 }
             } finally {
                 logFile.close();
@@ -319,7 +331,7 @@ public class Conversion {
 
     // registers a converter (implementation, called from elsewhere)
     private static void registerConverterImpl(Converter<?, ?> converter) {
-        synchronized (lock) {
+        deferLock.schedule(() -> {
             addConverterToMapping(converter);
 
             // When registering a raw type output when in actuality it has a generic type,
@@ -336,7 +348,7 @@ public class Conversion {
                             new NullConverter(converter.output, any_output))));
                 }
             }
-        }
+        });
     }
 
     // Resets cached mappings for an input and output, then adds a new converter for doing the conversion
@@ -394,15 +406,19 @@ public class Conversion {
             this.converter = new InputConverter<Object>(output) {
                 @Override
                 public Converter<Object, Object> getConverter(TypeDeclaration input) {
-                    synchronized (lock) {
+                    deferLock.lock();
+                    try {
                         return (Converter<Object, Object>) find(input);
+                    } finally {
+                        deferLock.unlock();
                     }
                 }
 
                 @Override
                 @SuppressWarnings("unchecked")
                 public Converter<?, Object> getNullConverter() {
-                    synchronized (lock) {
+                    deferLock.lock();
+                    try {
                         if (!nullConverterSearched) {
                             nullConverterSearched = true;
                             nullConverter = null;
@@ -414,6 +430,8 @@ public class Conversion {
                             }
                         }
                         return nullConverter;
+                    } finally {
+                        deferLock.unlock();
                     }
                 }
             };
@@ -766,6 +784,84 @@ public class Conversion {
         @Override
         public final int hashCode() {
             return this.hashcode;
+        }
+    }
+
+    /**
+     * Lock that adds a mechanism to run certain tasks delayed at the end
+     * of another thread's lock, instead of waiting for that thread to release
+     * the lock. Prevents deadlock situations.
+     */
+    private static final class DeferLock extends ReentrantLock {
+        private static final long serialVersionUID = 3302331820484906636L;
+        private final ArrayList<Runnable> pending = new ArrayList<>();
+        private volatile boolean hasPending = false;
+
+        @Override
+        public void lock() {
+            super.lock();
+            processPending();
+        }
+
+        @Override
+        public void unlock() {
+            try {
+                processPending();
+            } finally {
+                super.unlock();
+            }
+        }
+
+        /**
+         * Schedules a task to be run right now, or when someone in the future locks/unlocks
+         * this lock.
+         *
+         * @param runnable Runnable to be run
+         */
+        public void schedule(Runnable runnable) {
+            if (super.tryLock()) {
+                try {
+                    processPending();
+                    runnable.run();
+                    processPending();
+                } finally {
+                    super.unlock();
+                }
+            } else {
+                synchronized (pending) {
+                    pending.add(runnable);
+                    hasPending = true;
+                }
+
+                // Just in case we can now access the lock anyway, run the pending tasks
+                // This is to prevent an item remaining inside the pending list, which would
+                // be kind of sad.
+                if (super.tryLock()) {
+                    try {
+                        processPending();
+                    } finally {
+                        super.unlock();
+                    }
+                }
+            }
+        }
+
+        private void processPending() {
+            if (!hasPending) {
+                return;
+            }
+
+            ArrayList<Runnable> pendingCopy;
+            synchronized (pending) {
+                if (!hasPending) {
+                    return;
+                }
+
+                pendingCopy = new ArrayList<>(pending);
+                pending.clear();
+                hasPending = false;
+            }
+            pendingCopy.forEach(Runnable::run);
         }
     }
 }
