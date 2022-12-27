@@ -328,5 +328,21 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
                 this.checkValueType(value);
             }
         }
+
+        /**
+         * Assumes a field value is not initialized by the class constructor, and updates the field
+         * value instantly without trying to initialize (clinit) the class itself.
+         *
+         * @param field
+         * @param value
+         */
+        public static void setUninitializedField(Field field, Object value) {
+            GeneratedStaticFinalAccessor<Object> accessor = new GeneratedStaticFinalAccessor<Object>(field);
+            if (value == null || accessor.type.isInstance(value)) {
+                accessor.unsafe.putObject(accessor.base, accessor.offset, value);
+            } else {
+                accessor.checkValueType(value);
+            }
+        }
     }
 }

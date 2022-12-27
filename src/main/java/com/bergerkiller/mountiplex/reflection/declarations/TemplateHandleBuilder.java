@@ -298,12 +298,10 @@ public class TemplateHandleBuilder<H extends Handle> {
                     // Can cast invoker to a runtime-generated interface and call that directly
                     // Note: these are only local methods, static methods aren't generated here
                     GeneratedExactSignatureInvoker<?> invoker = (GeneratedExactSignatureInvoker<?>) ((Template.AbstractMethod<?>) templateElement).invoker;
-                    String interfaceType = MPLType.getInternalName(invoker.getInterface());
+                    String generatedInternalName = invoker.getInvokerClassInternalName();
+                    String generatedTypeDescriptor = invoker.getInvokerClassTypeDescriptor();
 
-                    mv.visitFieldInsn(GETSTATIC, currentHandleName, "T", templateClassDesc);
-                    mv.visitFieldInsn(GETFIELD, templateClassName, methodName, templateElementDesc);
-                    mv.visitFieldInsn(GETFIELD, templateElementName, "invoker", MPLType.getDescriptor(Invoker.class));
-                    mv.visitTypeInsn(CHECKCAST, interfaceType);
+                    mv.visitFieldInsn(GETSTATIC, generatedInternalName, "INSTANCE", generatedTypeDescriptor);
 
                     // Load instance
                     mv.visitVarInsn(ALOAD, 0);
@@ -313,7 +311,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                     MPLType.visitVarILoad(mv, 1, methodDec.parameters);
 
                     // Call the interface method
-                    mv.visitMethodInsn(INVOKEINTERFACE, interfaceType, methodName, methodDec.getASMInvokeDescriptor(), true);
+                    mv.visitMethodInsn(INVOKEVIRTUAL, generatedInternalName, methodName, methodDec.getASMInvokeDescriptor(), false);
 
                     // Close the method with a valid return statement
                     mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));

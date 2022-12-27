@@ -1,12 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
-import static org.objectweb.asm.Opcodes.*;
-
 import java.lang.reflect.Field;
-
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
@@ -197,7 +191,7 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
             return unavailableMethod();
         } else if (method.body != null) {
             // Runtime-generated code invoker
-            return (InitInvoker<T>) InitGeneratedCodeInvoker.generate(instance, accessor, method);
+            return (InitInvoker<T>) InitGeneratedCodeInvoker.create(instance, accessor, method);
         } else if (method.method != null) {
             // Runtime-generated method invoker, or one using reflection
             return new InitGeneratedExecutableInvoker<T>(instance, accessor, method.method);
@@ -307,78 +301,38 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
      *
      * @param <T>
      */
-    public static abstract class InitGeneratedCodeInvoker extends InitInvoker<Object> implements GeneratedExactSignatureInvoker<Object> {
-        private final MethodDeclaration method;
+    public static class InitGeneratedCodeInvoker extends InitInvoker<Object> implements GeneratedExactSignatureInvoker<Object> {
+        private final ExtendedClassWriter.Deferred<? extends GeneratedCodeInvoker<Object>> invoker;
 
-        protected InitGeneratedCodeInvoker(Object instance, FieldAccessor<Invoker<Object>> accessor, MethodDeclaration methodDeclaration) {
+        private InitGeneratedCodeInvoker(Object instance, FieldAccessor<Invoker<Object>> accessor,
+                ExtendedClassWriter.Deferred<? extends GeneratedCodeInvoker<Object>> invoker
+        ) {
             super(instance, accessor);
-            this.method = methodDeclaration;
+            this.invoker = invoker;
+        }
+
+        @Override
+        public String getInvokerClassInternalName() {
+            return invoker.getInternalName();
+        }
+
+        @Override
+        public String getInvokerClassTypeDescriptor() {
+            return invoker.getTypeDescriptor();
         }
 
         @Override
         protected Invoker<Object> create() {
-            return GeneratedCodeInvoker.create(this.method, this.getInterface());
+            return invoker.generate();
         }
 
-        public static <T> InitGeneratedCodeInvoker generate(Object instance, FieldAccessor<Invoker<T>> accessor, MethodDeclaration methodDeclaration) {
-            // Generate the interface implementing the method signature
-            Class<?> interfaceClass = GeneratedExactSignatureInvoker.generateInterface(methodDeclaration);
+        @SuppressWarnings({ "rawtypes", "unchecked" })
+        public static <T> InitGeneratedCodeInvoker create(Object instance, FieldAccessor<Invoker<T>> accessor, MethodDeclaration methodDeclaration) {
+            // Defer generate the actual generated code invoker for this method
+            ExtendedClassWriter.Deferred<? extends GeneratedCodeInvoker<Object>> invoker;
+            invoker = GeneratedCodeInvoker.createDefer(methodDeclaration);
 
-            // Extend InitGeneratedMethodInvoker and implement the interface class
-            ExtendedClassWriter<InitGeneratedCodeInvoker> cw = ExtendedClassWriter.builder(InitGeneratedCodeInvoker.class)
-                    .addInterface(interfaceClass)
-                    .setFlags(ClassWriter.COMPUTE_MAXS)
-                    .setAccess(ACC_FINAL).build();
-            MethodVisitor mv;
-
-            // Constructor
-            {
-                String argsDescriptor = "(" + MPLType.getDescriptor(Object.class) +
-                                              MPLType.getDescriptor(FieldAccessor.class) +
-                                              MPLType.getDescriptor(MethodDeclaration.class) + ")V";
-
-                mv = cw.visitMethod(ACC_PUBLIC, "<init>", argsDescriptor, null, null);
-                mv.visitCode();
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitVarInsn(ALOAD, 1);
-                mv.visitVarInsn(ALOAD, 2);
-                mv.visitVarInsn(ALOAD, 3);
-                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(InitGeneratedCodeInvoker.class), "<init>", argsDescriptor, false);
-                mv.visitInsn(RETURN);
-                mv.visitMaxs(0, 0);
-                mv.visitEnd();
-            }
-
-            // Implement the generated method: do initializeInvoker() and call same method again on the result
-            {
-                String methodDesc = methodDeclaration.getASMInvokeDescriptor();
-                mv = cw.visitMethod(ACC_PUBLIC, methodDeclaration.name.real(), methodDesc, null, null);
-                mv.visitCode();
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitMethodInsn(INVOKEVIRTUAL, cw.getInternalName(), "initializeInvoker", "()" + MPLType.getDescriptor(Invoker.class), false);
-                mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(interfaceClass));
-
-                int varIdx = 1;
-
-                // Instance field
-                if (!methodDeclaration.modifiers.isStatic()) {
-                    varIdx = MPLType.visitVarILoad(mv, varIdx, methodDeclaration.getDeclaringClass());
-                }
-
-                // Parameters
-                varIdx = MPLType.visitVarILoad(mv, varIdx, methodDeclaration.parameters);
-
-                mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(interfaceClass), methodDeclaration.name.real(), methodDesc, true);
-                mv.visitInsn(Type.getType(methodDeclaration.returnType.type).getOpcode(IRETURN));
-                mv.visitMaxs(0, 0);
-                mv.visitEnd();
-            }
-
-            // Instantiate it using the constructor
-            return cw.generateInstance(
-                    new Class<?>[] {Object.class, FieldAccessor.class, MethodDeclaration.class},
-                    new Object[] {instance, accessor, methodDeclaration}
-            );
+            return new InitGeneratedCodeInvoker(instance, (FieldAccessor) accessor, invoker);
         }
     }
 

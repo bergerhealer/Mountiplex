@@ -154,10 +154,12 @@ public abstract class GeneratorClassLoader extends ClassLoader {
 
     @Override
     public Class<?> findClass(String name) throws ClassNotFoundException {
-        // Ask self
-        Class<?> loaded = super.findLoadedClass(name);
-        if (loaded != null) {
-            Thread.dumpStack();
+        Class<?> loaded;
+
+        // Check whether this particular class was deferred to be generated
+        // This will generate it, and this generating will link it with the
+        // GeneratorClassLoader related to it.
+        if ((loaded = ExtendedClassWriter.Deferred.load(name)) != null) {
             return loaded;
         }
 

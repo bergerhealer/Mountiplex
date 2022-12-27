@@ -1,6 +1,11 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import static org.objectweb.asm.Opcodes.*;
+
+import java.lang.reflect.Field;
 import java.util.logging.Level;
+
+import org.objectweb.asm.FieldVisitor;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
@@ -12,32 +17,193 @@ import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
-import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLCtNewMethod;
 
 import javassist.CannotCompileException;
-import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
-import javassist.NotFoundException;
 
 /**
  * Generates an invoker that executes a method body
  */
 public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignatureInvoker<T>, IgnoresRemapping {
 
-    private static final CtClass getExtendedClass(ClassPool pool, Class<?> type, Class<?> interfaceClass) throws NotFoundException {
-        CtClass origClazz = pool.getCtClass(MPLType.getName(type));
-        String newClassName = origClazz.getName() + ExtendedClassWriter.getNextPostfix();
-        newClassName = ExtendedClassWriter.getAvailableClassName(newClassName);
+    @Override
+    public String getInvokerClassInternalName() {
+        return MPLType.getInternalName(getClass());
+    }
 
-        CtClass extendedClass = pool.makeClass(newClassName, origClazz);
-        if (interfaceClass != null) {
-            extendedClass.addInterface(pool.makeInterface(MPLType.getName(interfaceClass)));
+    @Override
+    public String getInvokerClassTypeDescriptor() {
+        return MPLType.getDescriptor(getClass());
+    }
+
+    public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
+        ExtendedClassWriter<GeneratedCodeInvoker<T>> writer = ExtendedClassWriter.builder(GeneratedCodeInvoker.class)
+                .setClassLoader(declaration.getResolver().getClassLoader())
+                .build();
+        return generate(writer, declaration);
+    }
+
+    public static <T> ExtendedClassWriter.Deferred<GeneratedCodeInvoker<T>> createDefer(MethodDeclaration declaration) {
+        return ExtendedClassWriter.<GeneratedCodeInvoker<T>>builder(GeneratedCodeInvoker.class)
+                .setClassLoader(declaration.getResolver().getClassLoader())
+                .defer(writer -> generate(writer, declaration));
+    }
+
+    private static <T> GeneratedCodeInvoker<T> generate(ExtendedClassWriter<GeneratedCodeInvoker<T>> writer, MethodDeclaration declaration) {
+        if (!declaration.isResolved()) {
+            throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());
         }
-        return extendedClass;
+
+        // Make sure warnings/errors are handled before we try to compile anything
+        declaration.checkTemplateErrors();
+
+        // Add a static field to the generated class storing the singleton invoker instance
+        {
+            FieldVisitor fv;
+            fv = writer.visitField(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, "INSTANCE",
+                    writer.getTypeDescriptor(), null, null);
+            fv.visitEnd();
+        }
+
+        try (ResolvedClassPool pool = ResolvedClassPool.create()) {
+            int argCount = declaration.parameters.parameters.length;
+            Class<?> instanceType = declaration.getDeclaringClass();
+
+            // Use the resolver to add needed imports
+            {
+                ClassResolver classResolver = declaration.getResolver();
+                if (classResolver.hasPackage()) {
+                    // Import using the predefined #package
+                    pool.importPackage(classResolver.getPackage());
+                } else if (classResolver.getDeclaredClass() != null) {
+                    // Decode the package path from class name ourselves
+                    // This might fail :(
+                    String class_path = declaration.getResolver().getDeclaredClassName();
+                    String package_path = MountiplexUtil.getPackagePathFromClassPath(class_path);
+                    if (!package_path.isEmpty()) {
+                        pool.importPackage(package_path);
+                    }
+                }
+                for (String importName : classResolver.getImports()) {
+                    if (importName.endsWith(".*")) {
+                        String packagePath = importName.substring(0, importName.length()-2);
+                        if (!packagePath.contains("*")) {
+                            pool.importPackage(packagePath);
+                        }
+                    } else {
+                        pool.importPackage(importName);
+                    }
+                }
+            }
+
+            CtClass invoker = writer.getCtClass(pool);
+            StringBuilder methodBody = new StringBuilder();
+
+            // Add all the requirements to the class
+            for (Requirement req : declaration.bodyRequirements) {
+                req.declaration.addAsRequirement(req, invoker, req.name);
+            }
+
+            // Add the exact method that the method declaration exposes
+            // This implements the method declared in the interfaceClass
+            {
+                methodBody.setLength(0);
+
+                // Add the method signature information
+                methodBody.append("public ")
+                          .append(ReflectionUtil.getAccessibleTypeName(declaration.returnType.type))
+                          .append(" ").append(declaration.name.real()).append("(");
+                if (!declaration.modifiers.isStatic()) {
+                    methodBody.append(ReflectionUtil.getAccessibleTypeName(instanceType))
+                              .append(" instance");
+                    if (argCount > 0) {
+                        methodBody.append(',');
+                    }
+                }
+                for (int i = 0; i < argCount; i++) {
+                    ParameterDeclaration param = declaration.parameters.parameters[i];
+                    methodBody.append(ReflectionUtil.getAccessibleTypeName(param.type.type))
+                              .append(' ')
+                              .append(param.name.real());
+                    if (i < (argCount-1)) {
+                        methodBody.append(',');
+                    }
+                }
+                methodBody.append(") {\n");
+
+                // Add the actual method body
+                methodBody.append(declaration.body);
+
+                // Guarantee a return statement at the end of the function
+                if (declaration.returnType.type == void.class) {
+                    methodBody.append("return;");
+                } else {
+                    methodBody.append("return ")
+                              .append(BoxedType.getDefaultValue(declaration.returnType.type))
+                              .append(';');
+                }
+
+                // Close the method body
+                methodBody.append('}');
+
+                // Add method to the invoker
+                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
+            }
+
+            // Implement invokeVA to check arg count and unpack the parameters, then call the method we added earlier
+            {
+                methodBody.setLength(0);
+
+                // Add invokeVA method signature
+                methodBody.append("public Object invokeVA(Object instance_raw, Object[] args_raw) {\n");
+
+                // Arg count check
+                methodBody.append("if (args_raw.length!=").append(argCount).append(")")
+                          .append("{throw new com.bergerkiller.mountiplex.reflection.util.fast.InvalidArgumentCountException(")
+                          .append("\"method\",args_raw.length,").append(argCount).append(");}\n");
+
+                // Complete the rest of the invoke body and add the method
+                buildInvokeBody(declaration, methodBody, true);
+                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
+            }
+
+            // Implement invoke(instance, argn) for improved performance (avoids Object[] allocation)
+            if (argCount <= 5) {
+                methodBody.setLength(0);
+
+                // Build the invoke method header
+                methodBody.append("public Object invoke(Object instance_raw");
+                for (int i = 0; i < argCount; i++) {
+                    methodBody.append(",Object arg_raw_num_").append(i);
+                }
+                methodBody.append("){\n");
+
+                // Complete the rest of the invoke body and add the method
+                buildInvokeBody(declaration, methodBody, false);
+                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
+            }
+
+            try {
+                GeneratedCodeInvoker<T> instance = (GeneratedCodeInvoker<T>) writer.generateInstance();
+
+                // Assign instance to the static INSTANCE field
+                {
+                    Field f = instance.getClass().getDeclaredField("INSTANCE");
+                    GeneratedAccessor.GeneratedStaticFinalAccessor.setUninitializedField(f, instance);
+                }
+
+                return instance;
+            } catch (java.lang.VerifyError ex) {
+                MountiplexUtil.LOGGER.severe("Failed to verify generated method: " + declaration.body);
+                throw ex;
+            }
+        } catch (Throwable t) {
+            throw MountiplexUtil.uncheckedRethrow(t);
+        }
     }
 
     private static CtMethod makeMethodAndLog(String methodBody, CtClass invoker) {
@@ -149,161 +315,5 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
 
         // Close the method body
         methodBody.append('}');
-    }
-
-    public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
-        return create(declaration, null);
-    }
-
-    @SuppressWarnings({ "unchecked", "deprecation" })
-    public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration, Class<?> interfaceClass) {
-        if (!declaration.isResolved()) {
-            throw new IllegalArgumentException("Declaration not resolved: " + declaration.toString());
-        }
-
-        // Make sure warnings/errors are handled before we try to compile anything
-        declaration.checkTemplateErrors();
-
-        try (ResolvedClassPool pool = ResolvedClassPool.create()) {
-            int argCount = declaration.parameters.parameters.length;
-            Class<?> instanceType = declaration.getDeclaringClass();
-
-            // Use the resolver to add needed imports
-            {
-                ClassResolver classResolver = declaration.getResolver();
-                if (classResolver.hasPackage()) {
-                    // Import using the predefined #package
-                    pool.importPackage(classResolver.getPackage());
-                } else if (classResolver.getDeclaredClass() != null) {
-                    // Decode the package path from class name ourselves
-                    // This might fail :(
-                    String class_path = declaration.getResolver().getDeclaredClassName();
-                    String package_path = MountiplexUtil.getPackagePathFromClassPath(class_path);
-                    if (!package_path.isEmpty()) {
-                        pool.importPackage(package_path);
-                    }
-                }
-                for (String importName : classResolver.getImports()) {
-                    if (importName.endsWith(".*")) {
-                        String packagePath = importName.substring(0, importName.length()-2);
-                        if (!packagePath.contains("*")) {
-                            pool.importPackage(packagePath);
-                        }
-                    } else {
-                        pool.importPackage(importName);
-                    }
-                }
-            }
-
-            CtClass invoker = getExtendedClass(pool, GeneratedCodeInvoker.class, interfaceClass);
-            CtMethod m;
-            StringBuilder methodBody = new StringBuilder();
-
-            // Add all the requirements to the class
-            for (Requirement req : declaration.bodyRequirements) {
-                req.declaration.addAsRequirement(req, invoker, req.name);
-            }
-
-            // If interfaceClass is null then the getInterface() is not implemented, so implement it here
-            // In this default implementation we simply return the class we are generating here
-            if (interfaceClass == null) {
-                m = makeMethodAndLog(
-                        "public Class getInterface() {" +
-                        "    return " + invoker.getName() + ".class;" +
-                        "}",
-                        invoker );
-                invoker.addMethod(m);
-            }
-
-            // Add the exact method that the method declaration exposes
-            // This implements the method declared in the interfaceClass
-            {
-                methodBody.setLength(0);
-
-                // Add the method signature information
-                methodBody.append("public ")
-                          .append(ReflectionUtil.getAccessibleTypeName(declaration.returnType.type))
-                          .append(" ").append(declaration.name.real()).append("(");
-                if (!declaration.modifiers.isStatic()) {
-                    methodBody.append(ReflectionUtil.getAccessibleTypeName(instanceType))
-                              .append(" instance");
-                    if (argCount > 0) {
-                        methodBody.append(',');
-                    }
-                }
-                for (int i = 0; i < argCount; i++) {
-                    ParameterDeclaration param = declaration.parameters.parameters[i];
-                    methodBody.append(ReflectionUtil.getAccessibleTypeName(param.type.type))
-                              .append(' ')
-                              .append(param.name.real());
-                    if (i < (argCount-1)) {
-                        methodBody.append(',');
-                    }
-                }
-                methodBody.append(") {\n");
-
-                // Add the actual method body
-                methodBody.append(declaration.body);
-
-                // Guarantee a return statement at the end of the function
-                if (declaration.returnType.type == void.class) {
-                    methodBody.append("return;");
-                } else {
-                    methodBody.append("return ")
-                              .append(BoxedType.getDefaultValue(declaration.returnType.type))
-                              .append(';');
-                }
-
-                // Close the method body
-                methodBody.append('}');
-
-                // Add method to the invoker
-                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
-            }
-
-            // Implement invokeVA to check arg count and unpack the parameters, then call the method we added earlier
-            {
-                methodBody.setLength(0);
-
-                // Add invokeVA method signature
-                methodBody.append("public Object invokeVA(Object instance_raw, Object[] args_raw) {\n");
-
-                // Arg count check
-                methodBody.append("if (args_raw.length!=").append(argCount).append(")")
-                          .append("{throw new com.bergerkiller.mountiplex.reflection.util.fast.InvalidArgumentCountException(")
-                          .append("\"method\",args_raw.length,").append(argCount).append(");}\n");
-
-                // Complete the rest of the invoke body and add the method
-                buildInvokeBody(declaration, methodBody, true);
-                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
-            }
-
-            // Implement invoke(instance, argn) for improved performance (avoids Object[] allocation)
-            if (argCount <= 5) {
-                methodBody.setLength(0);
-
-                // Build the invoke method header
-                methodBody.append("public Object invoke(Object instance_raw");
-                for (int i = 0; i < argCount; i++) {
-                    methodBody.append(",Object arg_raw_num_").append(i);
-                }
-                methodBody.append("){\n");
-
-                // Complete the rest of the invoke body and add the method
-                buildInvokeBody(declaration, methodBody, false);
-                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
-            }
-
-            try {
-                ClassLoader generatorLoader = GeneratorClassLoader.get(declaration.getResolver().getClassLoader());
-                Class<?> invokerClass = invoker.toClass(generatorLoader, null);
-                return (GeneratedCodeInvoker<T>) invokerClass.newInstance();
-            } catch (java.lang.VerifyError ex) {
-                MountiplexUtil.LOGGER.severe("Failed to verify generated method: " + declaration.body);
-                throw ex;
-            }
-        } catch (Throwable t) {
-            throw MountiplexUtil.uncheckedRethrow(t);
-        }
     }
 }

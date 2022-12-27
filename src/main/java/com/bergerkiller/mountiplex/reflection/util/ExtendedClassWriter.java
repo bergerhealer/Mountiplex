@@ -8,10 +8,15 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLJavac;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 
@@ -31,52 +36,15 @@ import org.objectweb.asm.MethodVisitor;
 public class ExtendedClassWriter<T> extends ClassWriter {
     private static final UniqueHash generatedClassCtr = new UniqueHash();
     private static final UniqueHash generatedStaticFieldCtr = new UniqueHash();
-    private final String name;
-    private final String internalName;
-    private final String typeDescriptor;
+    private final GeneratedClassName name;
     private final GeneratorClassLoader loader;
     private final List<StaticFieldInit> pendingStaticFields = new ArrayList<StaticFieldInit>();
     private CtClass ctClass = null;
 
-    private ExtendedClassWriter(Builder<T> options) {
+    private ExtendedClassWriter(GeneratorClassLoader loader, Builder<T> options) {
         super(options.flags);
-
-        // Get or generate postfix
-        String postfix = options.exactName != null ? null : ((options.postfix != null) ? options.postfix : getNextPostfix());
-
-        // This is multi-thread safe
-        if (options.classLoader != null) {
-            this.loader = GeneratorClassLoader.get(options.classLoader);
-        } else {
-            this.loader = GeneratorClassLoader.get(options.superClass.getClassLoader());
-        }
-
-        // Bugfix: pick a different postfix if another class already exists with this name
-        // This can happen by accident as well, when a jar is incorrectly reloaded
-        // Namespace clashes are nasty!
-        if (postfix != null) {
-            String postfix_original = postfix;
-            for (int i = 1;; i++) {
-                String tmpClassPath = MPLType.getName(options.superClass) + postfix;
-                boolean classExists = false;
-
-                try {
-                    this.loader.loadClass(tmpClassPath);
-                    classExists = true;
-                } catch (ClassNotFoundException e) {}
-
-                try {
-                    Resolver.getClassByExactName(tmpClassPath);
-                    classExists = true;
-                } catch (ClassNotFoundException ex) {}
-
-                if (classExists) {
-                    postfix = postfix_original + "_" + i;
-                } else {
-                    break;
-                }
-            }
-        }
+        this.loader = loader;
+        this.name = options.exactName;
 
         // Extends Object instead of SuperClass when it is an interface
         Class<?> superType = options.superClass.isInterface() ? Object.class : options.superClass;
@@ -102,22 +70,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             }
         }
 
-        if (options.exactName != null) {
-            this.name = options.exactName;
-            this.internalName = options.exactName.replace('.', '/');
-            this.typeDescriptor = "L" + this.internalName + ";"; // Might fail sometimes...
-        } else {
-            this.name = MPLType.getName(options.superClass) + postfix;
-            this.internalName = MPLType.getInternalName(options.superClass) + postfix;
-            this.typeDescriptor = computeNameDescriptor(options.superClass, postfix);
-        }
-        this.visit(V1_8, options.access, this.internalName, signature, superName, interfaceNames);
-    }
-
-    // TODO: make cleaner
-    private static String computeNameDescriptor(Class<?> type, String postfix) {
-        String basePath = MPLType.getDescriptor(type);
-        return basePath.substring(0, basePath.length()-1) + postfix + ";";
+        this.visit(V1_8, options.access, name.internalName, signature, superName, interfaceNames);
     }
 
     /**
@@ -126,15 +79,15 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * @return class name
      */
     public final String getName() {
-        return this.name;
+        return name.name;
     }
 
     public final String getInternalName() {
-        return this.internalName;
+        return name.internalName;
     }
 
     public final String getTypeDescriptor() {
-        return this.typeDescriptor;
+        return name.typeDescriptor;
     }
 
     /**
@@ -172,28 +125,61 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
     /**
      * Takes the current ByteCode already generated and finishes it, turning it into
-     * a JavaAssist CtClass ready for further modifications. The return CtClass
+     * a JavaAssist CtClass ready for further modifications. The returned CtClass
      * can be further changed, such as adding methods or fields. When done, the
      * {@link #generate()} or {@link #generateInstance(Class[], Object[])} methods will
      * compile the final CtClass result.<br>
      * <br>
      * No more ASM commands (visit*) should be called after calling this method, as they
      * will have no effect.
-     * 
+     *
      * @return Javassist CtClass
      */
     public CtClass getCtClass() {
+        return getCtClass(javassist.ClassPool.getDefault());
+    }
+
+    /**
+     * Takes the current ByteCode already generated and finishes it, turning it into
+     * a JavaAssist CtClass ready for further modifications. The returned CtClass
+     * can be further changed, such as adding methods or fields. When done, the
+     * {@link #generate()} or {@link #generateInstance(Class[], Object[])} methods will
+     * compile the final CtClass result.<br>
+     * <br>
+     * No more ASM commands (visit*) should be called after calling this method, as they
+     * will have no effect.
+     *
+     * @return Javassist CtClass
+     */
+    public CtClass getCtClass(javassist.ClassPool classPool) {
         if (this.ctClass == null) {
             this.closeASM();
 
-            // Convert the current byte representation into a ByteArray, and then into a CtClass
-            // Next time generate() is called, we instead generate using JavaAssist
-            javassist.ClassPool cp = javassist.ClassPool.getDefault();
-            cp.insertClassPath(new javassist.ByteArrayClassPath(this.name, this.toByteArray()));
+            // Create a temporary class pool to create the initial CtClass object with from bytecode
             try {
-                this.ctClass = cp.get(this.name);
+                // Convert the current byte representation into a ByteArray, and then into a CtClass
+                //
+                // We cannot use the hande makeNewClass() with input stream, because the produced class
+                // isn't a CtNewClass instance, and as such doesn't generate the default constructor for us.
+                javassist.ByteArrayClassPath selfClassPath = new javassist.ByteArrayClassPath(name.name, this.toByteArray());
+                try {
+                    classPool.insertClassPath(selfClassPath);
+
+                    // While the bytecode is made available on a class path, load the CtClass object
+                    // This will only remain valid for this sort try-finally block
+                    CtClass fromBytecode = classPool.get(name.name);
+
+                    // However, this representation doesn't support the mechanism of generating a default constructor
+                    // For that reason we do need to create a new CtNewClass, and stream all old methods/fields/etc. over
+                    // This new class will also self-resolve after we remove the temporary class path
+                    this.ctClass = MPLJavac.asNewClass(fromBytecode);
+                } finally {
+                    classPool.removeClassPath(selfClassPath);
+                }
             } catch (NotFoundException e) {
-                throw new RuntimeException("Failed to instantiate CtClass " + this.name + " from bytecode");
+                throw new RuntimeException("Failed to instantiate CtClass " + name.name + " from bytecode");
+            } catch (Throwable t) {
+                throw MountiplexUtil.uncheckedRethrow(t);
             }
         }
         return this.ctClass;
@@ -203,12 +189,12 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     public Class<T> generate() {
         if (this.ctClass == null) {
             this.closeASM();
-            return (Class<T>) this.loader.createClassFromBytecode(this.name, this.toByteArray(), null);
+            return (Class<T>) this.loader.createClassFromBytecode(name.name, this.toByteArray(), null);
         } else {
             try {
                 return (Class<T>) this.ctClass.toClass(this.loader, null);
             } catch (CannotCompileException e) {
-                throw new RuntimeException("Failed to compile class " + this.name, e);
+                throw new RuntimeException("Failed to compile class " + name.name, e);
             }
         }
     }
@@ -392,7 +378,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             // Object constant value
             String name = "mplgen_cinit_field_" + generatedStaticFieldCtr.nextHex();
             this.visitStaticField(name, type, value);
-            mv.visitFieldInsn(GETSTATIC, this.internalName, name, MPLType.getDescriptor(type));
+            mv.visitFieldInsn(GETSTATIC, this.name.internalName, name, MPLType.getDescriptor(type));
         }
     }
 
@@ -608,8 +594,9 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * 
      * @param superClass
      */
-    public static <T> Builder<T> builder(Class<T> superClass) {
-        return new Builder<T>(superClass);
+    @SuppressWarnings("unchecked")
+    public static <T> Builder<T> builder(Class<? super T> superClass) {
+        return new Builder<T>((Class<T>) superClass);
     }
 
     /**
@@ -624,7 +611,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         private int flags = 0;
         private int access = ACC_PUBLIC | ACC_STATIC;
         private String postfix = null;
-        private String exactName = null;
+        private GeneratedClassName exactName = null;
         private ClassLoader classLoader = null;
 
         private Builder(Class<T> superClass) {
@@ -667,7 +654,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
          * @return builder
          */
         public Builder<T> setExactName(String name) {
-            this.exactName = name;
+            this.exactName = new GeneratedClassName(name);
             return this;
         }
 
@@ -683,7 +670,225 @@ public class ExtendedClassWriter<T> extends ClassWriter {
          */
         @SuppressWarnings("unchecked")
         public <TO> ExtendedClassWriter<TO> build() {
-            return (ExtendedClassWriter<TO>) new ExtendedClassWriter<T>(this);
+            GeneratorClassLoader classLoader = initClassLoader();
+            computeExactName(classLoader);
+            return (ExtendedClassWriter<TO>) new ExtendedClassWriter<T>(classLoader, this);
+        }
+
+        /**
+         * Defers building the extended class to a later time. The final name
+         * to be generated is decided right away, and is stored in a registry
+         * until a GeneratorClassLoader loads this exact same name. When that
+         * happens, or someone forces initialization sooner, the callback is
+         * called and the class is generated.
+         *
+         * @param callback Callback called when the actual class needs to be generated.
+         *                 An ExtendedClassWriter instance is passed to it, on which the
+         *                 {@link ExtendedClassWriter#generateInstance()} method should be called.
+         * @return deferred builder
+         */
+        public Deferred<T> defer(Function<ExtendedClassWriter<T>, T> callback) {
+            GeneratorClassLoader classLoader = initClassLoader();
+            computeExactName(classLoader);
+            return new Deferred<T>(classLoader, this, callback);
+        }
+
+        private GeneratorClassLoader initClassLoader() {
+            // This is multi-thread safe
+            if (classLoader == null) {
+                return GeneratorClassLoader.get(superClass.getClassLoader());
+            } else if (classLoader instanceof GeneratorClassLoader) {
+                return (GeneratorClassLoader) classLoader;
+            } else {
+                return GeneratorClassLoader.get(classLoader);
+            }
+        }
+
+        private void computeExactName(GeneratorClassLoader loader) {
+            if (exactName != null) {
+                return;
+            }
+
+            // Get or generate postfix
+            String postfix = (this.postfix != null) ? this.postfix : ("$mpldefgen" + generatedClassCtr.nextHex());
+
+            // Bugfix: pick a different postfix if another class already exists with this name
+            // This can happen by accident as well, when a jar is incorrectly reloaded
+            // Namespace clashes are nasty!
+            {
+                String postfix_original = postfix;
+                for (int i = 1;; i++) {
+                    String tmpClassPath = MPLType.getName(superClass) + postfix;
+                    boolean classExists = false;
+
+                    try {
+                        loader.loadClass(tmpClassPath);
+                        classExists = true;
+                    } catch (ClassNotFoundException e) {}
+
+                    try {
+                        Resolver.getClassByExactName(tmpClassPath);
+                        classExists = true;
+                    } catch (ClassNotFoundException ex) {}
+
+                    if (classExists) {
+                        postfix = postfix_original + "_" + i;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            this.exactName = new GeneratedClassName(superClass, postfix);
+        }
+    }
+
+    /**
+     * Deferred builder. The class name is already known, but it may or may not have
+     * already been generated. If not already loaded by a GeneratorClassLoader,
+     * the object is stored in a registry for easy retrieval.
+     *
+     * @param <T> Class Type
+     */
+    public static final class Deferred<T> implements LazyInitializedObject {
+        private static final Map<String, Deferred<?>> pending = new ConcurrentHashMap<>();
+        private final GeneratorClassLoader classLoader;
+        private final Builder<T> builder;
+        private final GeneratedClassName name;
+        private final Function<ExtendedClassWriter<T>, T> callback;
+        private T generated;
+        private RuntimeException generateError;
+
+        private Deferred(GeneratorClassLoader classLoader, Builder<T> builder, Function<ExtendedClassWriter<T>, T> callback) {
+            this.classLoader = classLoader;
+            this.builder = builder;
+            this.name = builder.exactName;
+            this.callback = callback;
+            this.generated = null;
+            this.generateError = null;
+
+            synchronized (pending) {
+                pending.put(name.name, this);
+            }
+        }
+
+        // Called by GeneratorClassLoader
+        static Class<?> load(String name) throws ClassNotFoundException {
+            Deferred<?> deferred = pending.get(name);
+            if (deferred == null) {
+                return null;
+            }
+
+            try {
+                return deferred.generate().getClass();
+            } catch (Throwable t) {
+                throw new ClassNotFoundException("Failed to generate class " + name, t);
+            }
+        }
+
+        /**
+         * Gets the JVM name of this deferred class
+         *
+         * @return JVM Class Name
+         */
+        public String getName() {
+            return name.name;
+        }
+
+        /**
+         * Gets the internal name of this deferred class
+         *
+         * @return internal name
+         */
+        public String getInternalName() {
+            return name.internalName;
+        }
+
+        /**
+         * Gets the ASM Type Descriptor of this deferred class
+         *
+         * @return type descriptor
+         */
+        public String getTypeDescriptor() {
+            return name.typeDescriptor;
+        }
+
+        /**
+         * Generates the class and an instance of the class that should be loaded.
+         * Only one instance can ever be generated. If called multiple times, the last-generated
+         * instance is returned.
+         *
+         * @return Generated class instance
+         */
+        public synchronized T generate() {
+            // Check already generated
+            {
+                T generated = this.generated;
+                if (generated != null) {
+                    return generated;
+                }
+            }
+
+            // Check there was an error before, and throw again if so
+            {
+                RuntimeException err = this.generateError;
+                if (err != null) {
+                    throw err;
+                }
+            }
+
+            // Generate
+            try {
+                ExtendedClassWriter<T> writer = new ExtendedClassWriter<T>(classLoader, builder);
+                T result = callback.apply(writer);
+                if (result == null) {
+                    throw new IllegalStateException("Deferred callback " + callback.getClass().getName() + " returned null");
+                }
+                this.generated = result;
+                this.generateError = null;
+
+                // Successful, no longer needed to defer-generate this class
+                // If not successful, it sticks around to re-throw the same error over and over
+                pending.remove(name.name);
+
+                return result;
+            } catch (RuntimeException err) {
+                this.generated = null;
+                this.generateError = err;
+                throw err;
+            }
+        }
+
+        @Override
+        public void forceInitialization() {
+            generate();
+        }
+    }
+
+    /**
+     * The name, internal name and type descriptor of a generated class
+     */
+    private static final class GeneratedClassName {
+        public final String name;
+        public final String internalName;
+        public final String typeDescriptor;
+
+        public GeneratedClassName(String name) {
+            this.name = name;
+            this.internalName = name.replace('.', '/');
+            this.typeDescriptor = "L" + this.internalName + ";"; // Might fail sometimes...
+        }
+
+        public GeneratedClassName(Class<?> superClass, String postfix) {
+            this.name = MPLType.getName(superClass) + postfix;
+            this.internalName = MPLType.getInternalName(superClass) + postfix;
+            this.typeDescriptor = computeNameDescriptor(superClass, postfix);
+        }
+
+        // TODO: make cleaner
+        private static String computeNameDescriptor(Class<?> type, String postfix) {
+            String basePath = MPLType.getDescriptor(type);
+            return basePath.substring(0, basePath.length()-1) + postfix + ";";
         }
     }
 

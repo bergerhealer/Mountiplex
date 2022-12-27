@@ -4,8 +4,13 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 import com.bergerkiller.mountiplex.reflection.util.NullInstantiator;
 
+import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
+import javassist.CtConstructor;
+import javassist.CtField;
+import javassist.CtMethod;
+import javassist.NotFoundException;
 import javassist.bytecode.Bytecode;
 import javassist.compiler.Javac;
 import javassist.compiler.SymbolTable;
@@ -55,5 +60,34 @@ public class MPLJavac {
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
+    }
+
+    /**
+     * Converts a loaded CtClass object into a CtNewClass object. This type of class can self-resolve
+     * in class name lookup and automatically generates default constructors.
+     *
+     * @param ctClass
+     * @return ctNewClass
+     * @throws CannotCompileException
+     * @throws NotFoundException
+     */
+    public static CtClass asNewClass(CtClass ctClass) throws CannotCompileException, NotFoundException {
+        // However, this representation doesn't support the mechanism of generating a default constructor
+        // For that reason we do need to create a new CtNewClass, and stream all old methods/fields/etc. over
+        CtClass newClass = ctClass.getClassPool().makeClass(ctClass.getName(), ctClass.getSuperclass());
+        for (CtClass ctInterface : ctClass.getInterfaces()) {
+            newClass.addInterface(ctInterface);
+        }
+        for (CtMethod method : ctClass.getDeclaredMethods()) {
+            newClass.addMethod(new CtMethod(method, newClass, null));
+        }
+        for (CtField field : ctClass.getDeclaredFields()) {
+            newClass.addField(new CtField(field, newClass));
+        }
+        for (CtConstructor constr : ctClass.getDeclaredConstructors()) {
+            newClass.addConstructor(new CtConstructor(constr, newClass, null));
+        }
+
+        return newClass;
     }
 }
