@@ -364,6 +364,13 @@ public class Conversion {
     private static void initType(TypeDeclaration type) {
         if (type.type != null && Template.Handle.class.isAssignableFrom(type.type)) {
             Resolver.initializeClass(type.type);
+
+            // Class Initialization may have registered new converters
+            // This stuff will get processed right away if WE loaded the class,
+            // however another thread could also have done so and we were merely
+            // sync-waiting for it. If that case happens, it's a good idea to
+            // process pending registrations right now ourselves, as we own the lock.
+            deferLock.processPending();
         }
     }
 
@@ -846,22 +853,20 @@ public class Conversion {
             }
         }
 
-        private void processPending() {
-            if (!hasPending) {
-                return;
-            }
+        public void processPending() {
+            while (hasPending) {
+                ArrayList<Runnable> pendingCopy;
+                synchronized (pending) {
+                    if (!hasPending) {
+                        return;
+                    }
 
-            ArrayList<Runnable> pendingCopy;
-            synchronized (pending) {
-                if (!hasPending) {
-                    return;
+                    pendingCopy = new ArrayList<>(pending);
+                    pending.clear();
+                    hasPending = false;
                 }
-
-                pendingCopy = new ArrayList<>(pending);
-                pending.clear();
-                hasPending = false;
+                pendingCopy.forEach(Runnable::run);
             }
-            pendingCopy.forEach(Runnable::run);
         }
     }
 }

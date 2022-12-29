@@ -252,7 +252,7 @@ public class Template {
                         element.setReadonly();
                     }
                     if (valid) {
-                        Object result = element.init(this.classDec, templateFieldName);
+                        Object result = element.init(this, this.classDec, templateFieldName);
                         if (result != null) {
                             // If this is a static createHandle(Object) method, register it
                             // Only do this if the method matches the signature exactly
@@ -606,7 +606,7 @@ public class Template {
             _hasClass = false;
         }
 
-        protected abstract T init(ClassDeclaration dec, String name);
+        protected abstract T init(Template.Class<?> owner, ClassDeclaration dec, String name);
 
         /**
          * Sets the name of this element during initialization
@@ -709,7 +709,7 @@ public class Template {
         }
 
         @Override
-        protected FieldDeclaration init(ClassDeclaration dec, String name) {
+        protected FieldDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
@@ -794,7 +794,7 @@ public class Template {
         }
 
         @Override
-        protected MethodDeclaration init(ClassDeclaration dec, String name) {
+        protected MethodDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
@@ -881,11 +881,11 @@ public class Template {
         }
 
         @Override
-        protected FieldDeclaration init(ClassDeclaration dec, String name) {
+        protected FieldDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
-            FieldDeclaration fDec = this.raw.init(dec, name);
+            FieldDeclaration fDec = this.raw.init(owner, dec, name);
             if (fDec != null) {
                 if (this.isReadonly()) {
                     this.converter = LazyConverter.create(fDec.type, fDec.type.cast);
@@ -1006,11 +1006,11 @@ public class Template {
         }
 
         @Override
-        protected MethodDeclaration init(ClassDeclaration dec, String name) {
+        protected MethodDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
-            MethodDeclaration mDec = this.raw.init(dec, name);
+            MethodDeclaration mDec = this.raw.init(owner, dec, name);
             if (mDec != null) {
                 initConverters("method " + mDec.name.toString(), mDec.returnType, mDec.parameters);
             }
@@ -1123,7 +1123,7 @@ public class Template {
         }
 
         @Override
-        protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
+        protected ConstructorDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
@@ -1149,11 +1149,11 @@ public class Template {
             }
 
             @Override
-            protected ConstructorDeclaration init(ClassDeclaration dec, String name) {
+            protected ConstructorDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
                 if (dec == null) {
                     throw new IllegalArgumentException("ClassDeclaration is null");
                 }
-                ConstructorDeclaration cDec = this.raw.init(dec, name);
+                ConstructorDeclaration cDec = this.raw.init(owner, dec, name);
                 if (cDec != null) {
                     initConverters("constructor " + cDec.parameters.toString(), cDec.type, cDec.parameters);
                 }
@@ -1784,7 +1784,7 @@ public class Template {
 
         @Override
         @SuppressWarnings("unchecked")
-        protected FieldDeclaration init(ClassDeclaration dec, String name) {
+        protected FieldDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
             if (dec == null) {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
@@ -1888,16 +1888,24 @@ public class Template {
 
             @Override
             @SuppressWarnings("unchecked")
-            protected FieldDeclaration init(ClassDeclaration dec, String name) {
+            protected FieldDeclaration init(Template.Class<?> owner, ClassDeclaration dec, String name) {
                 if (dec == null) {
                     throw new IllegalArgumentException("ClassDeclaration is null");
                 }
-                FieldDeclaration fDec = raw.init(dec, name);
+                FieldDeclaration fDec = raw.init(owner, dec, name);
                 if (fDec != null) {
-                    this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
-                    if (this.converter == null) {
-                        MountiplexUtil.LOGGER.warning("Converter for enum constant " + fDec.name.toString() + 
-                                                      " not found: " + fDec.type.toString());
+                    // Finding converters at this stage is slow due to the Conversion lock
+                    // As these are enum constants, most likely it uses the converter of the owning class anyway
+                    // So check for that
+                    DuplexConverter<?, ?> ownerConverter = owner.getHandleConverter();
+                    if (fDec.type.equals(ownerConverter.input) && fDec.type.cast.equals(ownerConverter.output)) {
+                        this.converter = (DuplexConverter<?, T>) ownerConverter;
+                    } else {
+                        this.converter = (DuplexConverter<?, T>) Conversion.findDuplex(fDec.type, fDec.type.cast);
+                        if (this.converter == null) {
+                            MountiplexUtil.LOGGER.warning("Converter for enum constant " + fDec.name.toString() + 
+                                                          " not found: " + fDec.type.toString());
+                        }
                     }
                 }
                 return fDec;
