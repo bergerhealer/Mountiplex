@@ -5,7 +5,9 @@ import static org.objectweb.asm.Opcodes.*;
 import java.lang.reflect.Field;
 import java.util.logging.Level;
 
+import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.MethodVisitor;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
@@ -42,6 +44,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
 
     public static <T> GeneratedCodeInvoker<T> create(MethodDeclaration declaration) {
         ExtendedClassWriter<GeneratedCodeInvoker<T>> writer = ExtendedClassWriter.builder(GeneratedCodeInvoker.class)
+                .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setClassLoader(declaration.getResolver().getClassLoader())
                 .build();
         return generate(writer, declaration);
@@ -49,6 +52,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
 
     public static <T> ExtendedClassWriter.Deferred<GeneratedCodeInvoker<T>> createDefer(MethodDeclaration declaration) {
         return ExtendedClassWriter.<GeneratedCodeInvoker<T>>builder(GeneratedCodeInvoker.class)
+                .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setClassLoader(declaration.getResolver().getClassLoader())
                 .defer(writer -> generate(writer, declaration));
     }
@@ -60,6 +64,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
 
         // Make sure warnings/errors are handled before we try to compile anything
         declaration.checkTemplateErrors();
+        int argCount = declaration.parameters.parameters.length;
 
         // Add a static field to the generated class storing the singleton invoker instance
         {
@@ -69,8 +74,15 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             fv.visitEnd();
         }
 
+        // ASM: Add an invokeVA method which calls the soon-to-be-generated method with the cast
+        asmAddInvokeMethod(writer, declaration, true);
+
+        // ASM: Also add the invoke() method if less than 5 arguments
+        if (argCount <= 5) {
+            asmAddInvokeMethod(writer, declaration, false);
+        }
+
         try (ResolvedClassPool pool = ResolvedClassPool.create()) {
-            int argCount = declaration.parameters.parameters.length;
             Class<?> instanceType = declaration.getDeclaringClass();
 
             // Use the resolver to add needed imports
@@ -154,39 +166,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                 invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
             }
 
-            // Implement invokeVA to check arg count and unpack the parameters, then call the method we added earlier
-            {
-                methodBody.setLength(0);
-
-                // Add invokeVA method signature
-                methodBody.append("public Object invokeVA(Object instance_raw, Object[] args_raw) {\n");
-
-                // Arg count check
-                methodBody.append("if (args_raw.length!=").append(argCount).append(")")
-                          .append("{throw new com.bergerkiller.mountiplex.reflection.util.fast.InvalidArgumentCountException(")
-                          .append("\"method\",args_raw.length,").append(argCount).append(");}\n");
-
-                // Complete the rest of the invoke body and add the method
-                buildInvokeBody(declaration, methodBody, true);
-                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
-            }
-
-            // Implement invoke(instance, argn) for improved performance (avoids Object[] allocation)
-            if (argCount <= 5) {
-                methodBody.setLength(0);
-
-                // Build the invoke method header
-                methodBody.append("public Object invoke(Object instance_raw");
-                for (int i = 0; i < argCount; i++) {
-                    methodBody.append(",Object arg_raw_num_").append(i);
-                }
-                methodBody.append("){\n");
-
-                // Complete the rest of the invoke body and add the method
-                buildInvokeBody(declaration, methodBody, false);
-                invoker.addMethod(makeMethodAndLog(methodBody.toString(), invoker));
-            }
-
             try {
                 GeneratedCodeInvoker<T> instance = (GeneratedCodeInvoker<T>) writer.generateInstance();
 
@@ -224,96 +203,106 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
         return type != null && type != Object.class && Resolver.isPublic(type);
     }
 
-    private static void buildInvokeBody(MethodDeclaration declaration, StringBuilder methodBody, boolean isInvokeVA) {
-        int argCount = declaration.parameters.parameters.length;
+    private static <T> void asmAddInvokeMethod(ExtendedClassWriter<GeneratedCodeInvoker<T>> writer, MethodDeclaration declaration, boolean invokeVA) {
+        final int argCount = declaration.parameters.parameters.length;
+        final int stackStart = invokeVA ? 3 : (2 + argCount);
+        final Class<?> instanceType = declaration.modifiers.isStatic() ? null : declaration.getDeclaringClass();
+        final Class<?> returnType = declaration.returnType.type;
 
-        // Cast the instance
-        Class<?> instanceType = declaration.modifiers.isStatic() ? null : declaration.getDeclaringClass();
-        if (mustCastType(instanceType)) {
-            methodBody.append(ReflectionUtil.getAccessibleTypeName(instanceType))
-                      .append(" instance=")
-                      .append(ReflectionUtil.getAccessibleTypeCast(instanceType))
-                      .append("instance_raw;\n");
+        MethodVisitor mv;
+        if (invokeVA) {
+            mv = writer.visitMethod(ACC_PUBLIC + ACC_VARARGS + ACC_FINAL, "invokeVA",
+                    "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", null, null);
+            mv.visitCode();
+
+            // Check correct number of arguments
+            GeneratedInvoker.visitInvokeVAArgCountCheck(mv, argCount);
+        } else {
+            StringBuilder desc = new StringBuilder();
+            desc.append("(Ljava/lang/Object;");
+            for (int n = 0; n < argCount; n++) {
+                desc.append("Ljava/lang/Object;");
+            }
+            desc.append(")Ljava/lang/Object;");
+            mv = writer.visitMethod(ACC_PUBLIC + ACC_FINAL, "invoke", desc.toString(), null, null);
         }
 
-        // Unpack all the parameters
-        String arg_prefix = isInvokeVA ? "args_raw[" : "arg_raw_num_";
-        String arg_postfix = isInvokeVA ? "]" : "";
-        for (int i = 0; i < argCount; i++) {
+        // Cast all input parameters
+        // Start storing at 3 (0=this, 1=instance, 2=args)
+        for (int i = 0, storeIndex = stackStart; i < argCount; i++) {
             ParameterDeclaration param = declaration.parameters.parameters[i];
             if (!mustCastType(param.type.type)) {
                 continue; // skip, there is no cast needed
             }
 
-            methodBody.append(ReflectionUtil.getAccessibleTypeName(param.type.type))
-                      .append(' ')
-                      .append(param.name.real())
-                      .append('=');
-            Class<?> boxedType = BoxedType.getBoxedType(param.type.type);
-            if (boxedType != null) {
-                // Requires unboxing
-                methodBody.append('(').append(ReflectionUtil.getCastString(boxedType))
-                          .append(arg_prefix).append(i).append(arg_postfix).append(").")
-                          .append(param.type.type.getSimpleName()).append("Value();\n");
+            if (invokeVA) {
+                // Load args[] and load array element [i]
+                mv.visitVarInsn(ALOAD, 2);
+                ExtendedClassWriter.visitPushInt(mv, i);
+                mv.visitInsn(AALOAD);
             } else {
-                // Simple cast, is omitted if the parameter type is already Object
-                methodBody.append(ReflectionUtil.getAccessibleTypeCast(param.type.type))
-                          .append(arg_prefix).append(i).append(arg_postfix).append(";\n");
+                // Load argument i
+                mv.visitVarInsn(ALOAD, 2 + i);
             }
+
+            // Cast/unbox it
+            ExtendedClassWriter.visitUnboxVariable(mv, param.type.type);
+
+            // Store on stack
+            storeIndex = MPLType.visitVarIStore(mv, storeIndex, param.type.type);
         }
 
-        // Add 'return ' if a return value is specified
-        boolean hasReturnType = (declaration.returnType.type != void.class);
-        Class<?> boxedReturnType = null;
-        if (hasReturnType) {
-            methodBody.append("return ");
-            boxedReturnType = BoxedType.getBoxedType(declaration.returnType.type);
-        }
+        // Load everything from stack again and invoke the method
+        StringBuilder invokeDescriptor = new StringBuilder();
+        {
+            mv.visitVarInsn(ALOAD, 0); // this
 
-        // Need to wrap the entire call in a valueOf if the return value is a primitive type
-        if (boxedReturnType != null) {
-            methodBody.append(boxedReturnType.getSimpleName()).append(".valueOf(");
-        }
+            invokeDescriptor.append('(');
+            if (instanceType != null) {
+                mv.visitVarInsn(ALOAD, 1);
+                if (mustCastType(instanceType)) {
+                    ExtendedClassWriter.visitUnboxVariable(mv, instanceType);
+                    invokeDescriptor.append(MPLType.getDescriptor(instanceType));
+                } else {
+                    invokeDescriptor.append("Ljava/lang/Object;");
+                }
+            }
 
-        // Call the method with the unpacked parameters
-        methodBody.append("this.").append(declaration.name.real()).append('(');
-        if (instanceType != null) {
-            if (mustCastType(instanceType)) {
-                methodBody.append("instance");
+            for (int i = 0, storeIndex = stackStart; i < argCount; i++) {
+                ParameterDeclaration param = declaration.parameters.parameters[i];
+                if (mustCastType(param.type.type)) {
+                    // Load from what we stored on stack previously
+                    invokeDescriptor.append(MPLType.getDescriptor(param.type.type));
+                    storeIndex = MPLType.visitVarILoad(mv, storeIndex, param.type.type);
+                } else if (invokeVA) {
+                    // Load from args array
+                    invokeDescriptor.append("Ljava/lang/Object;");
+                    mv.visitVarInsn(ALOAD, 2);
+                    ExtendedClassWriter.visitPushInt(mv, i);
+                    mv.visitInsn(AALOAD);
+                } else {
+                    // Load from arg
+                    invokeDescriptor.append("Ljava/lang/Object;");
+                    mv.visitVarInsn(ALOAD, 2 + i);
+                }
+            }
+            invokeDescriptor.append(')');
+
+            if (mustCastType(returnType)) {
+                invokeDescriptor.append(MPLType.getDescriptor(returnType));
             } else {
-                methodBody.append("instance_raw");
-            }
-            if (argCount > 0) {
-                methodBody.append(',');
+                invokeDescriptor.append("Ljava/lang/Object;");
             }
         }
-        for (int i = 0; i < argCount; i++) {
-            ParameterDeclaration param = declaration.parameters.parameters[i];
-            if (mustCastType(param.type.type)) {
-                methodBody.append(param.name.real());
-            } else {
-                methodBody.append(arg_prefix).append(i).append(arg_postfix);
-            }
-            if (i < (argCount-1)) {
-                methodBody.append(",");
-            }
-        }
-        methodBody.append(')');
 
-        // Close valueOf() if needed
-        if (boxedReturnType != null) {
-            methodBody.append(')');
-        }
+        // With this, instance (optional) and all arguments on the stack, invoke the actual method
+        mv.visitMethodInsn(INVOKEVIRTUAL, writer.getInternalName(), declaration.name.real(), invokeDescriptor.toString(), false);
 
-        // Close method call
-        methodBody.append(";\n");
+        // Might be it returns a primitive type, which we would have to wrap properly
+        MPLType.visitBoxVariable(mv, returnType);
 
-        // Add another return null; if method is void
-        if (!hasReturnType) {
-            methodBody.append("return null;\n");
-        }
-
-        // Close the method body
-        methodBody.append('}');
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
     }
 }

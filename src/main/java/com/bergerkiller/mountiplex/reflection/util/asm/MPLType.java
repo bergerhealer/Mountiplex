@@ -283,6 +283,36 @@ public class MPLType {
     }
 
     /**
+     * Visits a variable ISTORE instruction for a given Class type
+     * 
+     * @param mv Method visitor
+     * @param registerInitial Initial register value to load into
+     * @param clazz Type of variable to load
+     * @return Next free register to use (register + size)
+     */
+    public static int visitVarIStore(MethodVisitor mv, int registerInitial, Class<?> type) {
+        Type asm_type = Type.getType(type);
+        mv.visitVarInsn(asm_type.getOpcode(ISTORE), registerInitial);
+        return registerInitial + asm_type.getSize();
+    }
+
+    /**
+     * Visits a variable ISTORE instruction for every Class type specified, in sequence
+     * 
+     * @param mv Method visitor
+     * @param registerInitial Initial register value to load into
+     * @param types The types of variables to load
+     * @return Next free register to use (register + size after last type)
+     */
+    public static int visitVarIStore(MethodVisitor mv, int registerInitial, Class<?>... types) {
+        int register = registerInitial;
+        for (Class<?> type : types) {
+            register = visitVarIStore(mv, register, type);
+        }
+        return register;
+    }
+
+    /**
      * Returns the {@link Type} corresponding to the return type of the given method.
      *
      * @param method a method.

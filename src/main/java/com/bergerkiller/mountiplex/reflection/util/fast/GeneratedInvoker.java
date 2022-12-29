@@ -100,30 +100,9 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
         {
             mv = cw.visitMethod(ACC_PUBLIC + ACC_VARARGS + ACC_FINAL, "invokeVA", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", null, null);
             mv.visitCode();
-            mv.visitVarInsn(ALOAD, 2);
-            mv.visitInsn(ARRAYLENGTH);
-            Label l_validArgs = new Label();
-            if (paramTypes.length > 0) {
-                ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
-                mv.visitJumpInsn(IF_ICMPEQ, l_validArgs);
-            } else {
-                mv.visitJumpInsn(IFEQ, l_validArgs);
-            }
-            {
-                // Invalid number of arguments
-                mv.visitTypeInsn(NEW, MPLType.getInternalName(InvalidArgumentCountException.class));
-                mv.visitInsn(DUP);
-                mv.visitLdcInsn("method");
-                mv.visitVarInsn(ALOAD, 2);
-                mv.visitInsn(ARRAYLENGTH);
-                ExtendedClassWriter.visitPushInt(mv, paramTypes.length);
-                mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(InvalidArgumentCountException.class), "<init>", "(Ljava/lang/String;II)V", false);
-                mv.visitInsn(ATHROW);
-            }
 
-            // Valid number of arguments; call the appropriate method with the array elements
-            mv.visitLabel(l_validArgs);
-            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+            visitInvokeVAArgCountCheck(mv, paramTypes.length);
+
             if (executable instanceof java.lang.reflect.Constructor) {
                 mv.visitTypeInsn(NEW, MPLType.getInternalName(instanceType));
                 mv.visitInsn(DUP);
@@ -197,5 +176,44 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
         }
 
         return cw.generateInstance();
+    }
+
+    /**
+     * Writes ASM for the following code as header for an invokeVA method:
+     * <pre>
+     * if (args_raw.length != 1) {
+     *     throw new InvalidArgumentCountException("method",args_raw.length,1);
+     * }
+     * </pre>
+     *
+     * @param mv
+     * @param argCount Arg count to check
+     */
+    public static void visitInvokeVAArgCountCheck(MethodVisitor mv, int argCount) {
+        mv.visitVarInsn(ALOAD, 2);
+        mv.visitInsn(ARRAYLENGTH);
+        Label l_validArgs = new Label();
+        if (argCount > 0) {
+            ExtendedClassWriter.visitPushInt(mv, argCount);
+            mv.visitJumpInsn(IF_ICMPEQ, l_validArgs);
+        } else {
+            mv.visitJumpInsn(IFEQ, l_validArgs);
+        }
+        {
+            // Invalid number of arguments
+            String exceptionTypeName = MPLType.getInternalName(InvalidArgumentCountException.class);
+            mv.visitTypeInsn(NEW, exceptionTypeName);
+            mv.visitInsn(DUP);
+            mv.visitLdcInsn("method");
+            mv.visitVarInsn(ALOAD, 2);
+            mv.visitInsn(ARRAYLENGTH);
+            ExtendedClassWriter.visitPushInt(mv, argCount);
+            mv.visitMethodInsn(INVOKESPECIAL, exceptionTypeName, "<init>", "(Ljava/lang/String;II)V", false);
+            mv.visitInsn(ATHROW);
+        }
+
+        // Valid number of arguments; call the appropriate method with the array elements
+        mv.visitLabel(l_validArgs);
+        mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
     }
 }
