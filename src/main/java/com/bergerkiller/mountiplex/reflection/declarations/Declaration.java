@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import javassist.CannotCompileException;
@@ -524,7 +525,7 @@ public abstract class Declaration {
      * code that calls the requirements added by {@link #addAsRequirement(CtClass, String)}.
      * Extra metadata for later use during {@link #addAsRequirement(CtClass, String)} can be stored inside
      * the requirement parameter.
-     * 
+     *
      * @param requirement The requirement that is currently being processed that uses this declaration
      * @param body The full StringBuilder buffer of the body in which source code is being parsed
      * @param instanceName The object token on which this declaration is called
@@ -540,12 +541,14 @@ public abstract class Declaration {
      * Called by the code invoker as part of generating the class used to invoke a runtime-generated
      * method. The declaration should take care to add all the details to the class required
      * to work properly.
-     * 
+     *
+     * @param writer The ExtendedClassWriter to which to add the generated methods/fields/etc. for this requirement
      * @param requirement The requirement that is currently being processed that uses this declaration
-     * @param invokerClass
      * @param name of the declaration
      */
-    public void addAsRequirement(Requirement requirement, CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
+    public void addAsRequirement(ExtendedClassWriter<?> writer, Requirement requirement, String name)
+            throws CannotCompileException, NotFoundException
+    {
         throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
     }
 

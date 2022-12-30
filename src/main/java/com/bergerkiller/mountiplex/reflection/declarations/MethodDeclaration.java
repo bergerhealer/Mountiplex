@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.MethodBodyBuilder;
@@ -456,7 +457,9 @@ public class MethodDeclaration extends Declaration {
     }
 
     @Override
-    public void addAsRequirement(Requirement requirement, CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
+    public void addAsRequirement(ExtendedClassWriter<?> writer, Requirement requirement, String name)
+            throws CannotCompileException, NotFoundException
+    {
         // If we could access the method directly, then we don't need to generate a reflection call stub
         if (!requirement.hasProperty("generateMethod")) {
             return;
@@ -484,7 +487,7 @@ public class MethodDeclaration extends Declaration {
 
         // Add fast method for the underlying method invoking
         String methodFieldName = name + "_method";
-        {
+        writer.addJavassist(invokerClass -> {
             FastMethod<Object> method = new FastMethod<Object>();
             method.init(this);
 
@@ -495,7 +498,7 @@ public class MethodDeclaration extends Declaration {
             CtField ctConverterField = new CtField(fastMethodClass, methodFieldName, invokerClass);
             ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
             invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(method));
-        }
+        });
 
         boolean isVarArgsInvoke = (this.parameters.parameters.length > 5);
 
@@ -548,14 +551,14 @@ public class MethodDeclaration extends Declaration {
             }
 
             // Add to class definition
-            {
+            writer.addJavassist(invokerClass -> {
                 ClassPool tmp_pool = new ClassPool();
                 tmp_pool.insertClassPath(new ClassClassPath(Converter.class));
                 CtClass converterClass = tmp_pool.get(Converter.class.getName());
                 CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
                 ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
                 invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter, Converter.class));
-            }
+            });
 
             methodBody.append("this.").append(converterFieldName);
             methodBody.append(".convertInput(");
@@ -622,14 +625,14 @@ public class MethodDeclaration extends Declaration {
             }
 
             // Add to class definition
-            {
+            writer.addJavassist(invokerClass -> {
                 ClassPool tmp_pool = new ClassPool();
                 tmp_pool.insertClassPath(new ClassClassPath(Converter.class));
                 CtClass converterClass = tmp_pool.get(Converter.class.getName());
                 CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
                 ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
                 invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter, Converter.class));
-            }
+            });
 
             // Perform conversion in body
             Class<?> rType;
@@ -662,13 +665,15 @@ public class MethodDeclaration extends Declaration {
         methodBody.append("}");
 
         // Create the method and add it to the class
-        try {
-            CtMethod method = MPLCtNewMethod.make(methodBody.toString(), invokerClass);
-            invokerClass.addMethod(method);
-        } catch (CannotCompileException ex) {
-            MountiplexUtil.LOGGER.severe("Failed to compile method: " + methodBody.toString());
-            throw ex;
-        }
+        writer.addJavassist(invokerClass -> {
+            try {
+                CtMethod method = MPLCtNewMethod.make(methodBody.toString(), invokerClass);
+                invokerClass.addMethod(method);
+            } catch (CannotCompileException ex) {
+                MountiplexUtil.LOGGER.severe("Failed to compile method: " + methodBody.toString());
+                throw ex;
+            }
+        });
     }
 
     @Override

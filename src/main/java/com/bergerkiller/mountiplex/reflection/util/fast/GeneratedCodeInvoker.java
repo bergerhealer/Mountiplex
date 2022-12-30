@@ -64,26 +64,31 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
 
         // Make sure warnings/errors are handled before we try to compile anything
         declaration.checkTemplateErrors();
-        int argCount = declaration.parameters.parameters.length;
-
-        // Add a static field to the generated class storing the singleton invoker instance
-        {
-            FieldVisitor fv;
-            fv = writer.visitField(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, "INSTANCE",
-                    writer.getTypeDescriptor(), null, null);
-            fv.visitEnd();
-        }
-
-        // ASM: Add an invokeVA method which calls the soon-to-be-generated method with the cast
-        asmAddInvokeMethod(writer, declaration, true);
-
-        // ASM: Also add the invoke() method if less than 5 arguments
-        if (argCount <= 5) {
-            asmAddInvokeMethod(writer, declaration, false);
-        }
 
         try (ResolvedClassPool pool = ResolvedClassPool.create()) {
-            Class<?> instanceType = declaration.getDeclaringClass();
+            int argCount = declaration.parameters.parameters.length;
+
+            // ASM: Add a static field to the generated class storing the singleton invoker instance
+            {
+                FieldVisitor fv;
+                fv = writer.visitField(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, "INSTANCE",
+                        writer.getTypeDescriptor(), null, null);
+                fv.visitEnd();
+            }
+
+            // ASM: Add an invokeVA method which calls the soon-to-be-generated method with the cast
+            asmAddInvokeMethod(writer, declaration, true);
+
+            // ASM: Also add the invoke() method if less than 5 arguments
+            if (argCount <= 5) {
+                asmAddInvokeMethod(writer, declaration, false);
+            }
+
+            // ASM: Before we write the CtClass out, let declarations add requirements using ASM if they can
+            // Things that require Javassist are delayed until getCtClass() is called
+            for (Requirement req : declaration.bodyRequirements) {
+                req.declaration.addAsRequirement(writer, req, req.name);
+            }
 
             // Use the resolver to add needed imports
             {
@@ -115,11 +120,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             CtClass invoker = writer.getCtClass(pool);
             StringBuilder methodBody = new StringBuilder();
 
-            // Add all the requirements to the class
-            for (Requirement req : declaration.bodyRequirements) {
-                req.declaration.addAsRequirement(req, invoker, req.name);
-            }
-
             // Add the exact method that the method declaration exposes
             // This implements the method declared in the interfaceClass
             {
@@ -130,7 +130,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                           .append(ReflectionUtil.getAccessibleTypeName(declaration.returnType.type))
                           .append(" ").append(declaration.name.real()).append("(");
                 if (!declaration.modifiers.isStatic()) {
-                    methodBody.append(ReflectionUtil.getAccessibleTypeName(instanceType))
+                    methodBody.append(ReflectionUtil.getAccessibleTypeName(declaration.getDeclaringClass()))
                               .append(" instance");
                     if (argCount > 0) {
                         methodBody.append(',');

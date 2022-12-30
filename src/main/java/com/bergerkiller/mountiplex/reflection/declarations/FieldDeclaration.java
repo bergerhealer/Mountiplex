@@ -12,6 +12,7 @@ import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastConvertedField;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
@@ -321,14 +322,16 @@ public class FieldDeclaration extends Declaration {
     }
 
     @Override
-    public void addAsRequirement(Requirement requirement, CtClass invokerClass, String name) throws CannotCompileException, NotFoundException {
+    public void addAsRequirement(ExtendedClassWriter<?> writer, Requirement requirement, String name)
+            throws CannotCompileException, NotFoundException
+    {
         // If the field could be accessed directly, then we don't have to generate a FastField as well
         if (!requirement.hasProperty("generateFastField")) {
             return;
         }
 
         if (this.type.cast != null) {
-            DuplexConverter<Object, Object> converter = Conversion.findDuplex(this.type, this.type.cast);
+            final DuplexConverter<Object, Object> converter = Conversion.findDuplex(this.type, this.type.cast);
             if (converter == null) {
                 throw new RuntimeException("Failed to find converter from " +
                         this.type.toString(true) + " <> " + this.type.cast.toString(true));
@@ -336,27 +339,31 @@ public class FieldDeclaration extends Declaration {
 
             FastField<?> f = new FastField<Object>();
             f.init(this.field);
-            FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
+            final FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
 
-            ClassPool tmp_pool = new ClassPool();
-            tmp_pool.insertClassPath(new ClassClassPath(FastConvertedField.class));
-            CtClass fastFieldClass = tmp_pool.get(FastConvertedField.class.getName());
+            writer.addJavassist(invokerClass -> {
+                ClassPool tmp_pool = new ClassPool();
+                tmp_pool.insertClassPath(new ClassClassPath(FastConvertedField.class));
+                CtClass fastFieldClass = tmp_pool.get(FastConvertedField.class.getName());
 
-            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
-            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
+                CtField ctField = new CtField(fastFieldClass, name, invokerClass);
+                ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+                invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
+            });
         } else {
             // No conversion, we can use a simple FastField
-            FastField<?> f = new FastField<Object>();
+            final FastField<?> f = new FastField<Object>();
             f.init(this.field);
 
-            ClassPool tmp_pool = new ClassPool();
-            tmp_pool.insertClassPath(new ClassClassPath(FastField.class));
-            CtClass fastFieldClass = tmp_pool.get(FastField.class.getName());
+            writer.addJavassist(invokerClass -> {
+                ClassPool tmp_pool = new ClassPool();
+                tmp_pool.insertClassPath(new ClassClassPath(FastField.class));
+                CtClass fastFieldClass = tmp_pool.get(FastField.class.getName());
 
-            CtField ctField = new CtField(fastFieldClass, name, invokerClass);
-            ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-            invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
+                CtField ctField = new CtField(fastFieldClass, name, invokerClass);
+                ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
+                invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
+            });
         }
     }
 

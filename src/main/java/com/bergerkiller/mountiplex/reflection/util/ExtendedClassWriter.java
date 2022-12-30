@@ -7,12 +7,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -40,6 +40,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     private final GeneratorClassLoader loader;
     private final List<StaticFieldInit> pendingStaticFields = new ArrayList<StaticFieldInit>();
     private CtClass ctClass = null;
+    private List<JavassistAction> javassistActions = Collections.emptyList();
 
     private ExtendedClassWriter(GeneratorClassLoader loader, Builder<T> options) {
         super(options.flags);
@@ -123,6 +124,32 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         this.visitEnd();
     }
 
+    @FunctionalInterface
+    public static interface JavassistAction {
+        void run(CtClass invokerClass) throws NotFoundException, CannotCompileException;
+    }
+
+    /**
+     * Adds a Javassist action that is run at the end after ASM finished generating the
+     * main structure of the class. These actions are run after {@link #getCtClass()}
+     * is first run, after which actions are added to the class right away.
+     *
+     * @param action Action to be executed. Is executed right away if {@link #getCtClass()}
+     *               was called before.
+     * @throws NotFoundException From action
+     * @throws CannotCompileException From action
+     */
+    public void addJavassist(JavassistAction action) throws NotFoundException, CannotCompileException {
+        if (ctClass != null) {
+            action.run(ctClass);
+        } else {
+            if (javassistActions.isEmpty()) {
+                javassistActions = new ArrayList<>(3);
+            }
+            javassistActions.add(action);
+        }
+    }
+
     /**
      * Takes the current ByteCode already generated and finishes it, turning it into
      * a JavaAssist CtClass ready for further modifications. The returned CtClass
@@ -135,7 +162,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      *
      * @return Javassist CtClass
      */
-    public CtClass getCtClass() {
+    public CtClass getCtClass() throws NotFoundException, CannotCompileException {
         return getCtClass(javassist.ClassPool.getDefault());
     }
 
@@ -151,11 +178,12 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      *
      * @return Javassist CtClass
      */
-    public CtClass getCtClass(javassist.ClassPool classPool) {
-        if (this.ctClass == null) {
+    public CtClass getCtClass(javassist.ClassPool classPool) throws NotFoundException, CannotCompileException {
+        if (ctClass == null) {
             this.closeASM();
 
             // Create a temporary class pool to create the initial CtClass object with from bytecode
+            CtClass newCtClass;
             try {
                 // Convert the current byte representation into a ByteArray, and then into a CtClass
                 //
@@ -172,30 +200,40 @@ public class ExtendedClassWriter<T> extends ClassWriter {
                     // However, this representation doesn't support the mechanism of generating a default constructor
                     // For that reason we do need to create a new CtNewClass, and stream all old methods/fields/etc. over
                     // This new class will also self-resolve after we remove the temporary class path
-                    this.ctClass = MPLJavac.asNewClass(fromBytecode);
+                    newCtClass = MPLJavac.asNewClass(fromBytecode);
                 } finally {
                     classPool.removeClassPath(selfClassPath);
                 }
             } catch (NotFoundException e) {
                 throw new RuntimeException("Failed to instantiate CtClass " + name.name + " from bytecode");
-            } catch (Throwable t) {
-                throw MountiplexUtil.uncheckedRethrow(t);
             }
+
+            // Using for-i loop in case one action adds further actions
+            for (int i = 0; i < javassistActions.size(); i++) {
+                javassistActions.get(i).run(newCtClass);
+            }
+            javassistActions = Collections.emptyList();
+            ctClass = newCtClass;
         }
-        return this.ctClass;
+        return ctClass;
     }
 
     @SuppressWarnings("unchecked")
     public Class<T> generate() {
-        if (this.ctClass == null) {
-            this.closeASM();
-            return (Class<T>) this.loader.createClassFromBytecode(name.name, this.toByteArray(), null);
-        } else {
-            try {
-                return (Class<T>) this.ctClass.toClass(this.loader, null);
-            } catch (CannotCompileException e) {
-                throw new RuntimeException("Failed to compile class " + name.name, e);
+        try {
+            if (ctClass == null && !javassistActions.isEmpty()) {
+                this.getCtClass();
             }
+            if (ctClass == null) {
+                this.closeASM();
+                return (Class<T>) this.loader.createClassFromBytecode(name.name, this.toByteArray(), null);
+            } else {
+                return (Class<T>) this.ctClass.toClass(this.loader, null);
+            }
+        } catch (CannotCompileException e) {
+            throw new RuntimeException("Failed to compile class " + name.name, e);
+        } catch (NotFoundException e) {
+            throw new RuntimeException("Compiling failed because a class was not found", e);
         }
     }
 
