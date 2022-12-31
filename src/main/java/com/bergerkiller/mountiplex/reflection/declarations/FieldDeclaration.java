@@ -15,17 +15,12 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastConvertedField;
 import com.bergerkiller.mountiplex.reflection.util.FastField;
-import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.MethodBodyBuilder;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
-import javassist.ClassClassPath;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtField;
 import javassist.NotFoundException;
 
 public class FieldDeclaration extends Declaration {
@@ -341,29 +336,13 @@ public class FieldDeclaration extends Declaration {
             f.init(this.field);
             final FastConvertedField<?> cf = new FastConvertedField<Object>(f, converter);
 
-            writer.addJavassist(invokerClass -> {
-                ClassPool tmp_pool = new ClassPool();
-                tmp_pool.insertClassPath(new ClassClassPath(FastConvertedField.class));
-                CtClass fastFieldClass = tmp_pool.get(FastConvertedField.class.getName());
-
-                CtField ctField = new CtField(fastFieldClass, name, invokerClass);
-                ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-                invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(cf));
-            });
+            writer.visitSingletonField(name, FastConvertedField.class, cf);
         } else {
             // No conversion, we can use a simple FastField
             final FastField<?> f = new FastField<Object>();
             f.init(this.field);
 
-            writer.addJavassist(invokerClass -> {
-                ClassPool tmp_pool = new ClassPool();
-                tmp_pool.insertClassPath(new ClassClassPath(FastField.class));
-                CtClass fastFieldClass = tmp_pool.get(FastField.class.getName());
-
-                CtField ctField = new CtField(fastFieldClass, name, invokerClass);
-                ctField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-                invokerClass.addField(ctField, GeneratorArgumentStore.initializeField(f));
-            });
+            writer.visitSingletonField(name, FastField.class, f);
         }
     }
 

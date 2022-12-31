@@ -15,7 +15,6 @@ import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
-import com.bergerkiller.mountiplex.reflection.util.GeneratorArgumentStore;
 import com.bergerkiller.mountiplex.reflection.util.MethodBodyBuilder;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -23,10 +22,6 @@ import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLCtNewMethod;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
 
 import javassist.CannotCompileException;
-import javassist.ClassClassPath;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtField;
 import javassist.CtMethod;
 import javassist.NotFoundException;
 
@@ -487,18 +482,11 @@ public class MethodDeclaration extends Declaration {
 
         // Add fast method for the underlying method invoking
         String methodFieldName = name + "_method";
-        writer.addJavassist(invokerClass -> {
-            FastMethod<Object> method = new FastMethod<Object>();
-            method.init(this);
-
-            ClassPool tmp_pool = new ClassPool();
-            tmp_pool.insertClassPath(new ClassClassPath(FastMethod.class));
-            CtClass fastMethodClass = tmp_pool.get(FastMethod.class.getName());
-
-            CtField ctConverterField = new CtField(fastMethodClass, methodFieldName, invokerClass);
-            ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-            invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(method));
-        });
+        {
+            FastMethod<Object> fastMethod = new FastMethod<Object>();
+            fastMethod.init(this);
+            writer.visitSingletonField(methodFieldName, FastMethod.class, fastMethod);
+        }
 
         boolean isVarArgsInvoke = (this.parameters.parameters.length > 5);
 
@@ -551,14 +539,7 @@ public class MethodDeclaration extends Declaration {
             }
 
             // Add to class definition
-            writer.addJavassist(invokerClass -> {
-                ClassPool tmp_pool = new ClassPool();
-                tmp_pool.insertClassPath(new ClassClassPath(Converter.class));
-                CtClass converterClass = tmp_pool.get(Converter.class.getName());
-                CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
-                ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter, Converter.class));
-            });
+            writer.visitSingletonField(converterFieldName, Converter.class, converter);
 
             methodBody.append("this.").append(converterFieldName);
             methodBody.append(".convertInput(");
@@ -625,14 +606,7 @@ public class MethodDeclaration extends Declaration {
             }
 
             // Add to class definition
-            writer.addJavassist(invokerClass -> {
-                ClassPool tmp_pool = new ClassPool();
-                tmp_pool.insertClassPath(new ClassClassPath(Converter.class));
-                CtClass converterClass = tmp_pool.get(Converter.class.getName());
-                CtField ctConverterField = new CtField(converterClass, converterFieldName, invokerClass);
-                ctConverterField.setModifiers(Modifier.PRIVATE | Modifier.FINAL);
-                invokerClass.addField(ctConverterField, GeneratorArgumentStore.initializeField(converter, Converter.class));
-            });
+            writer.visitSingletonField(converterFieldName, Converter.class, converter);
 
             // Perform conversion in body
             Class<?> rType;
