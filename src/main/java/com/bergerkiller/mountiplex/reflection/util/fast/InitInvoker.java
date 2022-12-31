@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
@@ -433,13 +434,26 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         public synchronized boolean set(Object instance, Invoker<T> value) {
             try {
                 java.lang.reflect.Field field = getField();
-                boolean wasAccessible = field.isAccessible();
-                try {
-                    field.setAccessible(true);
-                    field.set(instance, value);
-                } finally {
-                    field.setAccessible(wasAccessible);
+
+                // Special logic for static final fields
+                int modifiers = field.getModifiers();
+                if (Modifier.isStatic(modifiers) && Modifier.isFinal(modifiers)) {
+                    // Hax!
+                    // Make sure <clinit> is fired
+                    field.get(instance);
+                    // Set it now the class/field is initialized - avoids weirdness!
+                    GeneratedAccessor.GeneratedStaticFinalAccessor.setUninitializedField(field, value);
+                } else {
+                    // Boring old reflection
+                    boolean wasAccessible = field.isAccessible();
+                    try {
+                        field.setAccessible(true);
+                        field.set(instance, value);
+                    } finally {
+                        field.setAccessible(wasAccessible);
+                    }
                 }
+
                 return true;
             } catch (Throwable t) {
                 throw MountiplexUtil.uncheckedRethrow(t);

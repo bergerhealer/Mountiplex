@@ -2,11 +2,9 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import static org.objectweb.asm.Opcodes.*;
 
-import java.lang.reflect.Field;
 import java.util.logging.Level;
 
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -46,6 +44,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
         ExtendedClassWriter<GeneratedCodeInvoker<T>> writer = ExtendedClassWriter.builder(GeneratedCodeInvoker.class)
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setClassLoader(declaration.getResolver().getClassLoader())
+                .setSingleton(true)
                 .build();
         return generate(writer, declaration);
     }
@@ -54,6 +53,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
         return ExtendedClassWriter.<GeneratedCodeInvoker<T>>builder(GeneratedCodeInvoker.class)
                 .setFlags(ClassWriter.COMPUTE_MAXS)
                 .setClassLoader(declaration.getResolver().getClassLoader())
+                .setSingleton(true)
                 .defer(writer -> generate(writer, declaration));
     }
 
@@ -67,14 +67,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
 
         try (ResolvedClassPool pool = ResolvedClassPool.create()) {
             int argCount = declaration.parameters.parameters.length;
-
-            // ASM: Add a static field to the generated class storing the singleton invoker instance
-            {
-                FieldVisitor fv;
-                fv = writer.visitField(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, "INSTANCE",
-                        writer.getTypeDescriptor(), null, null);
-                fv.visitEnd();
-            }
 
             // ASM: Add an invokeVA method which calls the soon-to-be-generated method with the cast
             asmAddInvokeMethod(writer, declaration, true);
@@ -167,15 +159,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             }
 
             try {
-                GeneratedCodeInvoker<T> instance = (GeneratedCodeInvoker<T>) writer.generateInstance();
-
-                // Assign instance to the static INSTANCE field
-                {
-                    Field f = instance.getClass().getDeclaredField("INSTANCE");
-                    GeneratedAccessor.GeneratedStaticFinalAccessor.setUninitializedField(f, instance);
-                }
-
-                return instance;
+                return (GeneratedCodeInvoker<T>) writer.generateInstance();
             } catch (java.lang.VerifyError ex) {
                 MountiplexUtil.LOGGER.severe("Failed to verify generated method: " + declaration.body);
                 throw ex;

@@ -38,7 +38,10 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     private static final UniqueHash generatedStaticFieldCtr = new UniqueHash();
     private final GeneratedClassName name;
     private final GeneratorClassLoader loader;
-    private final List<StaticFieldInit> pendingStaticFields = new ArrayList<StaticFieldInit>();
+    private final Class<?> superType;
+    private final List<StaticFieldInit> pendingStaticFields = new ArrayList<>();
+    private final boolean singleton;
+    private final List<StaticFieldInit> singletonMemberFields;
     private CtClass ctClass = null;
     private List<JavassistAction> javassistActions = Collections.emptyList();
 
@@ -48,7 +51,11 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         this.name = options.exactName;
 
         // Extends Object instead of SuperClass when it is an interface
-        Class<?> superType = options.superClass.isInterface() ? Object.class : options.superClass;
+        this.superType = options.superClass.isInterface() ? Object.class : options.superClass;
+
+        // Only works if singleton
+        this.singleton = options.singleton;
+        this.singletonMemberFields = options.singleton ? new ArrayList<>(5) : Collections.emptyList();
 
         // If interfaces are specified, then the signature must be generated also
         String signature = null;
@@ -71,7 +78,15 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             }
         }
 
+        // Class header stuff
         this.visit(V1_8, options.access, name.internalName, signature, superName, interfaceNames);
+
+        // ASM: Add a static field to the generated class storing the singleton invoker instance
+        if (singleton) {
+            FieldVisitor fv;
+            fv = visitField(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, "INSTANCE", getTypeDescriptor(), null, null);
+            fv.visitEnd();
+        }
     }
 
     /**
@@ -102,12 +117,19 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
     // Completes the class, initializes any pending static fields before doing so
     private void closeASM() {
-        if (!this.pendingStaticFields.isEmpty()) {
+        if (singleton || !pendingStaticFields.isEmpty()) {
             MethodVisitor mv;
 
             // Write static initializer block sections for all static fields added
+            // For singletons, also initialize the INSTANCE field with a new instance
             mv = this.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
             mv.visitCode();
+            if (singleton) {
+                mv.visitTypeInsn(NEW, this.getInternalName());
+                mv.visitInsn(DUP);
+                mv.visitMethodInsn(INVOKESPECIAL, this.getInternalName(), "<init>", "()V", false);
+                mv.visitFieldInsn(PUTSTATIC, this.getInternalName(), "INSTANCE", this.getTypeDescriptor());
+            }
             for (StaticFieldInit init : this.pendingStaticFields) {
                 visitPushInt(mv, init.record);
                 mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(GeneratorArgumentStore.class),
@@ -118,7 +140,34 @@ public class ExtendedClassWriter<T> extends ClassWriter {
                 mv.visitFieldInsn(PUTSTATIC, getInternalName(), init.fieldName, MPLType.getDescriptor(init.fieldType));
             }
             mv.visitInsn(RETURN);
-            mv.visitMaxs(1, 0);
+            mv.visitMaxs(singleton ? 2 : 1, 0);
+            mv.visitEnd();
+        }
+
+        // If not null then this is a singleton class, and this needs a default constructor
+        if (singleton) {
+            MethodVisitor mv;
+
+            // Write an empty constructor initializer block sections for all member fields added
+            // The <clinit> static initializer will call this one to initialize the member fields, too
+            mv = this.visitMethod(ACC_PRIVATE, "<init>", "()V", null, null);
+            mv.visitCode();
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(this.superType), "<init>", "()V", false);
+
+            for (StaticFieldInit init : singletonMemberFields) {
+                mv.visitVarInsn(ALOAD, 0);
+                visitPushInt(mv, init.record);
+                mv.visitMethodInsn(INVOKESTATIC, MPLType.getInternalName(GeneratorArgumentStore.class),
+                        "fetch", "(I)Ljava/lang/Object;", false);
+                if (init.fieldType != Object.class) {
+                    mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(init.fieldType));
+                }
+                mv.visitFieldInsn(PUTFIELD, getInternalName(), init.fieldName, MPLType.getDescriptor(init.fieldType));
+            }
+
+            mv.visitInsn(RETURN);
+            mv.visitMaxs(singletonMemberFields.isEmpty() ? 1 : 2, 1);
             mv.visitEnd();
         }
         this.visitEnd();
@@ -176,6 +225,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * No more ASM commands (visit*) should be called after calling this method, as they
      * will have no effect.
      *
+     * @param classPool The ClassPool used to resolve types found in method bodies
      * @return Javassist CtClass
      */
     public CtClass getCtClass(javassist.ClassPool classPool) throws NotFoundException, CannotCompileException {
@@ -183,26 +233,16 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             this.closeASM();
 
             // Create a temporary class pool to create the initial CtClass object with from bytecode
+            // Note: can use the other makeNewClassWithDefaultConstructor method if that's important
             CtClass newCtClass;
             try {
-                // Convert the current byte representation into a ByteArray, and then into a CtClass
-                //
-                // We cannot use the hande makeNewClass() with input stream, because the produced class
-                // isn't a CtNewClass instance, and as such doesn't generate the default constructor for us.
-                javassist.ByteArrayClassPath selfClassPath = new javassist.ByteArrayClassPath(name.name, this.toByteArray());
-                try {
-                    classPool.insertClassPath(selfClassPath);
-
-                    // While the bytecode is made available on a class path, load the CtClass object
-                    // This will only remain valid for this sort try-finally block
-                    CtClass fromBytecode = classPool.get(name.name);
-
-                    // However, this representation doesn't support the mechanism of generating a default constructor
-                    // For that reason we do need to create a new CtNewClass, and stream all old methods/fields/etc. over
-                    // This new class will also self-resolve after we remove the temporary class path
-                    newCtClass = MPLJavac.asNewClass(fromBytecode);
-                } finally {
-                    classPool.removeClassPath(selfClassPath);
+                if (singleton) {
+                    // We assume the caller is going to add singleton fields and not use the Javassist API for
+                    // this at all.
+                    newCtClass = MPLJavac.makeNewClass(classPool, this.toByteArray());
+                } else {
+                    // Better be safe than sorry!
+                    newCtClass = MPLJavac.makeNewClassWithDefaultConstructor(classPool, name.name, this.toByteArray());
                 }
             } catch (NotFoundException e) {
                 throw new RuntimeException("Failed to instantiate CtClass " + name.name + " from bytecode");
@@ -244,6 +284,10 @@ public class ExtendedClassWriter<T> extends ClassWriter {
      * @return Constructor of the generated class
      */
     public Constructor<T> generateConstructor(Class<?>... parameterTypes) {
+        if (singleton) {
+            throw new UnsupportedOperationException("Cannot create new instances of a singleton class");
+        }
+
         Class<T> type = this.generate();
         try {
             return type.getConstructor(parameterTypes);
@@ -253,14 +297,36 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
-     * Generates a new instance by calling the empty constructor
-     * 
+     * Generates a new instance by calling the empty constructor. For singleton classes
+     * this will return the singleton instance.
+     *
      * @return constructed instance of the generated class
      */
+    @SuppressWarnings("unchecked")
     public T generateInstance() {
+        if (singleton) {
+            // Write the actual class
+            Class<?> type = this.generate();
+
+            // Return the singleton's INSTANCE field
+            try {
+                return (T) type.getDeclaredField("INSTANCE").get(null);
+            } catch (Throwable t) {
+                throw new IllegalStateException("INSTANCE not found in singleton. This should not happen!", t);
+            }
+        }
+
         return generateInstance(new Class<?>[0], new Object[0]);
     }
 
+    /**
+     * Generates a new instance by calling a constructor matching the parameter types,
+     * with the arguments as specified.
+     *
+     * @param parameterTypes Parameter types
+     * @param initArgs Argument values for the parameters
+     * @return new instance
+     */
     public T generateInstance(Class<?>[] parameterTypes, Object[] initArgs) {
         Constructor<T> constructor = this.generateConstructor(parameterTypes);
         try {
@@ -620,7 +686,36 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
         // Write the field definition
         FieldVisitor fv;
-        fv = this.visitField(ACC_PUBLIC | ACC_STATIC, fieldName,
+        fv = this.visitField(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, fieldName,
+                MPLType.getDescriptor(field.fieldType), null, null);
+        fv.visitEnd();
+    }
+
+    /**
+     * Adds a <b>private</b> final member field to the class, initialized only once when
+     * {@link #generateInstance()} is called with a generated default no-arg constructor.
+     * This method is only suitable for generating singleton classes. The parent class may
+     * not contain any parameters to be filled.<br>
+     * <br>
+     * The added field can be used by other member methods added to the class.<br>
+     * <br>
+     * This method is only valid is <code>setSingleton(true)</code> was called on the Builder.
+     *
+     * @param fieldName Name of the static field
+     * @param fieldType Type of the field, which is the public facing field type
+     * @param value Value the field will have during first-time class initialization
+     */
+    public void visitSingletonField(String fieldName, Class<?> fieldType, Object value) {
+        if (singletonMemberFields == null) {
+            throw new IllegalStateException("The Class being generated isn't a singleton. Missing setSingleton(true) in Builder?");
+        }
+
+        StaticFieldInit field = new StaticFieldInit(fieldName, fieldType, value);
+        this.singletonMemberFields.add(field);
+
+        // Write the field definition
+        FieldVisitor fv;
+        fv = this.visitField(ACC_PRIVATE | ACC_FINAL, fieldName,
                 MPLType.getDescriptor(field.fieldType), null, null);
         fv.visitEnd();
     }
@@ -648,6 +743,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         private List<Class<?>> interfaces = new ArrayList<Class<?>>(0);
         private int flags = 0;
         private int access = ACC_PUBLIC | ACC_STATIC;
+        private boolean singleton = false;
         private String postfix = null;
         private GeneratedClassName exactName = null;
         private ClassLoader classLoader = null;
@@ -681,6 +777,20 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
         public Builder<T> setPostfix(String postfix) {
             this.postfix = postfix;
+            return this;
+        }
+
+        /**
+         * Sets whether to build a singleton class. Singleton classes automatically generate
+         * a default constructor, in which singleton member fields can be initialized. A
+         * public static final <b>INSTANCE</b> field is also added storing the generated
+         * instance. Only one instance can ever exist.
+         *
+         * @param isSingleton Whether to generate a singleton class
+         * @return this Builder
+         */
+        public Builder<T> setSingleton(boolean isSingleton) {
+            this.singleton = isSingleton;
             return this;
         }
 

@@ -540,7 +540,10 @@ public abstract class Declaration {
     /**
      * Called by the code invoker as part of generating the class used to invoke a runtime-generated
      * method. The declaration should take care to add all the details to the class required
-     * to work properly.
+     * to work properly.<br>
+     * <br>
+     * The writer can be assumed to be writing a singleton class. As such, singleton member fields can be added
+     * without problems.
      *
      * @param writer The ExtendedClassWriter to which to add the generated methods/fields/etc. for this requirement
      * @param requirement The requirement that is currently being processed that uses this declaration
