@@ -310,7 +310,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
             // Return the singleton's INSTANCE field
             try {
-                return (T) type.getDeclaredField("INSTANCE").get(null);
+                return (T) MPLType.getDeclaredField(type, "INSTANCE").get(null);
             } catch (Throwable t) {
                 throw new IllegalStateException("INSTANCE not found in singleton. This should not happen!", t);
             }
