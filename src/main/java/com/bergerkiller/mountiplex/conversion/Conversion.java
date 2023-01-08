@@ -91,8 +91,10 @@ public class Conversion {
             if (converter instanceof DuplexConverter) {
                 registerConverterImpl(((DuplexConverter<?, ?>) converter).reverse());
             }
+        } catch (InvalidConverterException ex) {
+            MountiplexUtil.LOGGER.warning(ex.getMessage() + ": " + converter);
         } catch (Throwable t) {
-            MountiplexUtil.LOGGER.warning(t.getMessage() + ": " + converter);
+            MountiplexUtil.LOGGER.log(Level.SEVERE, "An error occurred registering " + converter, t);
         }
     }
 
@@ -375,21 +377,29 @@ public class Conversion {
     }
 
     // verifies the converter input and output are properly defined
-    private static void verifyConverter(Converter<?, ?> converter) throws IllegalArgumentException {
+    private static void verifyConverter(Converter<?, ?> converter) throws InvalidConverterException {
         if (converter == null) {
-            throw new IllegalArgumentException("Converter is null");
+            throw new InvalidConverterException("Converter is null");
         }
         if (!converter.input.isValid()) {
-            throw new IllegalArgumentException("Converter has invalid input");
+            throw new InvalidConverterException("Converter has invalid input");
         }
         if (!converter.output.isValid()) {
-            throw new IllegalArgumentException("Converter has invalid output");
+            throw new InvalidConverterException("Converter has invalid output");
         }
         if (!converter.input.isResolved()) {
-            throw new IllegalArgumentException("Converter has unresolved input");
+            throw new InvalidConverterException("Converter has unresolved input");
         }
         if (!converter.output.isResolved()) {
-            throw new IllegalArgumentException("Converter has unresolved output");
+            throw new InvalidConverterException("Converter has unresolved output");
+        }
+    }
+
+    private static class InvalidConverterException extends IllegalStateException {
+        private static final long serialVersionUID = 2555039929011231357L;
+
+        public InvalidConverterException(String message) {
+            super(message);
         }
     }
 
@@ -710,9 +720,12 @@ public class Conversion {
                                 // This way we can leverage contains + put
                                 try {
                                     verifyConverter(converter);
+                                } catch (InvalidConverterException ex) {
+                                    this.converters.remove(converter.input);
+                                    MountiplexUtil.LOGGER.warning(ex.getMessage() + ": " + converter);
                                 } catch (Throwable t) {
                                     this.converters.remove(converter.input);
-                                    MountiplexUtil.LOGGER.warning(t.getMessage() + ": " + converter);
+                                    MountiplexUtil.LOGGER.log(Level.SEVERE, "An error occurred registering " + converter, t);
                                 }
                             }
                         }
