@@ -97,7 +97,8 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                         pool.importPackage(package_path);
                     }
                 }
-                for (String importName : classResolver.getImports()) {
+
+                classResolver.getAllImports().forEachOrdered(importName -> {
                     if (importName.endsWith(".*")) {
                         String packagePath = importName.substring(0, importName.length()-2);
                         if (!packagePath.contains("*")) {
@@ -106,7 +107,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                     } else {
                         pool.importPackage(importName);
                     }
-                }
+                });
             }
 
             CtClass invoker = writer.getCtClass(pool);

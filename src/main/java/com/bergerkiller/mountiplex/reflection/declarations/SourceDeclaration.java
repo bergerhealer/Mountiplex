@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
@@ -259,7 +260,7 @@ public class SourceDeclaration extends Declaration {
         if (pkg.length() > 0) {
             str += "package " + pkg + ";\n\n";
         }
-        for (String imp : getResolver().getImports()) {
+        for (String imp : getResolver().getAllImports().collect(Collectors.toList())) {
             str += "import " + imp + ";\n";
         }
         str += "\n";

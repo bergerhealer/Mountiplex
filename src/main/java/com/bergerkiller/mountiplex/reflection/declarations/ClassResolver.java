@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.logic.TextValueSequence;
@@ -56,7 +57,7 @@ public class ClassResolver {
         this.classDeclarationResolverName = "null";
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
-        this.manualImports = new ArrayList<String>(default_imports);
+        this.manualImports = new ArrayList<String>();
         this.requirements = new ArrayList<Requirement>();
         this.packagePath = "";
         this.declaredClassName = null;
@@ -239,7 +240,6 @@ public class ClassResolver {
             this.declaredClass = null;
             this.declaredClassName = null;
             this.manualImports.clear();
-            this.manualImports.addAll(default_imports);
         }
         this.regenImports();
     }
@@ -327,12 +327,13 @@ public class ClassResolver {
     }
 
     /**
-     * Gets the list of imports added to this resolver using {@link #addImport(String)}
-     * 
+     * Gets a stream of imports added to this resolver using {@link #addImport(String)},
+     * including default imports.
+     *
      * @return List of imports
      */
-    public Collection<String> getImports() {
-        return Collections.unmodifiableCollection(this.manualImports);
+    public Stream<String> getAllImports() {
+        return Stream.concat(this.manualImports.stream(), default_imports.stream());
     }
 
     /**
@@ -658,7 +659,7 @@ public class ClassResolver {
         String bestImport = null;
         String dotName = "." + name;
         for (String imp : this.imports) {
-            if (imp.endsWith(".*")) {
+            if (imp.endsWith(".*") || imp.endsWith("$*")) {
                 classPath = imp.substring(0, imp.length() - 1) + name;
             } else if (imp.endsWith(dotName)) {
                 classPath = imp;
@@ -728,17 +729,33 @@ public class ClassResolver {
         // See if the class type was imported
         String name = MPLType.getName(type).replace('$', '.');
         for (String imp : this.imports) {
-            if (imp.equals(name)) {
+            if (equalsIgnoreDollarSign(imp, name)) {
                 return type.getSimpleName();
             }
-            if (imp.endsWith(".*")) {
-                String imp_p = imp.substring(0, imp.length() - 1);
-                if (name.startsWith(imp_p)) {
-                    return name.substring(imp_p.length());
+            if (imp.endsWith(".*") || imp.endsWith("$*")) {
+                int imp_len = imp.length() - 1;
+                if (name.length() >= imp_len && equalsIgnoreDollarSign(name, imp, imp_len)) {
+                    return name.substring(imp_len);
                 }
             }
         }
         return name;
+    }
+
+    private static boolean equalsIgnoreDollarSign(String a, String b) {
+        int len = a.length();
+        return len == b.length() && equalsIgnoreDollarSign(a, b, len);
+    }
+
+    private static boolean equalsIgnoreDollarSign(String a, String b, int len) {
+        for (int i = 0; i < len; i++) {
+            char ca = a.charAt(i);
+            char cb = b.charAt(i);
+            if (ca != cb && ((ca != '.' && ca != '$') || (cb != '.' && cb != '$'))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -765,11 +782,12 @@ public class ClassResolver {
         this.imports.addAll(this.manualImports);
         Collections.reverse(this.imports);
         if (this.declaredClassName != null) {
-            this.imports.add(this.declaredClassName + ".*");
+            this.imports.add(this.declaredClassName + "$*");
         }
         if (this.packagePath != null && !this.packagePath.isEmpty()) {
             this.imports.add(this.packagePath + ".*");
         }
+        this.imports.addAll(default_imports);
     }
 
     /**

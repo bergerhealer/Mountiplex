@@ -254,8 +254,13 @@ public class Resolver {
             if (last_dot != -1) {
                 int dot_before_last = path.lastIndexOf('.', last_dot-1);
                 if (Character.isUpperCase(path.charAt(dot_before_last+1))) {
-                    String path_new = path.substring(0, last_dot) + "$" + path.substring(last_dot+1);
-                    return loadClass(path_new, initialize);
+                    // Try to probe a nested class, but only if the parent class actually exists
+                    // Avoids filling the cache with endless my.package$String which can't exist
+                    String parentClass = path.substring(0, last_dot);
+                    if (loadClass(parentClass, false) != null) {
+                        String path_new = parentClass + "$" + path.substring(last_dot+1);
+                        return loadClass(path_new, initialize);
+                    }
                 }
             }
             return null;
