@@ -558,7 +558,13 @@ public class Resolver {
         private static boolean isPublicClass(Class<?> type) {
             if (type == null) return true;
             if (!Modifier.isPublic(type.getModifiers())) return false;
-            return isPublicClass(type.getDeclaringClass());
+            try {
+                return isPublicClass(type.getDeclaringClass());
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to detect whether " + MPLType.getName(type) +
+                        " is public. Assuming it is not public.", t);
+                return false;
+            }
         }
 
         /// some bad class was found and we have to figure out what type variable is used <>
