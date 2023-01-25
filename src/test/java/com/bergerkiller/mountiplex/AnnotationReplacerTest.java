@@ -8,12 +8,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import com.bergerkiller.mountiplex.reflection.util.asm.AnnotationRemapTask;
+import com.bergerkiller.mountiplex.reflection.util.asm.SourceFileProcessor;
 import org.junit.Test;
 
-import com.bergerkiller.mountiplex.mojo.MountiplexCreateGenerateAnnotationsMojo.ProcessedSourceFile;
 import com.bergerkiller.mountiplex.reflection.declarations.Template;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.AnnotationReplacer;
@@ -21,6 +23,7 @@ import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.types.AnnotationTestClass;
 
 public class AnnotationReplacerTest {
+    private final SourceFileProcessor sourceFileProcessor = new SourceFileProcessor();
 
     @Template.Generated("<CLASS_BODY>")
     public static abstract class TestClass {
@@ -94,29 +97,27 @@ public class AnnotationReplacerTest {
     @Test
     public void testAnnotationsMojoVariableParsing() throws IOException {
         File inputFile = new File("src/test/java/com/bergerkiller/mountiplex/types/AnnotationTestClass.java");
-        ProcessedSourceFile sourceFile = new ProcessedSourceFile(inputFile, inputFile.lastModified());
-        assertNotEquals(0, sourceFile.lastModified);
-        sourceFile.load(inputFile);
+        Map<String, String> variables = sourceFileProcessor.process(inputFile);
 
         // All 7 should be loaded
-        assertEquals(7, sourceFile.variables.size());
+        assertEquals(7, variables.size());
 
         // Check the requirements in the class body are resolved
         assertEquals("com.bergerkiller.mountiplex.types.AnnotationTestClass public static String generatedBody() {\n" +
                      "    // This is a comment\n" +
                      "    return \"generated123\";\n" +
-                     "}", sourceFile.variables.get("TEST_REQUIREMENT_A"));
-        assertEquals("public static String testMethod();", sourceFile.variables.get("TEST_REQUIREMENT_B"));
+                     "}", variables.get("TEST_REQUIREMENT_A"));
+        assertEquals("public static String testMethod();", variables.get("TEST_REQUIREMENT_B"));
 
         // All last 4 methods should have the same expected body
         for (int n = 1; n <= 4; n++) {
-            assertEquals("public void test() {\n" + 
-                         "    System.out.println(\"Hello, world!\");\n" + 
-                         "\n" + 
-                         "    // Comment\n" + 
-                         "\n" + 
-                         "    // Spaces\n" + 
-                         "}", sourceFile.variables.get("TEST_REPLACEMENT" + n));
+            assertEquals("public void test() {\n" +
+                         "    System.out.println(\"Hello, world!\");\n" +
+                         "\n" +
+                         "    // Comment\n" +
+                         "\n" +
+                         "    // Spaces\n" +
+                         "}", variables.get("TEST_REPLACEMENT" + n));
         }
     }
 
@@ -125,16 +126,15 @@ public class AnnotationReplacerTest {
         if (is_remapped) {
             return;
         }
-        File classFile = new File("target/test-classes/com/bergerkiller/mountiplex/types/AnnotationTestClass.class");
+        File classFile = new File("build/classes/java/test/com/bergerkiller/mountiplex/types/AnnotationTestClass.class");
         File inputFile = new File("src/test/java/com/bergerkiller/mountiplex/types/AnnotationTestClass.java");
-        ProcessedSourceFile sourceFile = new ProcessedSourceFile(inputFile, inputFile.lastModified());
-        assertNotEquals(0, sourceFile.lastModified);
+        Map<String, String> variables;
         try {
-            sourceFile.load(inputFile);
+            variables = sourceFileProcessor.process(inputFile);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load source file", e);
         }
-        sourceFile.createRemapTask(classFile).remap();
+        new AnnotationRemapTask(classFile, classFile, variables).remap();
         is_remapped = true;
     }
 
