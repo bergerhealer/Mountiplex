@@ -16,6 +16,7 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
  * Tests that the {@link GeneratedHook} works according to spec.
  * This hook is also used by the ClassInterceptor/ClassHook.
  */
+@SuppressWarnings("unused")
 public class GeneratedHookTest {
 
     public static class Frog {
@@ -30,11 +31,11 @@ public class GeneratedHookTest {
         }
     }
 
-    public static interface Jumper {
+    public interface Jumper {
         void jump();
     }
 
-    public static interface GrassEater {
+    public interface GrassEater {
         boolean eatGrass(String name);
     }
 
@@ -45,7 +46,6 @@ public class GeneratedHookTest {
         public void raisePaws() {
         }
 
-        @SuppressWarnings("unused")
         private void pleaseDontNoticeMe() {
         }
 
@@ -69,12 +69,7 @@ public class GeneratedHookTest {
 
     // Creates a frog that can Invoker::croak() rather than Frog::croak()
     private Frog createHookTestFrog() {
-        final Invoker<String> croakCallback = new Invoker<String>() {
-            @Override
-            public String invokeVA(Object instance, Object... args) {
-                return "Invoker::croak(" + args[0] + ")";
-            }
-        };
+        final Invoker<String> croakCallback = (instance, args) -> "Invoker::croak(" + args[0] + ")";
 
         Class<? extends Frog> generated = GeneratedHook.generate(Frog.class.getClassLoader(), Frog.class, Collections.emptyList(), method -> {
             if (method.getName().equals("croak")) {
@@ -85,7 +80,7 @@ public class GeneratedHookTest {
         });
 
         try {
-            return generated.newInstance();
+            return generated.getConstructor().newInstance();
         } catch (Throwable t) {
             throw MountiplexUtil.uncheckedRethrow(t);
         }
@@ -106,9 +101,9 @@ public class GeneratedHookTest {
         // Create two super-invokers, one for a method we have hooked, and one we haven't.
         // We expect both to work fine, where the unhooked method simply calls it.
         Invoker<String> super_croak = GeneratedHook.createSuperInvoker(instance.getClass(),
-                Frog.class.getDeclaredMethod("croak", new Class<?>[] {int.class}));
+                Frog.class.getDeclaredMethod("croak", int.class));
         Invoker<String> super_croakNormally = GeneratedHook.createSuperInvoker(instance.getClass(),
-                Frog.class.getDeclaredMethod("croakNormally", new Class<?>[] {int.class}));
+                Frog.class.getDeclaredMethod("croakNormally", int.class));
 
         // Check both invokers work as expected, both invoke() and invokeVA()
         assertEquals("Frog::croak(1)", super_croak.invoke(instance, 1));
@@ -136,7 +131,7 @@ public class GeneratedHookTest {
         // Generate a rabbit, track what methods we try to override
         // Try to override/hook all methods we can
         // As a result, we should not see the same method come by multiple times
-        final Set<String> methodNames = new HashSet<String>();
+        final Set<String> methodNames = new HashSet<>();
         final AtomicBoolean noDuplicateMethods = new AtomicBoolean(true);
         GeneratedHook.generate(Rabbit.class.getClassLoader(), Rabbit.class, Collections.emptyList(), method -> {
             if (!methodNames.add(method.getName())) {
@@ -145,12 +140,7 @@ public class GeneratedHookTest {
             }
 
             // Return an invoker at all times, so the first match is selected
-            return new Invoker<Object>() {
-                @Override
-                public Object invokeVA(Object instance, Object... args) {
-                    return null;
-                }
-            };
+            return (instance, args) -> null;
         });
 
         // All overridable, defined in own class or base class

@@ -27,7 +27,7 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
  * <br><br>
  * It is required that an implementation of ClassInterceptor never changes the behavior
  * of {@link #getCallback(Method)}. In other words, for the given Method parameter, it should
- * consistently return the same {@link CallbackDelegate} across all instances.
+ * consistently return the same {@link Invoker} across all instances.
  */
 public abstract class ClassInterceptor {
     private static Map<Class<?>, Map<Method, Invoker<?>>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invoker<?>>>();

@@ -299,8 +299,6 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
      * Helper class that initializes a runtime-generated invoker based on a code body in a Method Declaration.
      * This is the base class, as the actual class is runtime-generated to implement the non-generic
      * interface for calling this generated method directly without casting or boxing overhead.
-     *
-     * @param <T>
      */
     public static class InitGeneratedCodeInvoker extends InitInvoker<Object> implements GeneratedExactSignatureInvoker<Object> {
         private final ExtendedClassWriter.Deferred<? extends GeneratedCodeInvoker<Object>> invoker;

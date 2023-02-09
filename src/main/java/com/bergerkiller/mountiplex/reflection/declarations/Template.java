@@ -2390,7 +2390,7 @@ public class Template {
 
         /**
          * Value of the requirement, which should contain the field, method (with or without body)
-         * or constructor to #require. If {@link #className()} is left empty, the class in which
+         * or constructor to #require. If {@link #declaring()} is left empty, the class in which
          * the method is defined should be prefixed.
          *
          * it is permitted to use #if to pre-process and select the right requirement. The result,

@@ -596,7 +596,7 @@ public class ClassTemplate<T> {
     /**
      * Locates the next field matching the signature (modifiers and field type) of the declarations, but not the field names
      * 
-     * @param declarations to parse
+     * @param declaration Field declaration string to parse
      * @return Next field
      */
     public <F> FieldAccessor<F> nextFieldSignature(String declaration) {

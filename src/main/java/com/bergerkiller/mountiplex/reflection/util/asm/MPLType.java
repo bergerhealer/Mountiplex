@@ -20,8 +20,8 @@ import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 
 /**
- * Re-implementation of some methods of ASM's Type class to make use of the
- * {@link ReflectionInfoHelper} when resolving classes. This is to make sure that
+ * Re-implementation of some methods of ASM's Type class to make use of a
+ * runtime-generated helper when resolving classes. This is to make sure that
  * when this library is loaded using a bytecode-editing classloader, the class
  * names stay true to the JVM.
  */
@@ -225,7 +225,7 @@ public class MPLType {
      * 
      * @param mv Method visitor
      * @param registerInitial Initial register value to load into
-     * @param clazz Type of variable to load
+     * @param type Type of variable to load
      * @return Next free register to use (register + size)
      */
     public static int visitVarILoad(MethodVisitor mv, int registerInitial, Class<?> type) {
@@ -273,7 +273,7 @@ public class MPLType {
      * 
      * @param mv Method visitor
      * @param registerInitial Initial register value to load into
-     * @param clazz Type of variable to load
+     * @param type Type of variable to load
      * @return Next free register to use (register + size)
      */
     public static int visitVarILoadAndBox(MethodVisitor mv, int registerInitial, Class<?> type) {
@@ -287,7 +287,7 @@ public class MPLType {
      * 
      * @param mv Method visitor
      * @param registerInitial Initial register value to load into
-     * @param clazz Type of variable to load
+     * @param type Type of variable to load
      * @return Next free register to use (register + size)
      */
     public static int visitVarIStore(MethodVisitor mv, int registerInitial, Class<?> type) {

@@ -1,5 +1,6 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import java.lang.reflect.Executable;
 import java.lang.reflect.Modifier;
 
 import org.objectweb.asm.ClassWriter;
@@ -41,10 +42,10 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
     }
 
     /**
-     * Generates a new method invoker. Internal use only. Method may only have 5 arguments or less,
-     * and must be public. Check using {@link #canCreate(java.lang.reflect.Method)} first.
+     * Generates a new executable invoker. Internal use only. Method may only have 5 arguments or less,
+     * and must be public. Check using {@link #canCreate(Executable)} first.
      * 
-     * @param method The method to invoke
+     * @param executable The method or constructor to invoke
      * @return generated invoker
      */
     public static <T> GeneratedInvoker<T> create(java.lang.reflect.Executable executable) {

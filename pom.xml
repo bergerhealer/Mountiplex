@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.mountiplex</groupId>
     <artifactId>Mountiplex</artifactId>
-    <version>2.89</version>
+    <version>2.90</version>
     <packaging>maven-plugin</packaging>
     <name>mountiplex</name>
 
@@ -13,50 +13,24 @@
         <junit.version>4.11</junit.version>
     </properties>
 
-    <repositories>
-        <!-- Repo for access to Objenesis -->
-        <repository>
-            <id>mvnrepository</id>
-            <url>https://mvnrepository.com/artifact/</url>
-        </repository>
-    </repositories>
-
     <dependencies>
-        <!-- Only used during test to display generated ASM code -->
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-util</artifactId>
-            <version>9.2</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- ASM library -->
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
             <version>9.2</version>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.objenesis/objenesis -->
         <dependency>
             <groupId>org.objenesis</groupId>
             <artifactId>objenesis</artifactId>
             <version>3.1</version>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/javassist/javassist -->
         <dependency>
             <groupId>org.javassist</groupId>
             <artifactId>javassist</artifactId>
             <version>3.27.0-GA</version>
         </dependency>
 
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
+        <!-- For the Maven Plugin MOJO -->
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
@@ -69,6 +43,20 @@
             <version>2.0.6</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Only used during test to display generated ASM code -->
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-util</artifactId>
+            <version>9.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <!-- Build -->
@@ -77,47 +65,6 @@
 
         <!-- Plugins -->
         <plugins>
-            <!-- Needed for shading in CGLib and Objenesis, performing relocations -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <minimizeJar>true</minimizeJar>
-                            <shadedArtifactAttached>true</shadedArtifactAttached>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <relocations>
-                                <relocation>
-                                    <pattern>org.objectweb.asm</pattern>
-                                    <shadedPattern>com.bergerkiller.mountiplex.dep.org.objectweb.asm</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.objenesis</pattern>
-                                    <shadedPattern>com.bergerkiller.mountiplex.dep.org.objenesis</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>javassist</pattern>
-                                    <shadedPattern>com.bergerkiller.mountiplex.dep.javassist</shadedPattern>
-                                </relocation>
-                            </relocations>
-                            <artifactSet>
-                                <includes>
-                                    <include>org.ow2.asm</include>
-                                    <include>org.objenesis</include>
-                                    <include>org.javassist</include>
-                                </includes>
-                            </artifactSet>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- Disables the mojo logic for the dependencies, required otherwise it won't make it past the process step -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -132,7 +79,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.3</version>
+                <version>3.10.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -140,6 +87,47 @@
                     <showDeprecation>false</showDeprecation>
                 </configuration>
             </plugin>
+
+            <!-- Generate a jar containing the source javadoc -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <failOnError>false</failOnError>
+                    <doclint>none</doclint>
+                    <quiet>true</quiet>
+                    <source>8</source>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate a jar containing the java sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <!-- For deploying on https://ci.mg-dev.eu/plugin/repository/ -->
+    <distributionManagement>
+        <repository>
+            <id>mg-dev-repo</id>
+            <name>ci.mg-dev.eu repository</name>
+            <url>https://ci.mg-dev.eu/plugin/repository/everything</url>
+        </repository>
+    </distributionManagement>
 </project>

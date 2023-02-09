@@ -4,9 +4,9 @@ import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 
 /**
  * An invoker that results in generated code at runtime, allowing for a caller
- * to use a more optimized function that doesn't require casting. The interface
- * produced by {@link #generateInterface(MethodDeclaration)} automatically implements the
- * {@link #getInterface()} also.
+ * to use a more optimized function that doesn't require casting. The class
+ * name returned by {@link #getInvokerClassInternalName()}} can be class-loaded,
+ * after which the true invoker class is lazily generated.
  *
  * @param <T>
  */

@@ -24,8 +24,7 @@ public final class FailingConverter<I, O> extends Converter<I, O> {
 
     /**
      * Gets the message displayed for this failing converter used in the exception thrown when called
-     * 
-     * @param converter
+     *
      * @return message
      */
     public String getMessage() {

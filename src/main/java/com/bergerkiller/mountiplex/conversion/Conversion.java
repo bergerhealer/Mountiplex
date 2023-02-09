@@ -277,7 +277,7 @@ public class Conversion {
     }
 
     /**
-     * Prints the input<>output conversion tree to a given output Class type
+     * Prints the input&lt;&gt;output conversion tree to a given output Class type
      * 
      * @param output Class type to debug print
      */
@@ -286,7 +286,7 @@ public class Conversion {
     }
 
     /**
-     * Prints the input<>output conversion tree to a given output type
+     * Prints the input&lt;&gt;output conversion tree to a given output type
      * 
      * @param output type to debug print
      */

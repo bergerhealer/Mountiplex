@@ -49,7 +49,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     public abstract A convertOutput(B value);
 
     /**
-     * Performs the reversed conversion of {@link #convert(value))}.
+     * Performs the reverse conversion of {@link #convert(Object)}.
      * Returns null on failure.
      * 
      * @param value to be converted (B)
@@ -76,7 +76,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     /**
-     * Performs the reversed conversion of {@link #convert(value, defaultValue))}
+     * Performs the reverse conversion of {@link #convert(Object, Object)}
      * 
      * @param value to be converted (B)
      * @param defaultValue to return on failure
@@ -210,10 +210,9 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
     }
 
     /**
-     * Creates a new duplex null converter, where both input<>output return the same input value
+     * Creates a new duplex null converter, where both input&lt;&gt;output return the same input value
      * 
-     * @param typeA input type
-     * @param typeB output type
+     * @param type input and output type
      * @return duplex null converter
      */
     @SuppressWarnings("unchecked")
