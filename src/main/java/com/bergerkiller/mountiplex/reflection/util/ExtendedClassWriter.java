@@ -311,6 +311,8 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             // Return the singleton's INSTANCE field
             try {
                 return (T) MPLType.getDeclaredField(type, "INSTANCE").get(null);
+            } catch (VerifyError e) {
+                throw new RuntimeException("Failed to load generated class " + name.name, e);
             } catch (Throwable t) {
                 throw new IllegalStateException("INSTANCE not found in singleton. This should not happen!", t);
             }
