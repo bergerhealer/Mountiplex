@@ -10,6 +10,9 @@ import org.gradle.api.tasks.compile.JavaCompile;
 
 import java.io.File;
 
+/**
+ * Main Mountiplex Gradle plugin instance which defines the tasks that can be done
+ */
 public class MountiplexPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {

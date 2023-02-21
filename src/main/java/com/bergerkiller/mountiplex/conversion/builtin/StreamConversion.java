@@ -13,7 +13,7 @@ import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 /**
- * Turning Stream<T> into Stream<R> using the .map() function
+ * Turning Stream&lt;T&gt; into Stream&lt;R&gt; using the .map() function
  */
 public class StreamConversion {
     public static void register() {

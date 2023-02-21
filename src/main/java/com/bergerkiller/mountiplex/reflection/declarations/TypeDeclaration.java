@@ -38,7 +38,7 @@ public class TypeDeclaration extends Declaration {
     public static final TypeDeclaration ENUM = new TypeDeclaration(ClassResolver.DEFAULT, Enum.class);
     /** Represents any type (that extends Object), which basically makes it the '?' type */
     public static final TypeDeclaration ANY = parse("?");
-    /** Whether this TypeDeclaration starts with '? extends <type>', and the type field refers to what it extends */
+    /** Whether this TypeDeclaration starts with '? extends &lt;type&gt;', and the type field refers to what it extends */
     public final boolean isWildcard;
     /** Whether this TypeDeclaration refers to a primitive type, such as int/long/etc. */
     public final boolean isPrimitive;

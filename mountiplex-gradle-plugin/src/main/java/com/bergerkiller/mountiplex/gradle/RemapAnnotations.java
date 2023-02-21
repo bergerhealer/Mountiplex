@@ -14,6 +14,11 @@ import org.gradle.work.InputChanges;
 import java.io.File;
 import java.util.*;
 
+/**
+ * Parses source files and places block-comment strings inside variables inside
+ * annotations denoted with the same variable name. This is mainly to add multi-string
+ * syntax to Java 8.
+ */
 public abstract class RemapAnnotations extends DefaultTask {
     private final SourceFileProcessor sourceFileProcessor = new SourceFileProcessor();
 
@@ -29,19 +34,40 @@ public abstract class RemapAnnotations extends DefaultTask {
         return classFileName;
     }
 
+    /**
+     * The source directory to process source files of
+     *
+     * @return source directory
+     */
     @Incremental
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract ConfigurableFileCollection getSourceDirectory();
 
+    /**
+     * Place where input source files should be read
+     *
+     * @return input directory
+     */
     @Incremental
     @InputDirectory
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract DirectoryProperty getInputDirectory();
 
+    /**
+     * Place where updated source files should be put
+     *
+     * @return output directory
+     */
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
+    /**
+     * Processes the changed source files to remap annotation strings
+     *
+     * @param inputChanges Changed source files
+     * @throws Exception If stuff just doesn't work
+     */
     @TaskAction
     public void generate(InputChanges inputChanges) throws Exception {
         Map<String, Entry> changes = new HashMap<>();

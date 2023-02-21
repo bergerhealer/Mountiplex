@@ -511,12 +511,11 @@ public class Resolver {
 
     /**
      * Uses this Resolver to find the true field name of a provided field name, and then
-     * calls {@link java.lang.Class#getDeclaredField(n)} using the resolved field name.
+     * calls {@link java.lang.Class#getDeclaredField(String)} using the resolved field name.
      *
      * @param declaringClass Class that declares the field
      * @param fieldName Name of the field to be resolved
      * @return The declared field
-     * @throws NoSuchMethodException
      * @throws SecurityException
      * @throws NoSuchFieldException 
      */

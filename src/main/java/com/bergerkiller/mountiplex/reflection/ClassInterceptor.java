@@ -255,7 +255,6 @@ public abstract class ClassInterceptor {
      * @param instance to invoke the method on
      * @param args arguments for the method
      * @return The response from executing
-     * @throws Throwable
      */
     public final Object invokeSuperMethod(Method method, Object instance, Object[] args) {
         return GeneratedHook.createSuperInvoker(instance.getClass(), method).invokeVA(instance, args);
