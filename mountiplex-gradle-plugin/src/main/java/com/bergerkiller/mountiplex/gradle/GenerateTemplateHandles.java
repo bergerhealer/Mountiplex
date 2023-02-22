@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * Parses template text files and generates the reflection Handle classes
  */
-public abstract class GenerateReflection extends DefaultTask {
+public abstract class GenerateTemplateHandles extends DefaultTask {
     private static void registerGenerators(Map<TypeDeclaration, TemplateGenerator> pool, ClassDeclaration cDec, TemplateGenerator gen) {
         pool.put(cDec.type, gen);
         for (ClassDeclaration subCDec : cDec.subclasses) {
