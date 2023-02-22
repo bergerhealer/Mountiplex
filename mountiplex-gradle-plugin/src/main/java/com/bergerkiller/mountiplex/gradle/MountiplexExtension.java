@@ -9,10 +9,21 @@ import org.gradle.api.tasks.compile.JavaCompile;
 import javax.inject.Inject;
 import java.io.File;
 
+/**
+ * Utility methods to set up the plumbing for Mountiplex tasks.
+ */
 public abstract class MountiplexExtension {
+    /**
+     * Returns the project this extension was applied to.
+     *
+     * @return The project.
+     */
     @Inject
-    public abstract Project getProject();
+    protected abstract Project getProject();
 
+    /**
+     * Adds the generateTemplateHandles task to all source sets.
+     */
     public void generateTemplateHandles() {
         getProject().getPlugins().withType(JavaPlugin.class, javaPlugin -> {
             SourceSetContainer sourceSets = getProject().getExtensions().getByType(SourceSetContainer.class);
@@ -24,6 +35,11 @@ public abstract class MountiplexExtension {
         });
     }
 
+    /**
+     * Configures annotation string remapping for all source sets.
+     *
+     * @see RemapAnnotationStrings
+     */
     public void remapAnnotationStrings() {
         getProject().getPlugins().withType(JavaPlugin.class, javaPlugin -> {
             SourceSetContainer sourceSets = getProject().getExtensions().getByType(SourceSetContainer.class);
