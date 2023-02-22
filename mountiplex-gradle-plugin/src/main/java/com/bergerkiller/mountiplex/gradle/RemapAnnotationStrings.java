@@ -5,22 +5,36 @@ import com.bergerkiller.mountiplex.reflection.util.asm.SourceFileProcessor;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
-import org.gradle.api.tasks.*;
+import org.gradle.api.tasks.InputDirectory;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.OutputDirectory;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.ChangeType;
 import org.gradle.work.FileChange;
 import org.gradle.work.Incremental;
 import org.gradle.work.InputChanges;
 
 import java.io.File;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Parses source files and places block-comment strings inside variables inside
  * annotations denoted with the same variable name. This is mainly to add multi-string
  * syntax to Java 8.
  */
-public abstract class RemapAnnotations extends DefaultTask {
+public abstract class RemapAnnotationStrings extends DefaultTask {
     private final SourceFileProcessor sourceFileProcessor = new SourceFileProcessor();
+
+    static String getTaskName(SourceSet sourceSet) {
+        return sourceSet.getTaskName("remap", "annotations");
+    }
 
     private static String getClassName(String classFileName) {
         if (!classFileName.endsWith(".class")) {
