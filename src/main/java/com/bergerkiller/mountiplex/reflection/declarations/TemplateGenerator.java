@@ -150,7 +150,7 @@ public class TemplateGenerator {
         addLine("@Template.InstanceType(\"" + classDec.type.typePath + "\")");
         addLine("public abstract " + classHeadStatic + "class " + handleName(classDec) + " extends " + extendedHandleType + " {");
         {
-            addComment("@See {@link " + className(classDec) + "}");
+            addComment("@see " + className(classDec));
             addLine("public static final " + className(classDec) + " T = Template.Class.create(" + className(classDec) + ".class, " +
                     classDec.getResolver().getClassDeclarationResolverName() + ")");
 
