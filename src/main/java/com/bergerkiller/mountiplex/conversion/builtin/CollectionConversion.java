@@ -13,6 +13,7 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
+import com.bergerkiller.mountiplex.conversion.type.NullConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingCollection;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingIterable;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
@@ -29,7 +30,13 @@ public class CollectionConversion {
             @Override
             public void getConverters(final TypeDeclaration output, List<Converter<?, ?>> converters) {
                 if (output.type.equals(Iterable.class)) {
+                    // Requires element conversion
                     converters.add(new CollectionConverter<Iterable<?>>(output) {
+                        @Override
+                        protected boolean isOneWay() {
+                            return true;
+                        }
+
                         @Override
                         protected Iterable<?> change(Iterable<?> original) {
                             return original;
@@ -146,12 +153,23 @@ public class CollectionConversion {
 
         protected abstract T create(T original, DuplexConverter<Object, Object> elementConverter);
 
+        /**
+         * Whether a conversion is only needed from the original element type to the new one, and
+         * so no duplex conversion is needed.
+         *
+         * @return True if this collection has one-way conversion only
+         */
+        protected boolean isOneWay() {
+            return false;
+        }
+
         @Override
         public int getCost() {
             return 2;
         }
 
         @Override
+        @SuppressWarnings({"unchecked","rawtypes"})
         public final Converter<?, T> getConverter(TypeDeclaration input) {
             // Converting something Input<Type> to Output<Type>
 
@@ -167,15 +185,43 @@ public class CollectionConversion {
             }
 
             TypeDeclaration outputElementType = this.output.getGenericType(0);
-            if (inputElementType.equals(outputElementType)) {
-                return new ElementConverter(input, this.output, DuplexConverter.createNull(inputElementType));
-            }
-            DuplexConverter<Object, Object> elementConverter = Conversion.findDuplex(inputElementType, outputElementType);
-            if (elementConverter != null) {
-                return new ElementConverter(input, this.output, elementConverter);
+            DuplexConverter<Object, Object> elementConverter;
+            if (isOneWay()) {
+                // One-way conversion required
+                Converter<Object, Object> converter;
+                if (outputElementType.isAssignableFrom(inputElementType)) {
+                    if (input.type.equals(this.output.type)) {
+                        // No collection type conversion either - return as is
+                        return (Converter) new NullConverter(input, this.output);
+                    } else {
+                        // Must translate collection type
+                        converter = new NullConverter(inputElementType, outputElementType);
+                    }
+                } else {
+                    converter = Conversion.find(inputElementType, outputElementType);
+                    if (converter == null) {
+                        return null;
+                    }
+                }
+                elementConverter = DuplexConverter.pair(converter, new Converter<Object, Object>(outputElementType, inputElementType) {
+                    @Override
+                    public Object convertInput(Object value) {
+                        throw new UnsupportedOperationException("This collection converter only works one-way!");
+                    }
+                });
             } else {
-                return null;
+                // Duplex conversion required
+                if (inputElementType.equals(outputElementType)) {
+                    elementConverter = DuplexConverter.createNull(inputElementType);
+                } else {
+                    elementConverter = Conversion.findDuplex(inputElementType, outputElementType);
+                    if (elementConverter == null) {
+                        return null;
+                    }
+                }
             }
+
+            return new ElementConverter(input, this.output, elementConverter);
         }
 
         private final class ElementConverter extends DuplexConverter<T, T> {

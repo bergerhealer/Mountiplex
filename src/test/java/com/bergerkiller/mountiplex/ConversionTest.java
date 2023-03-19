@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.bergerkiller.mountiplex.conversion.type.NullConverter;
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.conversion.Conversion;
@@ -39,6 +40,57 @@ public class ConversionTest {
 
     static {
         Conversion.registerConverters(ConversionTest.class);
+    }
+
+    @Test
+    public void testConvertToObjectIterable() {
+        Converter<Object, Object> conv;
+
+        // These should be null converters
+        {
+            // Iterable<String> -> Iterable
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, String.class),
+                                   TypeDeclaration.fromClass(Iterable.class));
+            assertTrue(conv instanceof NullConverter);
+
+            // Iterable<String> -> Iterable<Object>
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, String.class),
+                                   TypeDeclaration.createGeneric(Iterable.class, Object.class));
+            assertTrue(conv instanceof NullConverter);
+
+            // Iterable<String> -> Iterable<T>
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, String.class),
+                                   TypeDeclaration.parse("Iterable<T>"));
+            assertTrue(conv instanceof NullConverter);
+
+            // Iterable<String> -> Iterable<T extends String>
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, String.class),
+                                   TypeDeclaration.parse("Iterable<T extends String>"));
+            assertTrue(conv instanceof NullConverter);
+
+            // Iterable<Integer> -> Iterable<Number> (instanceof checks)
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, Integer.class),
+                                   TypeDeclaration.createGeneric(Iterable.class, Number.class));
+            assertTrue(conv instanceof NullConverter);
+        }
+
+        // These should NOT be null converters
+        {
+            // Iterable<String> -> Iterable<Integer>
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, String.class),
+                                   TypeDeclaration.createGeneric(Iterable.class, Integer.class));
+            assertFalse(conv instanceof NullConverter);
+
+            // Iterable<String> -> Iterable<T extends Integer>
+            conv = Conversion.find(TypeDeclaration.createGeneric(Iterable.class, String.class),
+                                   TypeDeclaration.parse("Iterable<T extends Integer>"));
+            assertFalse(conv instanceof NullConverter);
+
+            // CustomType -> Iterable<CustomType> (we don't want any null converters being used)
+            conv = Conversion.find(TypeDeclaration.fromClass(CustomType.class),
+                                   TypeDeclaration.createGeneric(Iterable.class, CustomType.class));
+            assertNull(conv);
+        }
     }
 
     @Test
