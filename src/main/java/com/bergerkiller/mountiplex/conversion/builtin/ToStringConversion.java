@@ -73,11 +73,6 @@ public class ToStringConversion {
             public String convertInput(Boolean value) {
                 return value.toString();
             }
-            
-            @Override
-            public int getCost() {
-                return 4;
-            }
         });
 
         // char[] -> String

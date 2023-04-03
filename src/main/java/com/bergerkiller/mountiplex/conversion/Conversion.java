@@ -780,9 +780,9 @@ public class Conversion {
         }
 
         public TypeTuple(TypeDeclaration t1, TypeDeclaration t2) {
-            this.t1 = t1;
-            this.t2 = t2;
-            this.hashcode = (961 + (31 * t1.hashCode()) + t2.hashCode());
+            this.t1 = t1.getBoxedType();
+            this.t2 = t2.getBoxedType();
+            this.hashcode = (961 + (31 * this.t1.hashCode()) + this.t2.hashCode());
         }
 
         public final TypeTuple reverse() {

@@ -42,6 +42,9 @@ public class TypeDeclaration extends Declaration {
     public final boolean isWildcard;
     /** Whether this TypeDeclaration refers to a primitive type, such as int/long/etc. */
     public final boolean isPrimitive;
+    /** Caches the boxed type of a primitive (int/long/etc.). Stores itself if not a primitive. */
+    private final TypeDeclaration boxed;
+
     public final String variableName;
     public final String typeName;
     public final String typePath;
@@ -72,6 +75,7 @@ public class TypeDeclaration extends Declaration {
             this.typeName = "NULL";
             this.typePath = "NULL";
             this.isPrimitive = false;
+            this.boxed = this;
             this.genericTypes = new TypeDeclaration[0];
             this.setInvalid();
             return;
@@ -99,6 +103,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
             this.isPrimitive = false;
+            this.boxed = this;
             this.genericTypes = new TypeDeclaration[params.length];
             this.variableName = null;
             for (int i = 0; i < params.length; i++) {
@@ -110,6 +115,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
             this.isPrimitive = this.type.isPrimitive();
+            this.boxed = this.isPrimitive ? fromClass(BoxedType.getBoxedType(this.type)) : this;
             this.genericTypes = new TypeDeclaration[0];
             this.variableName = null;
         } else if (type instanceof TypeVariable) {
@@ -137,6 +143,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = resolver.resolvePath(this.type);
             this.typeName = resolver.resolveName(this.type);
             this.isPrimitive = false;
+            this.boxed = this;
             this.genericTypes = new TypeDeclaration[0];
             this.variableName = vtype.getName();
         } else {
@@ -146,6 +153,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = "";
             this.typeName = "";
             this.isPrimitive = false;
+            this.boxed = this;
             this.genericTypes = new TypeDeclaration[0];
             this.variableName = null;
             this.setInvalid();
@@ -161,6 +169,7 @@ public class TypeDeclaration extends Declaration {
             this.typePath = "";
             this.type = null;
             this.isPrimitive = false;
+            this.boxed = this;
             this.genericTypes = new TypeDeclaration[0];
             this.isWildcard = false;
             this.variableName = null;
@@ -271,6 +280,7 @@ public class TypeDeclaration extends Declaration {
                 this.typePath = "java.lang.Object";
                 this.type = Object.class;
                 this.isPrimitive = false;
+                this.boxed = this;
                 this.variableName = typeVarName;
                 this.genericTypes = new TypeDeclaration[0];
                 this.cast = castType;
@@ -280,6 +290,7 @@ public class TypeDeclaration extends Declaration {
                 this.typePath = "";
                 this.type = null;
                 this.isPrimitive = false;
+                this.boxed = this;
                 this.variableName = typeVarName;
                 this.genericTypes = new TypeDeclaration[0];
                 this.cast = castType;
@@ -301,6 +312,7 @@ public class TypeDeclaration extends Declaration {
             this.type = null;
             this.variableName = typeVarName;
             this.isPrimitive = false;
+            this.boxed = this;
             this.genericTypes = new TypeDeclaration[0];
             this.cast = castType;
             return;
@@ -347,6 +359,7 @@ public class TypeDeclaration extends Declaration {
                     this.typePath = "";
                     this.type = null;
                     this.isPrimitive = false;
+                    this.boxed = this;
                     this.genericTypes = new TypeDeclaration[0];
                     this.cast = null;
                     return;
@@ -400,6 +413,7 @@ public class TypeDeclaration extends Declaration {
         this.typePath = resolveResult.classPath;
         this.typeName = rawType;
         this.isPrimitive = (this.type != null) && this.type.isPrimitive();
+        this.boxed = this.isPrimitive ? fromClass(BoxedType.getBoxedType(this.type)) : this;
     }
 
     private TypeDeclaration(TypeDeclaration mainType, TypeDeclaration[] genericTypes) {
@@ -410,6 +424,7 @@ public class TypeDeclaration extends Declaration {
         this.typePath = mainType.typePath;
         this.type = mainType.type;
         this.isPrimitive = mainType.isPrimitive;
+        this.boxed = mainType.isPrimitive ? mainType.boxed : this;
         this.variableName = mainType.variableName;
         this.genericTypes = genericTypes;
     }
@@ -503,6 +518,16 @@ public class TypeDeclaration extends Declaration {
             return componentType;
         }
         return null;
+    }
+
+    /**
+     * If this is a {@link #isPrimitive Primitive} type, returns the Boxed version of that
+     * type. For example, int -> Integer. If not, returns this type itself.
+     *
+     * @return Boxed type
+     */
+    public TypeDeclaration getBoxedType() {
+        return boxed;
     }
 
     /**

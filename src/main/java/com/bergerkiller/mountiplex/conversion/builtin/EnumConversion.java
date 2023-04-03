@@ -51,14 +51,6 @@ public class EnumConversion {
                         return cache.get(value);
                     }
                 });
-
-                // Parsing an Enumeration from a Boolean (String)
-                converters.add(new Converter<Boolean, Enum>(TypeDeclaration.fromClass(Boolean.class), outputType) {
-                    @Override
-                    public Enum convertInput(Boolean value) {
-                        return cache.get(value.toString());
-                    }
-                });
             }
         });
     }
