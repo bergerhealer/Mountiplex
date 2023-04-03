@@ -38,11 +38,23 @@ public class Resolver {
     private final Map<Class<?>, ClassMeta> classTypeCache = new ConcurrentHashMap<Class<?>, ClassMeta>();
     private final PackageNameCache packageNameCache = new PackageNameCache();
 
+    private Resolver() {
+    }
+
+    private void initResolver() {
+        // Store boxed type declarations up-front to avoid race condition problems
+        // This is because it does int -> Integer type conversion
+        BoxedType.getBoxedTypes().forEach(type -> classTypeCache.put(type, new ClassMeta(type)));
+        BoxedType.getUnboxedTypes().forEach(type -> classTypeCache.put(type, new ClassMeta(type)));
+    }
+
     static {
+        resolver.initResolver();
         MountiplexUtil.registerUnloader(new Runnable() {
             @Override
             public void run() {
                 resolver = new Resolver();
+                resolver.initResolver();
             }
         });
     }
