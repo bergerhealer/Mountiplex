@@ -833,7 +833,7 @@ public class MethodDeclaration extends Declaration {
                     nameEndIdx = i;
                     isMethod = true;
                     break;
-                } else if (!Character.isLetterOrDigit(c) && c != '_') {
+                } else if (!Character.isLetterOrDigit(c) && c != '_' && c != '$') {
                     nameEndIdx = i;
                     isField = true;
                     break;
@@ -944,7 +944,7 @@ public class MethodDeclaration extends Declaration {
                             if (--parenthesesCtr < 0) {
                                 break;
                             }
-                        } else if (!Character.isLetterOrDigit(c) && c != '.' && parenthesesCtr == 0) {
+                        } else if (!Character.isLetterOrDigit(c) && c != '.' && c != '$' && parenthesesCtr == 0) {
                             break;
                         }
                     }

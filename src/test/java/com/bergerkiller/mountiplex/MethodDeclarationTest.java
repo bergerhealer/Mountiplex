@@ -14,6 +14,54 @@ import com.bergerkiller.mountiplex.types.TestObject;
 public class MethodDeclarationTest {
 
     @Test
+    public void testRequirementFieldChain() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(TestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver,
+                "public String get(String input) {\n" +
+                        "  #require com.bergerkiller.mountiplex.types.TestObject public TestObject MPLNOREMAP$chain() {\n" +
+                        "      return instance;\n" +
+                        "  }\n" +
+                        "  #require com.bergerkiller.mountiplex.types.TestObject private String field:b;\n" +
+                        "  instance#MPLNOREMAP$chain()#field = input;\n" +
+                        "  return instance#MPLNOREMAP$chain()#field;\n" +
+                        "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<String> method = new FastMethod<String>();
+        method.init(dec);
+        TestObject testObject = new TestObject();
+        assertEquals("new text", method.invoke(testObject, "new text"));
+    }
+
+    @Test
+    public void testRequirementMethodChain() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(TestObject.class);
+        MethodDeclaration dec = new MethodDeclaration(resolver,
+                "public int add(int n) {\n" +
+                        "  #require com.bergerkiller.mountiplex.types.TestObject public TestObject chain() {\n" +
+                        "      return instance;\n" +
+                        "  }\n" +
+                        "  #require com.bergerkiller.mountiplex.types.TestObject private int addToSpecial:h(int n);\n" +
+                        "  return instance#chain()#addToSpecial(n) + 5;\n" +
+                        "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Integer> method = new FastMethod<Integer>();
+        method.init(dec);
+        TestObject testObject = new TestObject();
+        assertEquals(17, method.invoke(testObject, 0).intValue());
+        assertEquals(19, method.invoke(testObject, 2).intValue());
+    }
+
+    @Test
     public void testCastingParams() {
         MethodDeclaration dec = new MethodDeclaration(ClassResolver.DEFAULT, "private int test:a((String) int k, (String) int l);");
         assertEquals(dec.toString(), "private int test:a((String) int k, (String) int l);");
