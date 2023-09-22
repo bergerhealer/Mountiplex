@@ -175,10 +175,6 @@ public class ClassResolver {
      * @param typeName the name of the class, which makes up the package path information
      */
     public void setDeclaredClass(Class<?> type, String typeName) {
-        if (type == null) {
-            return;
-        }
-
         //Package pkg = type.getPackage();
         //if (pkg != null) {
         //    this.packagePath = pkg.getName();
