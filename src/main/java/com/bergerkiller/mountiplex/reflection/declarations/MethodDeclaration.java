@@ -944,7 +944,7 @@ public class MethodDeclaration extends Declaration {
                             if (--parenthesesCtr < 0) {
                                 break;
                             }
-                        } else if (!Character.isLetterOrDigit(c) && c != '.' && c != '$' && parenthesesCtr == 0) {
+                        } else if (!Character.isLetterOrDigit(c) && c != '.' && c != '$' && c != '_' && parenthesesCtr == 0) {
                             break;
                         }
                     }
