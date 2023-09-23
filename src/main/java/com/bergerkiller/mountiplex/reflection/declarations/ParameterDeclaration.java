@@ -12,6 +12,12 @@ public class ParameterDeclaration extends Declaration {
     public final TypeDeclaration type;
     public final NameDeclaration name;
 
+    public ParameterDeclaration(ClassResolver resolver, TypeDeclaration type, NameDeclaration name) {
+        super(resolver);
+        this.type = type;
+        this.name = name;
+    }
+
     public ParameterDeclaration(ClassResolver resolver, Type type, String name) {
         super(resolver);
         this.type = TypeDeclaration.fromType(resolver, type);

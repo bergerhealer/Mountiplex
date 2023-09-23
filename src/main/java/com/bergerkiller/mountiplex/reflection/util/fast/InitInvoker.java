@@ -2,12 +2,15 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.FieldAccessor;
 import com.bergerkiller.mountiplex.reflection.IgnoredFieldAccessor;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.ParameterDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.LazyInitializedObject;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -199,6 +202,15 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         } else if (method.constructor != null) {
             // Runtime-generated constructor invoker, or one using reflection
             return new InitGeneratedExecutableInvoker<T>(instance, accessor, method.constructor);
+        } else if (method.isRecordFieldChanger) {
+            // Runtime-generated record class field changer
+            String nameAlias = method.name.hasAlias() ? method.name.alias() : "change";
+            List<String> fields = new ArrayList<>(method.parameters.parameters.length);
+            for (ParameterDeclaration param : method.parameters.parameters) {
+                fields.add(param.name.value());
+            }
+            return new InitGeneratedRecordFieldChangerInvoker<T>(instance, accessor,
+                    method.getDeclaringClass(), nameAlias, fields);
         } else {
             return unavailable("method", method.toString());
         }
@@ -267,6 +279,32 @@ public abstract class InitInvoker<T> implements Invoker<T>, LazyInitializedObjec
         @Override
         public Invoker<T> create() {
             return invoker.initializeInvoker();
+        }
+    }
+
+    /**
+     * Helper class that initializes a runtime-generated invoker that clones a record class
+     * with one or more record field values changed.
+     *
+     * @param <T>
+     * @see RecordClassFieldChanger
+     */
+    private static final class InitGeneratedRecordFieldChangerInvoker<T> extends InitInvoker<T> {
+        private final Class<?> declaringClass;
+        private final String nameAlias;
+        private final List<String> recordFields;
+
+        protected InitGeneratedRecordFieldChangerInvoker(Object instance, FieldAccessor<Invoker<T>> accessor,
+                                                         Class<?> declaringClass, String nameAlias, List<String> recordFields) {
+            super(instance, accessor);
+            this.declaringClass = declaringClass;
+            this.nameAlias = nameAlias;
+            this.recordFields = recordFields;
+        }
+
+        @Override
+        protected Invoker<T> create() {
+            return RecordClassFieldChanger.create(declaringClass, nameAlias, recordFields);
         }
     }
 

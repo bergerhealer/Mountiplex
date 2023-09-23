@@ -87,15 +87,7 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
         }
 
         // create the invoke argument list description String up front (instance, varargs)returntype
-        // E.g.: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"
-        String argsStr_obj_token = "Ljava/lang/Object;";
-        StringBuilder argsStr_build = new StringBuilder(argsStr_obj_token.length() * (paramTypes.length + 1));
-        argsStr_build.append('(');
-        for (int i = 0; i <= paramTypes.length; i++) {
-            argsStr_build.append(argsStr_obj_token);
-        }
-        argsStr_build.append(")Ljava/lang/Object;");
-        String argsStr = argsStr_build.toString();
+        String argsStr = buildInvokeDescriptor(paramTypes.length);
 
         // invokeVA proxy method delegating to the correct method for invocation after checking args length
         {
@@ -177,6 +169,28 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
         }
 
         return cw.generateInstance();
+    }
+
+    /**
+     * Builds the descriptor of an arg-specific invoke() method. For example, this may return:
+     * <pre>
+     *     "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"
+     * </pre>
+     *
+     * @param numArgs Number of arguments the invoke method has
+     * @return Invoke descriptor string
+     */
+    public static String buildInvokeDescriptor(int numArgs) {
+        // E.g.: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"
+        String argsStr_obj_token = "Ljava/lang/Object;";
+        StringBuilder argsStr_build = new StringBuilder(argsStr_obj_token.length() * (numArgs + 1) + 2);
+        argsStr_build.append('(');
+        for (int i = 0; i <= numArgs; i++) {
+            argsStr_build.append(argsStr_obj_token);
+        }
+        argsStr_build.append(')');
+        argsStr_build.append(argsStr_obj_token);
+        return argsStr_build.toString();
     }
 
     /**

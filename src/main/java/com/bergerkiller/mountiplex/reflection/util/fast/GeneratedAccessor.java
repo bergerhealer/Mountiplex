@@ -207,7 +207,7 @@ public class GeneratedAccessor<T> extends ReflectionAccessor<T> {
                 mv.visitInsn(RETURN);
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();
-            } else if (Modifier.isPublic(mod) && !Modifier.isFinal(mod)) {
+            } else if (Modifier.isPublic(mod) && Modifier.isFinal(mod)) {
                 // Final fields require use of reflection to set, but can be get normally
                 String setMethod = (accessorName == null) ? "set" : ("set" + accessorName);
                 mv = cw.visitMethod(ACC_PUBLIC, "copy", "(Ljava/lang/Object;Ljava/lang/Object;)V", null, null);

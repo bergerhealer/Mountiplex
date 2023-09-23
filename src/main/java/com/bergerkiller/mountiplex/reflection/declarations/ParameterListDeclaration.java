@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Type;
 import java.util.LinkedList;
+import java.util.function.Function;
 
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
@@ -92,6 +93,18 @@ public class ParameterListDeclaration extends Declaration {
         }
 
         this.parameters = params.toArray(new ParameterDeclaration[params.size()]);
+    }
+
+    private ParameterListDeclaration(ParameterListDeclaration source, Function<ParameterDeclaration, String> nameMapper) {
+        super(source.getResolver());
+        this.parameters = new ParameterDeclaration[source.parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            ParameterDeclaration sourceParam = source.parameters[i];
+            this.parameters[i] = new ParameterDeclaration(
+                    this.getResolver(),
+                    sourceParam.type,
+                    sourceParam.name.rename(nameMapper.apply(sourceParam)));
+        }
     }
 
     @Override
@@ -189,5 +202,17 @@ public class ParameterListDeclaration extends Declaration {
             params[i] = this.parameters[i].type.type;
         }
         return params;
+    }
+
+    /**
+     * Changes the name values of all parameters using a name mapper function. A new parameter list
+     * is returned with the name updated.
+     *
+     * @param nameMapper Function that gives new names to parameters
+     * @return Updated ParameterListDeclaration
+     * @see NameDeclaration#rename(String)
+     */
+    public ParameterListDeclaration renameParameters(Function<ParameterDeclaration, String> nameMapper) {
+        return new ParameterListDeclaration(this, nameMapper);
     }
 }

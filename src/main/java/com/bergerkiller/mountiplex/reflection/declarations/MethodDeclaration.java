@@ -28,6 +28,7 @@ import javassist.NotFoundException;
 public class MethodDeclaration extends Declaration {
     public Method method;
     public Constructor<Object> constructor;
+    public final boolean isRecordFieldChanger;
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration returnType;
     public final NameDeclaration name;
@@ -42,6 +43,7 @@ public class MethodDeclaration extends Declaration {
         try {
             this.method = null;
             this.constructor = (Constructor<Object>) constructor;
+            this.isRecordFieldChanger = false;
             this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers());
             this.returnType = TypeDeclaration.fromClass(constructor.getDeclaringClass());
             this.name = new NameDeclaration(resolver, "<init>", null);
@@ -67,6 +69,7 @@ public class MethodDeclaration extends Declaration {
         try {
             this.method = method;
             this.constructor = null;
+            this.isRecordFieldChanger = false;
             this.modifiers = new ModifierDeclaration(resolver, method.getModifiers() & ~Modifier.VOLATILE);
             this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
             this.name = new NameDeclaration(resolver, name, alias);
@@ -107,6 +110,7 @@ public class MethodDeclaration extends Declaration {
         this.returnType = nextType();
         this.name = nextName();
         this.parameters = nextParameterList();
+        this.isRecordFieldChanger = this.name.value().equals("<record_changer>");
 
         // Check if there is a body attached to this method. This is the case when
         // the very next character encountered (excluding whitespace) is {
@@ -203,10 +207,25 @@ public class MethodDeclaration extends Declaration {
         super(original.getResolver());
         this.method = original.method;
         this.constructor = original.constructor;
+        this.isRecordFieldChanger = original.isRecordFieldChanger;
         this.modifiers = original.modifiers;
         this.returnType = original.returnType;
         this.name = newName;
         this.parameters = original.parameters;
+        this.body = original.body;
+        this.bodyRequirements = original.bodyRequirements;
+    }
+
+    /* Hidden constructor for changing the parameters of the method */
+    private MethodDeclaration(MethodDeclaration original, ParameterListDeclaration parameters) {
+        super(original.getResolver());
+        this.method = original.method;
+        this.constructor = original.constructor;
+        this.isRecordFieldChanger = original.isRecordFieldChanger;
+        this.modifiers = original.modifiers;
+        this.returnType = original.returnType;
+        this.name = original.name;
+        this.parameters = parameters;
         this.body = original.body;
         this.bodyRequirements = original.bodyRequirements;
     }
@@ -704,7 +723,14 @@ public class MethodDeclaration extends Declaration {
         // Because of that, we must now ask the Resolver to give us the real method name
         MethodDeclaration nameResolved = this.resolveName();
 
-        if (nameResolved.name.value().equals("<init>")) {
+        if (this.isRecordFieldChanger) {
+            // Translate all the parameter names into method getter() names
+            ParameterListDeclaration newParams = this.parameters.renameParameters(param -> Resolver.resolveMethodName(
+                    getResolver().getDeclaredClass(), param.name.value(), new Class<?>[0]));
+
+            // Return a new MethodDeclaration with the parameters updated
+            return new MethodDeclaration(this, newParams);
+        } else if (nameResolved.name.value().equals("<init>")) {
             // Try to find a constructor matching the parameter types of this method declaration
             // Name is ignored entirely
             try {
@@ -970,7 +996,12 @@ public class MethodDeclaration extends Declaration {
      * @return name-resolved method declaration
      */
     public MethodDeclaration resolveName() {
-        if (!this.isResolved() || this.getResolver().getDeclaredClass() == null || this.body != null || this.name.value().equals("<init>")) {
+        if (!this.isResolved() ||
+                this.getResolver().getDeclaredClass() == null ||
+                this.body != null ||
+                this.name.value().equals("<init>") ||
+                this.isRecordFieldChanger
+        ) {
             return this;
         }
 
@@ -1011,7 +1042,7 @@ public class MethodDeclaration extends Declaration {
     /**
      * Tries really hard to stringify a method or constructor that might be corrupted
      *
-     * @param method
+     * @param executable
      * @return String representation
      */
     private static String toDebugString(Executable executable) {

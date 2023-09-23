@@ -48,7 +48,11 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
         if (methodDeclaration == null) {
             this.method = null;
             this.invoker = InitInvoker.unavailableMethod();
-        } else if (methodDeclaration.body == null && methodDeclaration.method == null && methodDeclaration.constructor == null) {
+        } else if (!methodDeclaration.isRecordFieldChanger &&
+                methodDeclaration.body == null &&
+                methodDeclaration.method == null &&
+                methodDeclaration.constructor == null
+        ) {
             this.method = null;
             this.invoker = InitInvoker.unavailable("method", methodDeclaration.toString());
         } else {
