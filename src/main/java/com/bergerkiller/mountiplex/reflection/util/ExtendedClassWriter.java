@@ -862,13 +862,22 @@ public class ExtendedClassWriter<T> extends ClassWriter {
             // Get or generate postfix
             String postfix = (this.postfix != null) ? this.postfix : ("$mpldefgen" + generatedClassCtr.nextHex());
 
+            // Bugfix: some packages are restricted (like java.) and in that case we generate something in
+            //         Mountiplex's own package namespace to get around it.
+            Class<?> superClass = this.superClass;
+            String superClassName = MPLType.getName(superClass);
+            if (superClassName.startsWith("java.") || superClassName.startsWith("sun.")) {
+                superClass = ExtendedClassWriter.class;
+                superClassName = MPLType.getName(superClass);
+            }
+
             // Bugfix: pick a different postfix if another class already exists with this name
             // This can happen by accident as well, when a jar is incorrectly reloaded
             // Namespace clashes are nasty!
             {
                 String postfix_original = postfix;
                 for (int i = 1;; i++) {
-                    String tmpClassPath = MPLType.getName(superClass) + postfix;
+                    String tmpClassPath = superClassName + postfix;
                     boolean classExists = false;
 
                     try {
