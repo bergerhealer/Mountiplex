@@ -4,18 +4,18 @@ plugins {
 }
 
 group = "com.bergerkiller.mountiplex"
-version = "2.99"
+version = "3.00"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    api("org.ow2.asm:asm:9.2")
+    api("org.ow2.asm:asm:9.7")
     api("org.objenesis:objenesis:3.1")
-    api("org.javassist:javassist:3.27.0-GA")
+    api("org.javassist:javassist:3.30.1-GA")
     testImplementation("junit:junit:4.13")
-    testImplementation("org.ow2.asm:asm-util:9.2")
+    testImplementation("org.ow2.asm:asm-util:9.7")
 }
 
 java {
