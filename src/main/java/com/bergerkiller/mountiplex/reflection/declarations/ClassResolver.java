@@ -19,6 +19,8 @@ import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 
 /**
  * Resolves class names into Class Types based on package and import paths.
+ * Also includes a lot of metadata parsed from templates, such as requirement
+ * macros.
  */
 public class ClassResolver {
     private static final List<String> default_imports = Arrays.asList("java.lang.*", "java.util.*");
@@ -28,6 +30,7 @@ public class ClassResolver {
     private final ArrayList<String> imports;
     private final ArrayList<String> manualImports;
     private final List<Requirement> requirements;
+    private final Remapping.Lookup remappings;
     private VariablesMap variables;
     private String classDeclarationResolverName;
     private String packagePath;
@@ -44,6 +47,7 @@ public class ClassResolver {
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
         this.requirements = new ArrayList<Requirement>(src.requirements);
+        this.remappings = src.remappings.clone();
         this.packagePath = src.packagePath;
         this.declaredClassName = src.declaredClassName;
         this.declaredClass = src.declaredClass;
@@ -59,6 +63,7 @@ public class ClassResolver {
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
         this.requirements = new ArrayList<Requirement>();
+        this.remappings = Remapping.createLookup();
         this.packagePath = "";
         this.declaredClassName = null;
         this.declaredClass = null;
@@ -75,6 +80,7 @@ public class ClassResolver {
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
         this.requirements = new ArrayList<Requirement>();
+        this.remappings = Remapping.createLookup();
         this.packagePath = "";
         this.logErrors = true;
         this.isGenerating = false;
@@ -773,6 +779,29 @@ public class ClassResolver {
         return this.requirements;
     }
 
+    /**
+     * Stores a method or field name remapping parsed from a #remap statement.
+     * It can later be used again when resolving fields/methods inside method bodies
+     * and declarations.
+     *
+     * @param remapping Field or Method Remapping to store which will be made available
+     *                  to all declarations parsed using this resolver from now on
+     */
+    public void storeRemapping(Remapping remapping) {
+        this.remappings.addRemapping(remapping);
+    }
+
+    /**
+     * Gets all remapping information tracked by this Class Resolver. This can be used
+     * to find the proper method or field name by the names encountered in the declarations
+     * or method bodies.
+     *
+     * @return Remapping lookup
+     */
+    public Remapping.Lookup getRemappings() {
+        return remappings;
+    }
+
     private void regenImports() {
         this.imports.clear();
         this.imports.addAll(this.manualImports);
@@ -833,6 +862,16 @@ public class ClassResolver {
 
         @Override
         public void setVariable(String name, String value) {
+            throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
+
+        @Override
+        public void storeRequirement(Requirement declaration) {
+            throw new UnsupportedOperationException("Class Resolver is immutable");
+        }
+
+        @Override
+        public void storeRemapping(Remapping remapping) {
             throw new UnsupportedOperationException("Class Resolver is immutable");
         }
     }

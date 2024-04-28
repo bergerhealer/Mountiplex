@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
-import com.bergerkiller.mountiplex.reflection.util.MethodSignature;
+import com.bergerkiller.mountiplex.reflection.util.signature.MethodSignature;
 import com.bergerkiller.mountiplex.reflection.util.asm.ASMUtil;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;

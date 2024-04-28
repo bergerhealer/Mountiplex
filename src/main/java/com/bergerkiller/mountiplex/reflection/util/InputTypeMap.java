@@ -9,10 +9,22 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
  * 
  * @param <T> element type
  */
-public class InputTypeMap<T> extends TypeMap<T> {
+public class InputTypeMap<T> extends TypeMap<T> implements Cloneable {
+
+    public InputTypeMap() {
+    }
+
+    protected InputTypeMap(InputTypeMap<T> map) {
+        super(map);
+    }
 
     @Override
     protected boolean isParentTypeOf(TypeDeclaration parent, TypeDeclaration child) {
         return child.isInstanceOf(parent);
+    }
+
+    @Override
+    public InputTypeMap<T> clone() {
+        return new InputTypeMap<>(this);
     }
 }

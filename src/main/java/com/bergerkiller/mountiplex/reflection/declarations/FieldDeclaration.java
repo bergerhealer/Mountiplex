@@ -89,10 +89,10 @@ public class FieldDeclaration extends Declaration {
     }
 
     /* Hidden constructor for changing the name of the field */
-    private FieldDeclaration(FieldDeclaration original, String newName) {
+    private FieldDeclaration(FieldDeclaration original, NameDeclaration newName) {
         super(original.getResolver());
         this.modifiers = original.modifiers;
-        this.name = original.name.rename(newName);
+        this.name = newName;
         this.type = original.type;
         this.isEnum = original.isEnum;
         this.field = original.field;
@@ -355,7 +355,10 @@ public class FieldDeclaration extends Declaration {
         java.lang.reflect.Field javaField;
         try {
             FieldDeclaration nameResolved = this.resolveName();
-            javaField = MPLType.getDeclaredField(this.getResolver().getDeclaredClass(), nameResolved.name.value());
+            javaField = nameResolved.field;
+            if (javaField == null) {
+                javaField = MPLType.getDeclaredField(this.getResolver().getDeclaredClass(), nameResolved.name.value());
+            }
             FieldDeclaration realField = new FieldDeclaration(this.getResolver(), javaField);
 
             // Check matching
@@ -369,7 +372,7 @@ public class FieldDeclaration extends Declaration {
             }
 
             this.copyFieldFrom(realField);
-            return this;
+            return new FieldDeclaration(this, this.name.rename(nameResolved.name));
         } catch (NoSuchFieldException ex) {
             // Not found
         } catch (Throwable t) {
@@ -412,9 +415,18 @@ public class FieldDeclaration extends Declaration {
         if (!this.isResolved()) {
             return this;
         }
+
+        // Check for remapping rules first, before asking the Resolver. The Resolver has already handled
+        // those remapping rules.
+        Remapping.FieldRemapping remapping = getResolver().getRemappings().find(this);
+        if (remapping != null) {
+            return new FieldDeclaration(remapping.declaration,
+                    this.name.rename(remapping.declaration.name));
+        }
+
         String resolvedName = Resolver.resolveFieldName(this.getResolver().getDeclaredClass(), this.name.value());
         if (resolvedName != null && !resolvedName.equals(this.name.value())) {
-            return new FieldDeclaration(this, resolvedName);
+            return new FieldDeclaration(this, this.name.rename(resolvedName));
         } else {
             return this;
         }

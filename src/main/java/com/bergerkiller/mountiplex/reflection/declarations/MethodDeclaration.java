@@ -28,6 +28,7 @@ import javassist.NotFoundException;
 public class MethodDeclaration extends Declaration {
     public Method method;
     public Constructor<Object> constructor;
+    /** Special type of method that creates new Record class instances by updating a single field */
     public final boolean isRecordFieldChanger;
     public final ModifierDeclaration modifiers;
     public final TypeDeclaration returnType;
@@ -719,10 +720,7 @@ public class MethodDeclaration extends Declaration {
             }
         }
 
-        // At this point we are no longer searching in the Class Declaration 'pool'
-        // Because of that, we must now ask the Resolver to give us the real method name
-        MethodDeclaration nameResolved = this.resolveName();
-
+        // Handle <record_changer> type of methods, which lack any real name
         if (this.isRecordFieldChanger) {
             // Translate all the parameter names into method getter() names
             ParameterListDeclaration newParams = this.parameters.renameParameters(param -> Resolver.resolveMethodName(
@@ -730,7 +728,12 @@ public class MethodDeclaration extends Declaration {
 
             // Return a new MethodDeclaration with the parameters updated
             return new MethodDeclaration(this, newParams);
-        } else if (nameResolved.name.value().equals("<init>")) {
+        }
+
+        // At this point we are no longer searching in the Class Declaration 'pool'
+        // Because of that, we must now ask the Resolver to give us the real method name
+        MethodDeclaration nameResolved = this.resolveName();
+        if (nameResolved.name.value().equals("<init>")) {
             // Try to find a constructor matching the parameter types of this method declaration
             // Name is ignored entirely
             try {
@@ -740,6 +743,11 @@ public class MethodDeclaration extends Declaration {
                 // Ignored
             }
         } else {
+            // If resolved method already has a known method (remapping), just return it
+            if (nameResolved.method != null) {
+                return nameResolved;
+            }
+
             // First try to find the method in a quick way
             try {
                 java.lang.reflect.Method method;
@@ -1003,6 +1011,14 @@ public class MethodDeclaration extends Declaration {
                 this.isRecordFieldChanger
         ) {
             return this;
+        }
+
+        // Check for remapping rules first, before asking the Resolver. The Resolver has already handled
+        // those remapping rules.
+        Remapping.MethodRemapping remapping = getResolver().getRemappings().find(this);
+        if (remapping != null) {
+            return new MethodDeclaration(remapping.declaration,
+                    this.name.rename(remapping.declaration.name));
         }
 
         String resolvedName = Resolver.resolveMethodName(this.getResolver().getDeclaredClass(), this.name.value(), this.parameters.toParamArray());

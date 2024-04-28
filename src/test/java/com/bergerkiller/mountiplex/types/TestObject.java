@@ -21,6 +21,11 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
         return c;
     }
 
+    public int k(int n) {
+        c += n;
+        return c;
+    }
+
     private int d(int k, int l) {
         return k + l;
     }

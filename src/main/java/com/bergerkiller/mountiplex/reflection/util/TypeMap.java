@@ -6,13 +6,26 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 public abstract class TypeMap<T> {
-    private final HashMap<TypeDeclaration, Bin> map = new HashMap<TypeDeclaration, Bin>();
+    private final HashMap<TypeDeclaration, Bin> map;
+
+    public TypeMap() {
+        map = new HashMap<TypeDeclaration, Bin>();
+    }
+
+    // Only used for clone()
+    protected TypeMap(TypeMap<T> values) {
+        this.map = new HashMap<>(values.map.size());
+        for (Map.Entry<TypeDeclaration, Bin> e : values.map.entrySet()) {
+            putAll(e.getKey(), e.getValue().values);
+        }
+    }
 
     /**
      * Gets the first value stored at a particular type

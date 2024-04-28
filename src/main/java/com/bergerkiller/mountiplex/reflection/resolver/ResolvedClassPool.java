@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.Remapping;
 import com.bergerkiller.mountiplex.reflection.util.GeneratorClassLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.ClassBytecodeLoader;
 import com.bergerkiller.mountiplex.reflection.util.asm.javassist.MPLMemberResolver;
@@ -29,9 +30,11 @@ import javassist.compiler.MemberResolver;
  * Use the static create function to retrieve one, and when done using, close it.
  */
 public final class ResolvedClassPool extends ClassPool implements Closeable {
+    private static final Remapping.Lookup NO_REMAPPINGS = Remapping.createLookup();
     private static final List<ResolvedClassPool> CACHED_CLASS_POOLS = new ArrayList<ResolvedClassPool>();
     private static final Map<ClassPool, Reference<Map<String,String>>> globalInvalidNamesMap = findInvalidNamesMap();
     private boolean ignoreRemapper = false;
+    private Remapping.Lookup remappings = NO_REMAPPINGS;
 
     /**
      * Creates a resolved class pool, or retrieves one from cache.
@@ -53,6 +56,7 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     @Override
     public void close() {
         clearImportedPackages();
+        remappings = NO_REMAPPINGS;
         resetInvalidNames(this);
         synchronized (CACHED_CLASS_POOLS) {
             CACHED_CLASS_POOLS.add(this);
@@ -62,6 +66,24 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     private ResolvedClassPool() {
         super();
         appendClassPath(ClassBytecodeLoader.CLASSPATH);
+    }
+
+    /**
+     * Gets remappings of fields and methods that were parsed from previous #remap declarations.
+     *
+     * @return Remappings
+     */
+    public Remapping.Lookup getRemappings() {
+        return this.remappings;
+    }
+
+    /**
+     * Sets remappings of fields and methods that were parsed from previous #remap declarations.
+     *
+     * @param remappings Remappings
+     */
+    public void setRemappings(Remapping.Lookup remappings) {
+        this.remappings = remappings;
     }
 
     @Override

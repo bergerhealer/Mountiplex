@@ -3,6 +3,11 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * Declaration for a method or field name
  */
@@ -130,6 +135,7 @@ public class NameDeclaration extends Declaration {
     /**
      * Gets the alias used for this name. Is null if no alias is used.
      * This is a more human-readable version of the name, if available.
+     * May include multiple : if multiple aliases exist.
      * 
      * @return name alias
      */
@@ -139,12 +145,33 @@ public class NameDeclaration extends Declaration {
 
     /**
      * Returns the {@link #alias} if an alias is specified, otherwise returns the normal {@link #value()}.
-     * Only useful for debugging and logging!
+     * Only useful for debugging and logging! May include multiple : if multiple aliases
+     * exist.
      * 
      * @return real name
      */
     public final String real() {
         return _alias != null ? _alias : _name;
+    }
+
+    /**
+     * Resolvers can include additional aliases to the alias field. This methods extracts
+     * the very first alias specified in a template, if any. This makes this value more
+     * useful than just for logging.
+     *
+     * @return first real name
+     */
+    public final String firstReal() {
+        if (_alias != null) {
+            int index = _alias.indexOf(':');
+            if (index != -1) {
+                return _alias.substring(0, index);
+            } else {
+                return _alias;
+            }
+        } else {
+            return _name;
+        }
     }
 
     /**
@@ -262,6 +289,38 @@ public class NameDeclaration extends Declaration {
         str.append(indent).append("  name=").append(this._name).append('\n');
         str.append(indent).append("  alias=").append(this._alias).append('\n');
         str.append(indent).append("}\n");
+    }
+
+    /**
+     * Changes the name {@link #value()}, preserving the original alias. If no alias was set, then the
+     * original name becomes the alias. If the new name is equal to the current value, then
+     * this same declaration is returned. If the new name also includes aliases, then those are
+     * includes in the alias result.
+     *
+     * @param newName The new name, can not be null
+     * @return new name declaration with the name changed
+     */
+    public NameDeclaration rename(NameDeclaration newName) {
+        if (!newName.hasAlias()) {
+            return rename(newName.value());
+        }
+
+        // Obtain all known aliases. Omit the alias that is equal to this name.
+        List<String> aliases = new ArrayList<>(Arrays.asList(newName.alias().split(":")));
+        if (aliases.get(0).equals(this.value())) {
+            aliases.remove(0);
+        }
+        if (aliases.isEmpty()) {
+            return rename(newName.value());
+        }
+
+        if (newName.value().equals(this.value())) {
+            return this; // No need to keep the original aliases
+        }
+
+        aliases.add(0, this.value());
+        return new NameDeclaration(this.getResolver(), newName.value(),
+                String.join(":", aliases));
     }
 
     /**

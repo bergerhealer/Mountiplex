@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex.reflection.util;
+package com.bergerkiller.mountiplex.reflection.util.signature;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;

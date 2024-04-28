@@ -8,6 +8,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
+import com.bergerkiller.mountiplex.reflection.util.signature.MethodSignature;
 
 /**
  * Declares the full contents of a Class
@@ -286,6 +287,13 @@ public class ClassDeclaration extends Declaration {
                 return mDec;
             }
         }
+
+        // Check for remapping rules
+        Remapping.MethodRemapping remapping = getResolver().getRemappings().find(declaration);
+        if (remapping != null) {
+            return remapping.declaration;
+        }
+
         return null;
     }
 

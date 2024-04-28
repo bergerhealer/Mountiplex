@@ -4,12 +4,16 @@ import java.util.Map;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.SafeField;
+import com.bergerkiller.mountiplex.reflection.declarations.Remapping;
 import com.bergerkiller.mountiplex.reflection.resolver.ResolvedClassPool;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.ArrayHelper;
 import com.bergerkiller.mountiplex.reflection.util.IgnoresRemapping;
+import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 import com.bergerkiller.mountiplex.reflection.util.fast.GeneratedCodeInvoker;
 
+import com.bergerkiller.mountiplex.reflection.util.signature.FieldSignature;
+import com.bergerkiller.mountiplex.reflection.util.signature.MethodSignature;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.NotFoundException;
@@ -272,6 +276,15 @@ public final class MPLMemberResolver extends MemberResolver {
             return fieldName;
         }
 
+        // Ask remappings first. These store the already-resolved field instances
+        {
+            Remapping.FieldRemapping remappedField = getClassPool().getRemappings().find(
+                    declaringClass, new FieldSignature(fieldName));
+            if (remappedField != null) {
+                return MPLType.getName(remappedField.field);
+            }
+        }
+
         // Ask resolver
         String newName = Resolver.resolveFieldName(declaringClass, fieldName);
         return (newName != null) ? newName : fieldName;
@@ -329,6 +342,15 @@ public final class MPLMemberResolver extends MemberResolver {
                 return methodName; // Failed to resolve
             }
             parameterTypes[i] = ArrayHelper.getArrayType(parameterTypes[i], argDims[i]);
+        }
+
+        // Ask remappings first. These store the already-resolved method instances
+        {
+            Remapping.MethodRemapping remappedMethod = getClassPool().getRemappings().find(
+                    declaringClass, new MethodSignature(methodName, parameterTypes));
+            if (remappedMethod != null) {
+                return MPLType.getName(remappedMethod.method);
+            }
         }
 
         // Ask resolver

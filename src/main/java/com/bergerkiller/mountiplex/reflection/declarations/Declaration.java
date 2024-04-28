@@ -12,7 +12,6 @@ import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import javassist.CannotCompileException;
-import javassist.CtClass;
 import javassist.NotFoundException;
 
 /**
@@ -144,9 +143,17 @@ public abstract class Declaration {
             return true;
         }
 
-        // Store definitions in the class resolver, which will become available in code blocks
-        if (this._postfix.startsWith("#require ")) {
-            this.trimWhitespace(9);
+        // Two very similar macros and parsed largely the same...
+        // #require: Store definitions in the class resolver, which will become available in code blocks
+        // #remap: Store remapping rules in the class resolver, which will be used in further declaration parsing
+        boolean isRequirement = this._postfix.startsWith("#require ");
+        boolean isRemapping = this._postfix.startsWith("#remap ");
+        if (isRequirement || isRemapping) {
+            if (isRequirement) {
+                this.trimWhitespace(9);
+            } else if (isRemapping) {
+                this.trimWhitespace(7);
+            }
 
             // Get class name in which this is defined
             int declaringClassEnd = this._postfix.indexOf(' ');
@@ -161,9 +168,9 @@ public abstract class Declaration {
             this.trimWhitespace(declaringClassEnd);
 
             // What remains now is a declaration for a field, method or constructor
-            ClassResolver requireResolver = this.getResolver().clone();
-            requireResolver.setDeclaredClassName(declaringClassName);
-            Declaration dec = this.nextDetectMemberDeclaration(requireResolver);
+            ClassResolver resolver = this.getResolver().clone();
+            resolver.setDeclaredClassName(declaringClassName);
+            Declaration dec = this.nextDetectMemberDeclaration(resolver);
             if (dec == null) {
                 // Trim to end of line
                 String remainder = this.trimLine();
@@ -177,17 +184,61 @@ public abstract class Declaration {
                 return true;
             }
 
-            // Resolve name
-            String name = "unknown";
-            if (dec instanceof MethodDeclaration) {
-                name = ((MethodDeclaration) dec).name.real();
-            } else if (dec instanceof FieldDeclaration) {
-                name = ((FieldDeclaration) dec).name.real();
+            if (isRequirement) {
+                // Resolve name
+                String name = "unknown";
+                if (dec instanceof MethodDeclaration) {
+                    name = ((MethodDeclaration) dec).name.real();
+                } else if (dec instanceof FieldDeclaration) {
+                    name = ((FieldDeclaration) dec).name.real();
+                }
+
+                // Store it
+                this._resolver.storeRequirement(new Requirement(name, dec));
+            } else if (isRemapping) {
+                Declaration resolved = dec.discover();
+                if (resolved == null) {
+                    // Log this
+                    if (this._resolver.getLogErrors()) {
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Remapping declaration not found!");
+                        dec.discoverAlternatives();
+                    }
+
+                    return true;
+                }
+
+                if (dec instanceof MethodDeclaration) {
+                    MethodDeclaration mDec = (MethodDeclaration) dec;
+                    if (mDec.body != null && mDec.method == null) {
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method bodies for remapped methods are not supported");
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method: " + dec.toString());
+                        return true;
+                    }
+                    this._resolver.storeRemapping(new Remapping.MethodRemapping(mDec));
+                } else if (dec instanceof FieldDeclaration) {
+                    this._resolver.storeRemapping(new Remapping.FieldRemapping((FieldDeclaration) dec));
+                }
             }
 
-            // Store it
-            this._resolver.storeRequirement(new Requirement(name, dec));
             return true;
+        }
+
+        // Store remapping rules in the class resolver, which will be used in further declaration parsing and
+        // code blocks
+        if (this._postfix.startsWith("#remap ")) {
+            this.trimWhitespace(7);
+
+            // Get class name in which this is defined
+            int declaringClassEnd = this._postfix.indexOf(' ');
+            if (declaringClassEnd == -1) {
+                setPostfix(StringBuffer.EMPTY);
+                return true;
+            }
+
+            String declaringClassName = this._postfix.substringToString(0, declaringClassEnd);
+
+            // Trim class name from start of declaration
+            this.trimWhitespace(declaringClassEnd);
         }
 
         // Error / warning handling

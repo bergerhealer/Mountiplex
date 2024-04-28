@@ -68,6 +68,9 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
         try (ResolvedClassPool pool = ResolvedClassPool.create()) {
             int argCount = declaration.parameters.parameters.length;
 
+            // Ensure #remap rules in the method declaration / before are honored
+            pool.setRemappings(declaration.getResolver().getRemappings());
+
             // ASM: Add an invokeVA method which calls the soon-to-be-generated method with the cast
             asmAddInvokeMethod(writer, declaration, true);
 
