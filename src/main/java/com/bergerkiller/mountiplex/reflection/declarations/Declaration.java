@@ -177,10 +177,17 @@ public abstract class Declaration {
 
                 // Log this
                 if (this._resolver.getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration invalid for: " + declaringClassName);
+                    String s = isRequirement ? "requirement" : "remapping";
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration invalid for " + s + ": " + declaringClassName);
                     MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + remainder);
                 }
 
+                return true;
+            }
+
+            // Skip actually using/parsing this when generating templates
+            // This avoids needless error logging
+            if (_resolver.isGenerating()) {
                 return true;
             }
 
