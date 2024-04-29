@@ -6,9 +6,11 @@ import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserGroups;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
-import com.bergerkiller.mountiplex.reflection.util.signature.MethodSignature;
 
 /**
  * Declares the full contents of a Class
@@ -132,7 +134,7 @@ public class ClassDeclaration extends Declaration {
             char c = postfix.charAt(cidx);
             if (c == '{') {
                 foundClassStart = true;
-            } else if (foundClassStart && !MountiplexUtil.containsChar(c, space_chars)) {
+            } else if (foundClassStart && !MountiplexUtil.containsChar(c, ParserStringBuffer.WHITESPACE_CHARACTERS)) {
                 startIdx = cidx;
                 break;
             }
@@ -146,7 +148,9 @@ public class ClassDeclaration extends Declaration {
             this.setInvalid();
             return;
         }
-        this.trimWhitespace(startIdx);
+        getParserPostfix().trimWhitespace(startIdx);
+
+        final DeclarationParserContext parserContext = new BaseDeclarationParserContext();
 
         StringBuilder codeStr = new StringBuilder();
         LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
@@ -154,12 +158,12 @@ public class ClassDeclaration extends Declaration {
         LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
         LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
         while ((postfix = getPostfix()) != null && postfix.length() > 0) {
-            if (nextInternal()) {
+            if (parserContext.runParsers(DeclarationParserGroups.BASE)) {
                 continue;
             }
 
             if (postfix.charAt(0) == '}') {
-                trimWhitespace(1);
+                getParserPostfix().trimWhitespace(1);
                 break;
             }
 
@@ -168,7 +172,7 @@ public class ClassDeclaration extends Declaration {
                 if (endIdx != -1) {
                     codeStr.append(SourceDeclaration.trimIndentation(postfix.substringToString(6, endIdx)));
                     setPostfix(postfix.substring(endIdx + 7));
-                    trimLine();
+                    getParserPostfix().trimLine();
                     continue;
                 }
             }
@@ -177,11 +181,11 @@ public class ClassDeclaration extends Declaration {
             if (cldec.isValid()) {
                 classes.add(cldec);
                 setPostfix(cldec.getPostfix());
-                trimWhitespace(0);
+                getParserPostfix().trimWhitespace(0);
                 continue;
             }
 
-            Declaration dec = this.nextDetectMemberDeclaration(getResolver());
+            Declaration dec = getParserPostfix().detectMemberDeclaration(getResolver());
             if (dec instanceof MethodDeclaration) {
                 methods.add((MethodDeclaration) dec);
             } else if (dec instanceof ConstructorDeclaration) {

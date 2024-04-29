@@ -71,9 +71,9 @@ public class FieldDeclaration extends Declaration {
 
     public FieldDeclaration(ClassResolver resolver, StringBuffer declaration) {
         super(resolver, declaration);
-        this.trimWhitespace(0);
+        getParserPostfix().trimWhitespace(0);
         if (this.getPostfix().startsWith("enum ")) {
-            this.trimWhitespace(5);
+            getParserPostfix().trimWhitespace(5);
             this.setPostfix(this.getPostfix().prepend("public static final "));
             this.isEnum = true;
             this.modifiers = nextModifier();

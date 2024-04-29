@@ -103,6 +103,10 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
                 "    public int someTestPublicMethod:originalTestPublicMethod();\n" +
                 "    private int someTestPrivateMethod:originalTestPrivateMethod();\n" +
 
+                // Methods with an identity remapper
+                "    #remap com.bergerkiller.mountiplex.types.RenameTestObject public int originalTestSelfRemappedMethod();\n" +
+                "    public int originalTestSelfRemappedMethod();\n" +
+
                 // Static methods
                 "    public static int someTestStaticPublicMethod:originalTestStaticPublicMethod();\n" +
                 "    private static int someTestStaticPrivateMethod:originalTestStaticPrivateMethod();\n" +
@@ -189,6 +193,10 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
                 "        #require com.bergerkiller.mountiplex.types.RenameTestObject private static int someTestStaticPrivateMethod:originalTestStaticPrivateMethod();\n" +
                 "        return #someTestStaticPrivateMethod();\n" +
                 "    }\n" +
+
+                // Remapped method name that is also subject to a resolver remapping
+                "    #remap com.bergerkiller.mountiplex.types.RenameTestObject public int remappedTestPublicMethod:originalTestPublicMethod();\n" +
+                "    public int remappedTestPublicMethod();\n" +
 
                 // Changes the 'originalTestPublicField' using a requirement, which should not change testPublicField instead
                 // To faciliate this, we have added a rename in the opposite direction too

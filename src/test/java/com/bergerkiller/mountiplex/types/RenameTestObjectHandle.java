@@ -22,6 +22,8 @@ public abstract class RenameTestObjectHandle extends Template.Handle {
     public abstract int someTestPublicMethod();
     public abstract int someTestPrivateMethod();
 
+    public abstract int originalTestSelfRemappedMethod();
+
     public abstract int generatedGetPublicFieldUsingRequirements();
     public abstract int generatedGetPublicFieldUsingMemberResolver();
     public abstract int generatedGetPrivateFieldUsingRequirements();
@@ -34,6 +36,8 @@ public abstract class RenameTestObjectHandle extends Template.Handle {
 
     public abstract int generatedCallMethodUsingRequirements();
     public abstract int generatedCallMethodUsingMemberResolver();
+
+    public abstract int remappedTestPublicMethod();
 
     public abstract int overrideGetPublicFieldUsingRequirements();
     public abstract void overrideSetPublicFieldUsingRequirements(int value);
@@ -53,6 +57,8 @@ public abstract class RenameTestObjectHandle extends Template.Handle {
 
         public final Template.StaticMethod<Integer> someTestStaticPublicMethod = new Template.StaticMethod<Integer>();
         public final Template.StaticMethod<Integer> someTestStaticPrivateMethod = new Template.StaticMethod<Integer>();
+
+        public final Template.Method<Integer> originalTestSelfRemappedMethod = new Template.Method<Integer>();
 
         public final Template.Method<Integer> generatedGetPublicFieldUsingRequirements = new Template.Method<Integer>();
         public final Template.Method<Integer> generatedGetPublicFieldUsingMemberResolver = new Template.Method<Integer>();
@@ -77,6 +83,8 @@ public abstract class RenameTestObjectHandle extends Template.Handle {
         public final Template.Method<Integer> generatedCallMethodUsingRequirements = new Template.Method<Integer>();
         public final Template.Method<Integer> generatedCallMethodUsingMemberResolver = new Template.Method<Integer>();
         public final Template.StaticMethod<Integer> generatedCallStaticMethodUsingRequirements = new Template.StaticMethod<Integer>();
+
+        public final Template.Method<Integer> remappedTestPublicMethod = new Template.Method<Integer>();
 
         public final Template.Method<Integer> overrideGetPublicFieldUsingRequirements = new Template.Method<Integer>();
         public final Template.Method<Void> overrideSetPublicFieldUsingRequirements = new Template.Method<Void>();

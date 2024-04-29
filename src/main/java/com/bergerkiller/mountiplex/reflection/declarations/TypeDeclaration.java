@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
@@ -205,7 +206,7 @@ public class TypeDeclaration extends Declaration {
                 }
             }
 
-            boolean validNameChar = !MountiplexUtil.containsChar(c, invalid_name_chars);
+            boolean validNameChar = !MountiplexUtil.containsChar(c, ParserStringBuffer.INVALID_NAME_CHARACTERS);
 
             // Verify the first character of the name is valid, and set it
             if (startIdx == -1) {

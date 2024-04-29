@@ -19,6 +19,10 @@ public class RenameTestObject {
         return 222;
     }
 
+    public int testSelfRemappedMethod() {
+        return 888;
+    }
+
     private int testPrivateMethod() {
         return 333;
     }

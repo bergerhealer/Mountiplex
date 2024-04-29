@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
@@ -18,9 +20,7 @@ import javassist.NotFoundException;
  * Base class for Declaration implementations
  */
 public abstract class Declaration {
-    protected static final char[] invalid_name_chars;
-    protected static final char[] space_chars;
-    private StringBuffer _postfix;
+    private final ParserStringBuffer _postfix = new ParserStringBuffer();
     private String _longDeclare = null;
     protected final StringBuffer _initialDeclaration;
     private final ClassResolver _resolver;
@@ -28,19 +28,10 @@ public abstract class Declaration {
     private List<String> _warnings = Collections.emptyList();
     private boolean _loggedErrorsAndWarnings = true;
 
-    static {
-        invalid_name_chars = new char[] {
-                ' ', '\n', '\r', '<', '>', ',', '(', ')', '{', '}', ';', '='
-        };
-        space_chars = new char[] {
-                ' ', '\n', '\r'
-        };
-    }
-
     public Declaration(ClassResolver resolver) {
         this._resolver = resolver;
         this._initialDeclaration = StringBuffer.EMPTY;
-        this._postfix = StringBuffer.EMPTY;
+        this._postfix.set(StringBuffer.EMPTY);
     }
 
     public Declaration(ClassResolver resolver, String initialDeclaration) {
@@ -50,7 +41,7 @@ public abstract class Declaration {
     public Declaration(ClassResolver resolver, StringBuffer initialDeclaration) {
         this._resolver = resolver;
         this._initialDeclaration = initialDeclaration;
-        this._postfix = initialDeclaration;
+        this._postfix.set(initialDeclaration);
     }
 
     /**
@@ -63,222 +54,31 @@ public abstract class Declaration {
     }
 
     protected final ModifierDeclaration nextModifier() {
-        return updatePostfix(new ModifierDeclaration(this._resolver, this._postfix));
+        return updatePostfix(new ModifierDeclaration(this._resolver, this._postfix.get()));
     }
 
     protected final NameDeclaration nextName() {
-        return updatePostfix(new NameDeclaration(this._resolver, this._postfix));
+        return updatePostfix(new NameDeclaration(this._resolver, this._postfix.get()));
     }
 
     protected final NameDeclaration nextName(int optionalIdx) {
-        return updatePostfix(new NameDeclaration(this._resolver, this._postfix, optionalIdx));
+        return updatePostfix(new NameDeclaration(this._resolver, this._postfix.get(), optionalIdx));
     }
 
     protected final TypeDeclaration nextType() {
-        return updatePostfix(TypeDeclaration.parse(this._resolver, this._postfix));
+        return updatePostfix(TypeDeclaration.parse(this._resolver, this._postfix.get()));
     }
 
     protected final ParameterDeclaration nextParameter(int paramIdx) {
-        return updatePostfix(new ParameterDeclaration(this._resolver, this._postfix, paramIdx));
+        return updatePostfix(new ParameterDeclaration(this._resolver, this._postfix.get(), paramIdx));
     }
 
     protected final ParameterListDeclaration nextParameterList() {
-        return updatePostfix(new ParameterListDeclaration(this._resolver, this._postfix));
+        return updatePostfix(new ParameterListDeclaration(this._resolver, this._postfix.get()));
     }
 
     protected final ClassDeclaration nextClass() {
-        return updatePostfix(new ClassDeclaration(this._resolver.clone(), this._postfix));
-    }
-
-    // Processes internal template declaration lines
-    protected boolean nextInternal() {
-        if (this._postfix == null) {
-            return false;
-        }
-
-        // Comments
-        if (this._postfix.startsWith("//")) {
-            trimLine();
-            return true;
-        }
-
-        // Bootstrap code
-        if (this._postfix.startsWith("#bootstrap ")) {
-            this.trimWhitespace(11);
-
-            // Add code
-            StringBuffer postfix = this.getPostfix();
-            int code_end_index;
-            if (postfix.startsWith("{")) {
-                // Code block. Find matching }, keep embedded { into account
-                code_end_index = -1;
-                int depth = 0;
-                for (int i = 1; i < postfix.length(); i++) {
-                    char c = postfix.charAt(i);
-                    if (c == '{') {
-                        depth++;
-                    } else if (c == '}' && (depth--) <= 0) {
-                        code_end_index = i + 1;
-                        break;
-                    }
-                }
-            } else {
-                // Single line of code
-                code_end_index = postfix.indexOf('\n');
-            }
-            if (code_end_index == -1) {
-                setPostfix("");
-            } else {
-                String code = postfix.substringToString(0, code_end_index);
-                this._resolver.addBootstrap(code);
-                this.trimWhitespace(code_end_index);
-            }
-            return true;
-        }
-
-        // Sets the resolver used to obtain the class declarations
-        if (this._postfix.startsWith("#resolver ")) {
-            this.trimWhitespace(10);
-            this._resolver.setClassDeclarationResolverName(trimLine());
-            return true;
-        }
-
-        // Two very similar macros and parsed largely the same...
-        // #require: Store definitions in the class resolver, which will become available in code blocks
-        // #remap: Store remapping rules in the class resolver, which will be used in further declaration parsing
-        boolean isRequirement = this._postfix.startsWith("#require ");
-        boolean isRemapping = this._postfix.startsWith("#remap ");
-        if (isRequirement || isRemapping) {
-            if (isRequirement) {
-                this.trimWhitespace(9);
-            } else if (isRemapping) {
-                this.trimWhitespace(7);
-            }
-
-            // Get class name in which this is defined
-            int declaringClassEnd = this._postfix.indexOf(' ');
-            if (declaringClassEnd == -1) {
-                setPostfix(StringBuffer.EMPTY);
-                return true;
-            }
-
-            String declaringClassName = this._postfix.substringToString(0, declaringClassEnd);
-
-            // Trim class name from start of declaration
-            this.trimWhitespace(declaringClassEnd);
-
-            // What remains now is a declaration for a field, method or constructor
-            ClassResolver resolver = this.getResolver().clone();
-            resolver.setDeclaredClassName(declaringClassName);
-            Declaration dec = this.nextDetectMemberDeclaration(resolver);
-            if (dec == null) {
-                // Trim to end of line
-                String remainder = this.trimLine();
-
-                // Log this
-                if (this._resolver.getLogErrors()) {
-                    String s = isRequirement ? "requirement" : "remapping";
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration invalid for " + s + ": " + declaringClassName);
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Declaration: " + remainder);
-                }
-
-                return true;
-            }
-
-            // Skip actually using/parsing this when generating templates
-            // This avoids needless error logging
-            if (_resolver.isGenerating()) {
-                return true;
-            }
-
-            if (isRequirement) {
-                // Resolve name
-                String name = "unknown";
-                if (dec instanceof MethodDeclaration) {
-                    name = ((MethodDeclaration) dec).name.real();
-                } else if (dec instanceof FieldDeclaration) {
-                    name = ((FieldDeclaration) dec).name.real();
-                }
-
-                // Store it
-                this._resolver.storeRequirement(new Requirement(name, dec));
-            } else if (isRemapping) {
-                Declaration resolved = dec.discover();
-                if (resolved == null) {
-                    // Log this
-                    if (this._resolver.getLogErrors()) {
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Remapping declaration not found!");
-                        dec.discoverAlternatives();
-                    }
-
-                    return true;
-                }
-
-                if (dec instanceof MethodDeclaration) {
-                    MethodDeclaration mDec = (MethodDeclaration) dec;
-                    if (mDec.body != null && mDec.method == null) {
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method bodies for remapped methods are not supported");
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method: " + dec.toString());
-                        return true;
-                    }
-                    this._resolver.storeRemapping(new Remapping.MethodRemapping(mDec));
-                } else if (dec instanceof FieldDeclaration) {
-                    this._resolver.storeRemapping(new Remapping.FieldRemapping((FieldDeclaration) dec));
-                }
-            }
-
-            return true;
-        }
-
-        // Store remapping rules in the class resolver, which will be used in further declaration parsing and
-        // code blocks
-        if (this._postfix.startsWith("#remap ")) {
-            this.trimWhitespace(7);
-
-            // Get class name in which this is defined
-            int declaringClassEnd = this._postfix.indexOf(' ');
-            if (declaringClassEnd == -1) {
-                setPostfix(StringBuffer.EMPTY);
-                return true;
-            }
-
-            String declaringClassName = this._postfix.substringToString(0, declaringClassEnd);
-
-            // Trim class name from start of declaration
-            this.trimWhitespace(declaringClassEnd);
-        }
-
-        // Error / warning handling
-        if (this._postfix.startsWith("#error ")) {
-            this.trimWhitespace(7);
-            if (this._errors.isEmpty()) {
-                this._errors = new ArrayList<>();
-            }
-            this._errors.add(trimLine());
-            this._loggedErrorsAndWarnings = false;
-            return true;
-        } else if (this._postfix.startsWith("#warning ")) {
-            this.trimWhitespace(9);
-            if (this._warnings.isEmpty()) {
-                this._warnings = new ArrayList<>();
-            }
-            this._warnings.add(trimLine());
-            this._loggedErrorsAndWarnings = false;
-            return true;
-        }
-
-        return false;
-    }
-
-    protected Declaration nextDetectMemberDeclaration(ClassResolver resolver) {
-        StringBuffer postfix = getPostfix();
-        Declaration dec = parseDeclaration(resolver, postfix);
-        if (dec != null) {
-            this.setPostfix(dec.getPostfix());
-            this.trimLine();
-            return dec;
-        }
-        return null;
+        return updatePostfix(new ClassDeclaration(this._resolver.clone(), this._postfix.get()));
     }
 
     /**
@@ -288,7 +88,7 @@ public abstract class Declaration {
      * @param lastDeclaration
      */
     protected final <T extends Declaration> T updatePostfix(T lastDeclaration) {
-        this._postfix = lastDeclaration.getPostfix();
+        this._postfix.set(lastDeclaration.getPostfix());
         return lastDeclaration;
     }
 
@@ -299,7 +99,28 @@ public abstract class Declaration {
      * @return declaration postfix
      */
     public final StringBuffer getPostfix() {
+        return _postfix.get();
+    }
+
+    /**
+     * Gets a mutable version of {@link #getPostfix()}, which includes helper methods
+     * for parsing. The postfix of this declaration can be updated this way.
+     *
+     * @return mutable declaration postfix, used for parsing
+     */
+    protected final ParserStringBuffer getParserPostfix() {
         return _postfix;
+    }
+
+    /**
+     * Sets the text that exists after this declaration.
+     * To mark this declaration as invalid, pass a null postfix.
+     * Implementation use only.
+     *
+     * @param postfix to set to
+     */
+    protected final void setPostfix(StringBuffer postfix) {
+        this._postfix.set(postfix);
     }
 
     /**
@@ -308,88 +129,14 @@ public abstract class Declaration {
      * @return True if the syntax is valid, False if not
      */
     public final boolean isValid() {
-        return _postfix != null;
-    }
-
-    /**
-     * Sets the text that exists after this declaration.
-     * To mark this declaration as invalid, pass a null postfix.
-     * Implementation use only.
-     * 
-     * @param postfix to set to
-     */
-    @Deprecated
-    protected final void setPostfix(String postfix) {
-        this.setPostfix(StringBuffer.of(postfix));
-    }
-
-    /**
-     * Sets the text that exists after this declaration.
-     * To mark this declaration as invalid, pass a null postfix.
-     * Implementation use only.
-     * 
-     * @param postfix to set to
-     */
-    protected final void setPostfix(StringBuffer postfix) {
-        this._postfix = postfix;
+        return !_postfix.isNull();
     }
 
     /**
      * Marks this declaration as invalid because of a syntax error
      */
     protected final void setInvalid() {
-        this._postfix = null;
-    }
-
-    /**
-     * Removes all whitespace characters from the start of the current postfix
-     * 
-     * @param start index
-     */
-    protected final void trimWhitespace(int start) {
-        if (this._postfix == null) {
-            return;
-        }
-        for (int cidx = start; cidx < this._postfix.length(); cidx++) {
-            char c = this._postfix.charAt(cidx);
-            if (MountiplexUtil.containsChar(c, space_chars)) {
-                continue;
-            }
-            this._postfix = this._postfix.substring(cidx);
-            return;
-        }
-        this._postfix = StringBuffer.EMPTY;
-    }
-
-    /**
-     * Removes everything up until the next newline
-     * 
-     * @return contents that were trimmed, excluding the newline character
-     */
-    protected final String trimLine() {
-        if (this._postfix == null) {
-            return "";
-        }
-
-        int firstNewLineIdx = -1;
-        for (int cidx = 0; cidx < this._postfix.length(); cidx++) {
-            char c = this._postfix.charAt(cidx);
-            if (c == '\r' || c == '\n') {
-                if (firstNewLineIdx == -1) {
-                    firstNewLineIdx = cidx;
-                }
-                continue;
-            }
-            if (c != ' ' && firstNewLineIdx != -1) {
-                String remainder = this._postfix.substringToString(0, firstNewLineIdx);
-                this._postfix = this._postfix.substring(cidx);
-                return remainder;
-            }
-        }
-
-        String remainder = this._postfix.toString();
-        this._postfix = StringBuffer.EMPTY;
-        return remainder;
+        this._postfix.set(null);
     }
 
     /**
@@ -611,6 +358,37 @@ public abstract class Declaration {
             throws CannotCompileException, NotFoundException
     {
         throw new UnsupportedOperationException("Declaration " + toString() + " can not be added as requirement");
+    }
+
+    /** Context provided to parsers. Can be extended to add more callbacks */
+    protected class BaseDeclarationParserContext implements DeclarationParserContext {
+        @Override
+        public ClassResolver getResolver() {
+            return _resolver;
+        }
+
+        @Override
+        public ParserStringBuffer getBuffer() {
+            return _postfix;
+        }
+
+        @Override
+        public void addWarning(String warning) {
+            if (_warnings.isEmpty()) {
+                _warnings = new ArrayList<>();
+            }
+            _warnings.add(warning);
+            _loggedErrorsAndWarnings = false;
+        }
+
+        @Override
+        public void addError(String error) {
+            if (_errors.isEmpty()) {
+                _errors = new ArrayList<>();
+            }
+            _errors.add(error);
+            _loggedErrorsAndWarnings = false;
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import java.util.ArrayList;
@@ -67,7 +68,7 @@ public class NameDeclaration extends Declaration {
                 validNameChar = declaration.substringEquals(cidx - 5, cidx + 1, "<init>") ||
                         declaration.substringEquals(cidx - 15, cidx + 1, "<record_changer>");
             } else {
-                validNameChar = !MountiplexUtil.containsChar(c, invalid_name_chars);
+                validNameChar = !MountiplexUtil.containsChar(c, ParserStringBuffer.INVALID_NAME_CHARACTERS);
             }
 
             // Verify the first character of the name is valid, and set it

@@ -11,6 +11,8 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserGroups;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
@@ -92,21 +94,10 @@ public class MethodDeclaration extends Declaration {
         this.constructor = null;
         this.modifiers = nextModifier();
 
-        // Skip type variables, they may exist. For now do a simple replace between < > portions
-        //TODO: Make this better? It makes it overly complicated.
-        StringBuffer postfix = getPostfix();
-        if (postfix != null && postfix.length() > 0 && postfix.charAt(0) == '<') {
-            boolean foundEnd = false;
-            for (int cidx = 1; cidx < postfix.length(); cidx++) {
-                char c = postfix.charAt(cidx);
-                if (c == '>') {
-                    foundEnd = true;
-                } else if (foundEnd && !MountiplexUtil.containsChar(c, invalid_name_chars)) {
-                    setPostfix(postfix.substring(cidx));
-                    break;
-                }
-            }
-        }
+        final DeclarationParserContext parserContext = new BaseDeclarationParserContext();
+
+        // Skip type variables, they may exist
+        getParserPostfix().trimGenericTypes();
 
         this.returnType = nextType();
         this.name = nextName();
@@ -115,8 +106,8 @@ public class MethodDeclaration extends Declaration {
 
         // Check if there is a body attached to this method. This is the case when
         // the very next character encountered (excluding whitespace) is {
-        this.trimWhitespace(0);
-        postfix = this.getPostfix();
+        getParserPostfix().trimWhitespace(0);
+        StringBuffer postfix = this.getPostfix();
         if (postfix != null && postfix.startsWith("{")) {
             // Go line by line processing the body
             // This way we can still handle special macros
@@ -163,7 +154,7 @@ public class MethodDeclaration extends Declaration {
                 }
 
                 // Perform internal parsing of macros
-                while (this.nextInternal()) {
+                while (parserContext.runParsers(DeclarationParserGroups.BASE)) {
                     postfix = this.getPostfix();
                 }
             }
@@ -197,7 +188,7 @@ public class MethodDeclaration extends Declaration {
         }
 
         // Make sure to put a newline after the post data
-        this.trimWhitespace(0);
+        getParserPostfix().trimWhitespace(0);
         if (this.getPostfix() != null) {
             this.setPostfix(this.getPostfix().prepend("\n"));
         }
@@ -754,8 +745,8 @@ public class MethodDeclaration extends Declaration {
                 method = MPLType.getDeclaredMethod(this.getResolver().getDeclaredClass(), nameResolved.name.value(), nameResolved.parameters.toParamArray());
                 MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
                 if (result.match(nameResolved) && checkPublic(method)) {
-                    this.method = method;
-                    return this;
+                    nameResolved.method = method;
+                    return nameResolved;
                 }
             } catch (NoSuchMethodException | SecurityException e) {
                 // Ignored

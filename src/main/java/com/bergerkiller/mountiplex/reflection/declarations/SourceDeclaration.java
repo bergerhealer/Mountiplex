@@ -1,17 +1,14 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserGroups;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.SourceDeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**
@@ -23,169 +20,22 @@ public class SourceDeclaration extends Declaration {
     private SourceDeclaration(ClassResolver resolver, ClassLoader classLoader, File sourceDirectory, StringBuffer declaration) {
         super(resolver, preprocess(declaration));
 
-        trimWhitespace(0);
+        // Tracks classes being loaded
+        final ParserContext parserContext = new ParserContext(classLoader, sourceDirectory);
+
+        getParserPostfix().trimWhitespace(0);
 
         // Parse all segments
         StringBuffer postfix;
-        String templatefile = "";
-        LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
         while ((postfix = this.getPostfix()) != null && postfix.length() > 0) {
-            if (nextInternal()) {
-                continue;
-            }
-
-            boolean is_package = false;
-            boolean is_import = false;
-            boolean is_include = false;
-            boolean is_setpath = false;
-            boolean is_setvar = false;
-            if (postfix.startsWith("package ")) {
-                trimWhitespace(8);
-                is_package = true;
-            } else if (postfix.startsWith("import ")) {
-                trimWhitespace(7);
-                is_import = true;
-            } else if (postfix.startsWith("#include ")) {
-                trimWhitespace(9);
-                is_include = true;
-            } else if (postfix.startsWith("#setpath ")) {
-                trimWhitespace(9);
-                is_setpath = true;
-            } else if (postfix.startsWith("#set ")) {
-                trimWhitespace(5);
-                is_setvar = true;
-            }
-
-            // Parse package or import name, or include another source file
-            if (is_setvar) {
-                postfix = this.getPostfix();
-                int nameEndIdx = postfix.indexOf(' ');
-                if (nameEndIdx == -1) {
-                    setPostfix(StringBuffer.EMPTY);
-                    break;
-                }
-                String varName = postfix.substringToString(0, nameEndIdx);
-                String varValue = "";
-                trimWhitespace(nameEndIdx + 1);
-                postfix = this.getPostfix();
-                for (int cidx = 0; cidx < postfix.length(); cidx++) {
-                    char c = postfix.charAt(cidx);
-                    if (MountiplexUtil.containsChar(c, invalid_name_chars)) {
-                        varValue = postfix.substringToString(0, cidx);
-                        break;
-                    }
-                }
-                if (varValue == null) {
-                    varValue = postfix.toString();
-                }
-                this.trimLine();
-                this.getResolver().setVariable(varName, varValue);
-                continue;
-            } else if (is_package || is_import || is_include || is_setpath) {
-                String name = null;
-                postfix = this.getPostfix();
-                for (int cidx = 0; cidx < postfix.length(); cidx++) {
-                    char c = postfix.charAt(cidx);
-                    if (MountiplexUtil.containsChar(c, invalid_name_chars)) {
-                        name = postfix.substringToString(0, cidx);
-                        break;
-                    }
-                }
-                if (name == null) {
-                    name = postfix.toString();
-                }
-
-                this.trimLine();
-
-                if (is_package) {
-                    this.getResolver().setPackage(name);
-                }
-                if (is_import) {
-                    this.getResolver().addImport(name);
-                }
-                if (is_include) {
-                    if (name.startsWith(".") || name.startsWith("/")) {
-                        // Trim everything after the last / in the old template path
-                        int lastPathIdx = templatefile.lastIndexOf('/');
-                        if (lastPathIdx != -1) {
-                            name = templatefile.substring(0, lastPathIdx) + "/" + name;
-                        } else {
-                            name = templatefile + "/" + name;
-                        }
-
-                        // Repeatedly remove the word in front of /../
-                        int moveUpIdx;
-                        while ((moveUpIdx = name.indexOf("/../")) != -1) {
-                            int before = name.lastIndexOf('/', moveUpIdx - 1);
-                            if (before == -1) {
-                                name = name.substring(moveUpIdx + 4);
-                            } else {
-                                name = name.substring(0, before) + "/" + name.substring(moveUpIdx + 4);
-                            }
-                        }
-
-                        // Clean up the path
-                        name = name.replace("/./", "/").replace("//", "/");
-                    }
-
-                    // Load the resource pointed to by this name
-                    InputStream is;
-                    if (sourceDirectory == null) {
-                        if (classLoader == null) {
-                            classLoader = SourceDeclaration.class.getClassLoader();
-                        }
-                        is = classLoader.getResourceAsStream(name);
-                    } else {
-                        try {
-                            String path = sourceDirectory.getAbsolutePath() + File.separator + name.replace("/", File.separator);
-                            is = new FileInputStream(path);
-                        } catch (FileNotFoundException e) {
-                            is = null;
-                        }
-                    }
-
-                    if (is == null) {
-                        MountiplexUtil.LOGGER.warning("Could not resolve include while parsing template: " + name);
-                        MountiplexUtil.LOGGER.warning("Template file: " + templatefile);
-                    } else {
-                        String inclSourceStr;
-                        try {
-                            try (ByteArrayOutputStream result = new ByteArrayOutputStream()) {
-                                int length;
-                                byte[] buffer = new byte[1024];
-                                while ((length = is.read(buffer)) != -1) {
-                                    result.write(buffer, 0, length);
-                                }
-                                inclSourceStr = result.toString("UTF-8");
-                            }
-                        } catch (Throwable t) {
-                            MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to load template " + name, t);
-                            inclSourceStr = "";
-                        }
-
-                        if (!inclSourceStr.isEmpty()) {
-                            // Load this source file
-                            StringBuilder subSource = new StringBuilder();
-                            subSource.append(getResolver().saveDeclaration()).append("\n");
-                            subSource.append("#setpath ").append(name).append("\n");
-                            subSource.append(inclSourceStr);
-
-                            SourceDeclaration inclSource = new SourceDeclaration(this.getResolver(), classLoader, sourceDirectory, StringBuffer.of(subSource));
-
-                            classes.addAll(Arrays.asList(inclSource.classes));
-                        }
-                    }
-                }
-                if (is_setpath) {
-                    templatefile = name;
-                }
+            if (parserContext.runParsers(DeclarationParserGroups.SOURCE)) {
                 continue;
             }
 
             // Read classes
             ClassDeclaration cDec = nextClass();
             if (cDec.isValid()) {
-                classes.add(cDec);
+                parserContext.classes.add(cDec);
             } else {
                 MountiplexUtil.LOGGER.warning("Invalid class declaration parsed:\n" + cDec);
                 this.setInvalid();
@@ -193,7 +43,7 @@ public class SourceDeclaration extends Declaration {
                 return;
             }
         }
-        this.classes = classes.toArray(new ClassDeclaration[classes.size()]);
+        this.classes = parserContext.getClasses();
     }
 
     public static StringBuffer preprocess(StringBuffer declaration) {
@@ -277,6 +127,56 @@ public class SourceDeclaration extends Declaration {
     @Override
     public double similarity(Declaration other) {
     	return 0.0; // not implemented
+    }
+
+    private class ParserContext extends BaseDeclarationParserContext implements SourceDeclarationParserContext {
+        private ClassLoader classLoader;
+        private final File currentDirectory;
+        private String templateFile = "";
+        private LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
+
+        public ParserContext(ClassLoader classLoader, File currentDirectory) {
+            this.classLoader = classLoader;
+            this.currentDirectory = currentDirectory;
+        }
+
+        public ClassDeclaration[] getClasses() {
+            return classes.toArray(new ClassDeclaration[classes.size()]);
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            if (classLoader == null) {
+                classLoader = SourceDeclaration.class.getClassLoader();
+            }
+            return classLoader;
+        }
+
+        @Override
+        public File getCurrentDirectory() {
+            return currentDirectory;
+        }
+
+        @Override
+        public void includeSource(StringBuffer subSource) {
+            SourceDeclaration inclSource = new SourceDeclaration(
+                    getResolver(),
+                    classLoader,
+                    currentDirectory,
+                    subSource);
+
+            classes.addAll(Arrays.asList(inclSource.classes));
+        }
+
+        @Override
+        public void setCurrentTemplateFile(String path) {
+            templateFile = path;
+        }
+
+        @Override
+        public String getCurrentTemplateFile() {
+            return templateFile;
+        }
     }
 
     /**
