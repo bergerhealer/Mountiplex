@@ -420,8 +420,10 @@ public class FieldDeclaration extends Declaration {
         // those remapping rules.
         Remapping.FieldRemapping remapping = getResolver().getRemappings().find(this);
         if (remapping != null) {
-            return new FieldDeclaration(remapping.declaration,
+            FieldDeclaration remappedSelf = new FieldDeclaration(this,
                     this.name.rename(remapping.declaration.name));
+            remappedSelf.field = remapping.field;
+            return remappedSelf;
         }
 
         String resolvedName = Resolver.resolveFieldName(this.getResolver().getDeclaredClass(), this.name.value());

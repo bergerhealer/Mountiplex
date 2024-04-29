@@ -1008,8 +1008,10 @@ public class MethodDeclaration extends Declaration {
         // those remapping rules.
         Remapping.MethodRemapping remapping = getResolver().getRemappings().find(this);
         if (remapping != null) {
-            return new MethodDeclaration(remapping.declaration,
+            MethodDeclaration remappedSelf = new MethodDeclaration(this,
                     this.name.rename(remapping.declaration.name));
+            remappedSelf.method = remapping.method;
+            return remappedSelf;
         }
 
         String resolvedName = Resolver.resolveMethodName(this.getResolver().getDeclaredClass(), this.name.value(), this.parameters.toParamArray());
