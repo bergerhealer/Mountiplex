@@ -545,19 +545,18 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     }
 
     /**
-     * Includes instructions to unbox a boxed value to a primitive value on the stack.
-     * If no primitive type is requested, only a checked cast is performed.
+     * Includes instructions to unbox a boxed Object value to a primitive value on the stack.
+     * If no primitive type is requested, only a checked cast is performed to the right type.
      * 
      * @param mv method visitor
      * @param outType type to unbox or cast to
      */
-    public static void visitUnboxVariable(MethodVisitor mv, java.lang.Class<?> outType) {
+    public static void visitUnboxObjectVariable(MethodVisitor mv, java.lang.Class<?> outType) {
         if (outType.isPrimitive()) {
             Class<?> boxedType = BoxedType.getBoxedType(outType);
             if (boxedType != null) {
                 mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(boxedType));
-                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(boxedType),
-                        MPLType.getName(outType) + "Value", "()" + MPLType.getDescriptor(outType), false);
+                MPLType.visitUnboxVariable(mv, outType);
             }
         } else if (outType.isArray()) {
             mv.visitTypeInsn(CHECKCAST, MPLType.getDescriptor(outType));

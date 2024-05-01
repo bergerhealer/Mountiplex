@@ -234,7 +234,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             }
 
             // Cast/unbox it
-            ExtendedClassWriter.visitUnboxVariable(mv, param.type.type);
+            ExtendedClassWriter.visitUnboxObjectVariable(mv, param.type.type);
 
             // Store on stack
             storeIndex = MPLType.visitVarIStore(mv, storeIndex, param.type.type);
@@ -249,7 +249,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             if (instanceType != null) {
                 mv.visitVarInsn(ALOAD, 1);
                 if (mustCastType(instanceType)) {
-                    ExtendedClassWriter.visitUnboxVariable(mv, instanceType);
+                    ExtendedClassWriter.visitUnboxObjectVariable(mv, instanceType);
                     invokeDescriptor.append(MPLType.getDescriptor(instanceType));
                 } else {
                     invokeDescriptor.append("Ljava/lang/Object;");

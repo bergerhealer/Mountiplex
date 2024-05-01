@@ -43,6 +43,8 @@ public abstract class TestObjectHandle extends Template.Handle {
     public abstract void setLocalFinalField(String value);
     public abstract String getIntConvField();
     public abstract void setIntConvField(String value);
+    public abstract short getIntToShortConvField();
+    public abstract void setIntToShortConvField(short value);
     public abstract List<String> getTestRawField();
     public abstract void setTestRawField(List<String> value);
     public abstract UniqueType getOneWay();
@@ -62,6 +64,7 @@ public abstract class TestObjectHandle extends Template.Handle {
         public final Template.Field<String> localField = new Template.Field<String>();
         public final Template.Field<String> localFinalField = new Template.Field<String>();
         public final Template.Field.Converted<String> intConvField = new Template.Field.Converted<String>();
+        public final Template.Field.Converted<Short> intToShortConvField = new Template.Field.Converted<Short>();
         public final Template.Method<Integer> testFunc = new Template.Method<Integer>();
         public final Template.Method.Converted<String> testConvFunc1 = new Template.Method.Converted<String>();
         public final Template.Method.Converted<Integer> testConvFunc2 = new Template.Method.Converted<Integer>();

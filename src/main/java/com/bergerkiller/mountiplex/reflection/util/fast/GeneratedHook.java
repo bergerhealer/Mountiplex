@@ -236,7 +236,7 @@ public class GeneratedHook {
             mv.visitFrame(F_SAME, 0, null, 0, null);
             mv.visitFieldInsn(GETSTATIC, cw.getInternalName(), fieldSupplierFieldName, MPLType.getDescriptor(Supplier.class));
             mv.visitMethodInsn(INVOKEINTERFACE, MPLType.getInternalName(Supplier.class), "get", "()Ljava/lang/Object;", true);
-            ExtendedClassWriter.visitUnboxVariable(mv, method.getReturnType());
+            ExtendedClassWriter.visitUnboxObjectVariable(mv, method.getReturnType());
 
             // Offset register by parameters of the method signature (those are ignored)
             int varResultIdx = 1; 
@@ -314,7 +314,7 @@ public class GeneratedHook {
             mv.visitInsn(POP);
             mv.visitInsn(RETURN);
         } else {
-            ExtendedClassWriter.visitUnboxVariable(mv, method.getReturnType());
+            ExtendedClassWriter.visitUnboxObjectVariable(mv, method.getReturnType());
             mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
         }
 

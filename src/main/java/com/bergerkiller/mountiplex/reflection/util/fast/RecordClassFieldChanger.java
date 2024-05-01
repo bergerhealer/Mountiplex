@@ -146,7 +146,7 @@ public abstract class RecordClassFieldChanger<T> implements GeneratedExactSignat
             int position = 2;
             for (RecordComponent comp : recordsToSet) {
                 methodVisitor.visitVarInsn(ALOAD, position++);
-                ExtendedClassWriter.visitUnboxVariable(methodVisitor, comp.type);
+                ExtendedClassWriter.visitUnboxObjectVariable(methodVisitor, comp.type);
             }
 
             methodVisitor.visitMethodInsn(INVOKESTATIC, classWriter.getInternalName(), nameAlias, changeMethodDescriptor, false);
@@ -169,7 +169,7 @@ public abstract class RecordClassFieldChanger<T> implements GeneratedExactSignat
                 methodVisitor.visitVarInsn(ALOAD, 2);
                 ExtendedClassWriter.visitPushInt(methodVisitor, index++);
                 methodVisitor.visitInsn(AALOAD);
-                ExtendedClassWriter.visitUnboxVariable(methodVisitor, comp.type);
+                ExtendedClassWriter.visitUnboxObjectVariable(methodVisitor, comp.type);
             }
 
             methodVisitor.visitMethodInsn(INVOKESTATIC, classWriter.getInternalName(), nameAlias, changeMethodDescriptor, false);

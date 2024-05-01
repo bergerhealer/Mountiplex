@@ -43,6 +43,7 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
                 "    private String localField:b;\n" +
                 "    private final String localFinalField:b_f;\n" +
                 "    private (String) int intConvField:c;\n" +
+                "    private (short) int intToShortConvField:c;\n" +
                 "    public final (List<String>) List<Integer> testRawField;\n" +
                 "    public optional String unusedField:###;\n" +
                 "    public readonly final (UniqueType) OneWayConvertableType oneWay;\n" +

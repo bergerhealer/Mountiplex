@@ -221,6 +221,23 @@ public class MPLType {
     }
 
     /**
+     * Includes instructions to unbox a boxed value on the stack to its primitive value.
+     * <i>void</i> types are turned into <i>null</i>.
+     * If the type specified isn't primitive, no instructions are included at all.
+     *
+     * @param mv method visitor
+     * @param primType primitive type to unbox into (Integer -> int)
+     */
+    public static void visitUnboxVariable(MethodVisitor mv, java.lang.Class<?> primType) {
+        if (primType == void.class) {
+            mv.visitInsn(ACONST_NULL);
+        } else if (primType.isPrimitive()) {
+            mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(BoxedType.getBoxedType(primType)),
+                    primType.getSimpleName() + "Value", "()" + MPLType.getDescriptor(primType), false);
+        }
+    }
+
+    /**
      * Visits a variable ILOAD instruction for a given Class type
      * 
      * @param mv Method visitor

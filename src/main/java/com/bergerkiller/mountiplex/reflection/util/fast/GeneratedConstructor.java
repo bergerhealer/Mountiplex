@@ -120,7 +120,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitInsn(ICONST_0 + i);
                 mv.visitInsn(AALOAD);
-                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+                ExtendedClassWriter.visitUnboxObjectVariable(mv, paramTypes[i]);
             }
             ExtendedClassWriter.visitInit(mv, instanceType, constructor);
             mv.visitInsn(ARETURN);
@@ -136,7 +136,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
             mv.visitInsn(DUP);
             for (int i = 0; i < paramTypes.length; i++) {
                 mv.visitVarInsn(ALOAD, 1 + i);
-                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+                ExtendedClassWriter.visitUnboxObjectVariable(mv, paramTypes[i]);
             }
             ExtendedClassWriter.visitInit(mv, instanceType, constructor);
             mv.visitInsn(ARETURN);

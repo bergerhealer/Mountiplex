@@ -209,8 +209,8 @@ public class TemplateHandleBuilder<H extends Handle> {
                     mv.visitVarInsn(ALOAD, 0);
                     mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                     mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "get" + accessorName, "(Ljava/lang/Object;)" + accessorType, false);
-                    if (accessorName.isEmpty() && !fieldType.equals(Object.class)) {
-                        mv.visitTypeInsn(CHECKCAST, MPLType.getInternalName(fieldType));
+                    if (accessorName.isEmpty()) {
+                        ExtendedClassWriter.visitUnboxObjectVariable(mv, fieldType);
                     }
                 }
                 mv.visitInsn(MPLType.getOpcode(fieldType, IRETURN));
@@ -233,6 +233,9 @@ public class TemplateHandleBuilder<H extends Handle> {
                         mv.visitVarInsn(ALOAD, 0);
                         mv.visitFieldInsn(GETFIELD, cw.getInternalName(), "instance", instanceTypeDesc);
                         mv.visitVarInsn(MPLType.getOpcode(fieldType, ILOAD), 1);
+                        if (accessorName.isEmpty()) {
+                            MPLType.visitBoxVariable(mv, fieldType);
+                        }
                         mv.visitMethodInsn(INVOKEVIRTUAL, templateElementName, "set" + accessorName, "(Ljava/lang/Object;" + accessorType + ")V", false);
                     }
                     mv.visitInsn(RETURN);
@@ -378,7 +381,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                     } else if (returnType.equals(Object.class)) {
                         mv.visitInsn(ARETURN);
                     } else {
-                        ExtendedClassWriter.visitUnboxVariable(mv, returnType);
+                        ExtendedClassWriter.visitUnboxObjectVariable(mv, returnType);
                         mv.visitInsn(MPLType.getOpcode(returnType, IRETURN));
                     }
                 }

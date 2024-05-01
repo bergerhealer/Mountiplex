@@ -57,6 +57,12 @@ public class TemplateTest {
             assertEquals("Field oneWay is readonly", ex.getMessage());
         }
         assertNotNull(TestObjectHandle.T.oneWay.get(object));
+
+        // Test int <> short conversion
+        TestObjectHandle.T.intToShortConvField.set(object, (short) 15);
+        assertEquals(Short.valueOf((short) 15), TestObjectHandle.T.intToShortConvField.get(object));
+        TestObjectHandle.T.intToShortConvField.set(object, (short) 12);
+        assertEquals(Short.valueOf((short) 12), TestObjectHandle.T.intToShortConvField.get(object));
     }
 
     // Same test as above, but uses handle instead
@@ -98,6 +104,12 @@ public class TemplateTest {
             assertEquals("Field oneWay is readonly", ex.getMessage());
         }
         assertNotNull(handle.getOneWay());
+
+        // Test int <> short conversion
+        handle.setIntToShortConvField((short) 15);
+        assertEquals((short) 15, handle.getIntToShortConvField());
+        handle.setIntToShortConvField((short) 12);
+        assertEquals((short) 12, handle.getIntToShortConvField());
     }
 
     private void test_PrivateTestObject() {
@@ -107,6 +119,7 @@ public class TemplateTest {
         assertEquals("test", handle.getField());
         assertEquals("test", handle.method());
     }
+
 
     @Test
     public void testTemplate() {

@@ -108,7 +108,7 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
                 mv.visitVarInsn(ALOAD, 2);
                 ExtendedClassWriter.visitPushInt(mv, i);
                 mv.visitInsn(AALOAD);
-                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+                ExtendedClassWriter.visitUnboxObjectVariable(mv, paramTypes[i]);
             }
             if (executable instanceof java.lang.reflect.Method) {
                 ExtendedClassWriter.visitInvoke(mv, instanceType, (java.lang.reflect.Method) executable);
@@ -154,7 +154,7 @@ public abstract class GeneratedInvoker<T> implements Invoker<T> {
             }
             for (int i = 0; i < paramTypes.length; i++) {
                 mv.visitVarInsn(ALOAD, 2 + i);
-                ExtendedClassWriter.visitUnboxVariable(mv, paramTypes[i]);
+                ExtendedClassWriter.visitUnboxObjectVariable(mv, paramTypes[i]);
             }
             if (executable instanceof java.lang.reflect.Method) {
                 ExtendedClassWriter.visitInvoke(mv, instanceType, (java.lang.reflect.Method) executable);

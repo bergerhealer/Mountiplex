@@ -294,7 +294,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     for (ParameterDeclaration param : methodDec.parameters.parameters) {
                         varIdx = MPLType.visitVarILoad(mv, varIdx, param.type.exposed().type);
                         if (param.type.cast != null) {
-                            ExtendedClassWriter.visitUnboxVariable(mv, param.type.type);
+                            ExtendedClassWriter.visitUnboxObjectVariable(mv, param.type.type);
                         }
                     }
 
@@ -308,7 +308,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                                 MPLType.getInternalMethodDescriptor(methodDec), false);
                     }
                     if (methodDec.returnType.cast != null) {
-                        ExtendedClassWriter.visitUnboxVariable(mv, methodDec.returnType.cast.type);
+                        ExtendedClassWriter.visitUnboxObjectVariable(mv, methodDec.returnType.cast.type);
                     }
                     mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
                     if (methodDec.constructor != null) {
@@ -381,7 +381,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     } else {
                         // Return type is Object, if not already Object, convert to the right return value
                         // We might need to unbox values such as Integer/Long/etc.
-                        ExtendedClassWriter.visitUnboxVariable(mv, method.getReturnType());
+                        ExtendedClassWriter.visitUnboxObjectVariable(mv, method.getReturnType());
                         mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
                     }
 
