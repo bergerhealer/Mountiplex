@@ -315,7 +315,7 @@ public class TemplateGenerator {
                     String fieldTypeStr = "Template.EnumConstant";
                     if (hasConversion(fDec)) {
                         fieldTypeStr += ".Converted";
-                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
+                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast, true) + ">";
                     } else {
                         fieldTypeStr += "<" + getFieldTypeStr(fDec) + ">";
                     }
@@ -354,7 +354,7 @@ public class TemplateGenerator {
                     String fieldTypeStr = "Template.StaticField";
                     if (hasConversion(fDec)) {
                         fieldTypeStr += ".Converted";
-                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
+                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast, true) + ">";
                     } else {
                         String primTypeStr = getPrimFieldType(fDec);
                         if (!primTypeStr.isEmpty()) {
@@ -381,7 +381,7 @@ public class TemplateGenerator {
                     String fieldTypeStr = "Template.Field";
                     if (hasConversion(fDec)) {
                         fieldTypeStr += ".Converted";
-                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast) + ">";
+                        fieldTypeStr += "<" + getTypeStr(fDec.type.cast, true) + ">";
                     } else {
                         String primTypeStr = getPrimFieldType(fDec);
                         if (!primTypeStr.isEmpty()) {
@@ -592,13 +592,13 @@ public class TemplateGenerator {
         if (returnType.type != null && returnType.type.isPrimitive()) {
             app += "<" + BoxedType.getBoxedType(returnType.type).getSimpleName() + ">"; 
         } else {
-            app += "<" + getTypeStr(returnType) + ">";
+            app += "<" + getTypeStr(returnType, true) + ">";
         }
         return app;
     }
 
     private String getExposedTypeStr(TypeDeclaration type) {
-        return getTypeStr(type.exposed());
+        return getTypeStr(type.exposed(), false);
     }
 
     private String getFieldTypeStr(FieldDeclaration fDec) {
@@ -629,12 +629,16 @@ public class TemplateGenerator {
     }
 
     // gets the type string while automatically adding/resolving imports
-    private String getTypeStr(TypeDeclaration type) {
+    private String getTypeStr(TypeDeclaration type, boolean isGenericType) {
         if (type.isArray()) {
-            return getTypeStr(type.getComponentType()) + "[]";
+            // Array types are fine as generic types
+            return getTypeStr(type.getComponentType(), false) + "[]";
         }
         String fullType;
-        if (type.isBuiltin()) {
+        if (isGenericType && type.isPrimitive) {
+            // Box it
+            fullType = BoxedType.getBoxedType(type.type).getSimpleName();
+        } else if (type.isBuiltin()) {
             fullType = type.typeName;
         } else {
             fullType = resolveImport(type.typePath);
@@ -655,7 +659,7 @@ public class TemplateGenerator {
                 } else {
                     fullType += ", ";
                 }
-                fullType += getTypeStr(gen);
+                fullType += getTypeStr(gen, true);
             }
             fullType += ">";
         }
