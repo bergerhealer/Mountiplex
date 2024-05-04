@@ -355,24 +355,32 @@ public class FieldDeclaration extends Declaration {
         java.lang.reflect.Field javaField;
         try {
             FieldDeclaration nameResolved = this.resolveName();
-            javaField = nameResolved.field;
-            if (javaField == null) {
+            if (nameResolved.field == null) {
+                // Find the actual field
                 javaField = MPLType.getDeclaredField(this.getResolver().getDeclaredClass(), nameResolved.name.value());
-            }
-            FieldDeclaration realField = new FieldDeclaration(this.getResolver(), javaField);
+                FieldDeclaration realField = new FieldDeclaration(this.getResolver(), javaField);
 
-            // Check matching
-            if (!nameResolved.match(realField)) {
-                return null;
+                // Check still matching
+                if (!nameResolved.match(realField)) {
+                    return null;
+                }
+
+                // Field must be public when declaration says it's public
+                if (this.modifiers.isPublic() && !Modifier.isPublic(realField.field.getModifiers())) {
+                    return null;
+                }
+
+                // OK! Assign field to this name
+                nameResolved.copyFieldFrom(realField);
+            } else {
+                // Field must be public when declaration says it's public
+                if (this.modifiers.isPublic() && !Modifier.isPublic(nameResolved.field.getModifiers())) {
+                    return null;
+                }
             }
 
-            // Field must be public when declaration says it's public
-            if (this.modifiers.isPublic() && !Modifier.isPublic(realField.field.getModifiers())) {
-                return null;
-            }
-
-            this.copyFieldFrom(realField);
-            return new FieldDeclaration(this, this.name.rename(nameResolved.name));
+            this.copyFieldFrom(nameResolved);
+            return nameResolved;
         } catch (NoSuchFieldException ex) {
             // Not found
         } catch (Throwable t) {
