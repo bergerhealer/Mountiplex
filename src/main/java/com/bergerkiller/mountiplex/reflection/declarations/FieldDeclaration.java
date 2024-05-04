@@ -431,6 +431,7 @@ public class FieldDeclaration extends Declaration {
             FieldDeclaration remappedSelf = new FieldDeclaration(this,
                     this.name.rename(remapping.declaration.name));
             remappedSelf.field = remapping.field;
+            remappedSelf.isEnum = remapping.field.isEnumConstant();
             return remappedSelf;
         }
 
