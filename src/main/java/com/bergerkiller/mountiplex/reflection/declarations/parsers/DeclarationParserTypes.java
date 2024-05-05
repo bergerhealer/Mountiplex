@@ -270,19 +270,18 @@ public final class DeclarationParserTypes {
     public static final DeclarationParser CODE_BLOCK = new DeclarationParser() {
         @Override
         public boolean detect(ParserStringBuffer buffer, DeclarationParserContext context) {
-            return buffer.startsWith("<code>") &&
-                    buffer.get().indexOf("</code>", 6) != -1;
+            return buffer.startsWith("<code>");
         }
 
         @Override
         public void parse(ParserStringBuffer buffer, DeclarationParserContext origContext) {
             ClassDeclarationParserContext context = (ClassDeclarationParserContext) origContext;
 
-            buffer.trimWhitespace(6);
-
             int endIdx = buffer.get().indexOf("</code>");
-            if (endIdx != -1) {
-                String code = buffer.get().substringToString(0, endIdx);
+            if (endIdx == -1) {
+                buffer.trimWhitespace(6);
+            } else {
+                String code = buffer.get().substringToString(7, endIdx);
 
                 // Identify "import <name>;" at the beginning of the code block
                 // These are extracted and put at the top of the actual file
