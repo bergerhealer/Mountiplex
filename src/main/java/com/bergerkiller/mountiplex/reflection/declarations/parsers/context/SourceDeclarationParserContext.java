@@ -1,4 +1,4 @@
-package com.bergerkiller.mountiplex.reflection.declarations.parsers;
+package com.bergerkiller.mountiplex.reflection.declarations.parsers.context;
 
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 

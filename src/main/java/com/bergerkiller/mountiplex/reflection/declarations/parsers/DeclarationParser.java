@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations.parsers;
 
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.DeclarationParserContext;
+
 /**
  * This parser receives information about the textual contents of template code being parsed,
  * and can then make changes to the underlying declaration.

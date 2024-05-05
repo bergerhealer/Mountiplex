@@ -1,6 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations.parsers;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.DeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**

@@ -6,6 +6,9 @@ import com.bergerkiller.mountiplex.reflection.declarations.FieldDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.declarations.Remapping;
 import com.bergerkiller.mountiplex.reflection.declarations.Requirement;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.ClassDeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.DeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.SourceDeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 import java.io.ByteArrayOutputStream;
@@ -260,6 +263,90 @@ public final class DeclarationParserTypes {
             buffer.trimLine();
 
             context.getResolver().setVariable(varName, varValue);
+        }
+    };
+
+    /** Keeps track of code blocks that must be included for a template class handle implementation */
+    public static final DeclarationParser CODE_BLOCK = new DeclarationParser() {
+        @Override
+        public boolean detect(ParserStringBuffer buffer, DeclarationParserContext context) {
+            return buffer.startsWith("<code>") &&
+                    buffer.get().indexOf("</code>", 6) != -1;
+        }
+
+        @Override
+        public void parse(ParserStringBuffer buffer, DeclarationParserContext origContext) {
+            ClassDeclarationParserContext context = (ClassDeclarationParserContext) origContext;
+
+            buffer.trimWhitespace(6);
+
+            int endIdx = buffer.get().indexOf("</code>");
+            if (endIdx != -1) {
+                String code = buffer.get().substringToString(0, endIdx);
+
+                // Identify "import <name>;" at the beginning of the code block
+                // These are extracted and put at the top of the actual file
+                int searchStartIndex = 0, startIndex;
+                while ((startIndex = code.indexOf("import ", searchStartIndex)) != -1) {
+                    // Must have a statement end
+                    int statementEnd = code.indexOf(';', startIndex + 7);
+                    if (statementEnd == 1) {
+                        break;
+                    }
+
+                    // Statement end must be before a line end
+                    int lineEnd = code.indexOf('\n', startIndex + 7);
+                    if (lineEnd != -1 && lineEnd < statementEnd) {
+                        searchStartIndex = lineEnd;
+                        continue;
+                    }
+
+                    // Contents before import must be all whitespace up to a newline character
+                    int importLineStart = startIndex;
+                    boolean validImport = true;
+                    for (int i = startIndex - 1; i >= 0; --i) {
+                        char c = code.charAt(i);
+                        if (c == '\n') {
+                            break;
+                        } else if (c == ' ') {
+                            importLineStart = i;
+                            continue;
+                        } else {
+                            validImport = false;
+                            break;
+                        }
+                    }
+                    if (!validImport) {
+                        searchStartIndex = statementEnd + 1;
+                        continue;
+                    }
+
+                    // Extract the import and add
+                    context.addCodeImport(code.substring(startIndex + 7, statementEnd).trim());
+
+                    // Find the end of the line to trim it
+                    int importLineEnd = statementEnd + 1;
+                    while (importLineEnd < code.length()) {
+                        char c = code.charAt(importLineEnd);
+                        if (c == ' ') {
+                            importLineEnd++;
+                        } else if (c == '\n') {
+                            importLineEnd++; // Omit newline character too
+                            break;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Exclude this line from the code block itself
+                    code = code.substring(0, importLineStart) + code.substring(importLineEnd);
+                    searchStartIndex = importLineStart;
+                }
+
+                context.appendCode(code);
+                buffer.set(buffer.get().substring(endIdx + 7));
+                buffer.trimLine();
+            }
         }
     };
 }

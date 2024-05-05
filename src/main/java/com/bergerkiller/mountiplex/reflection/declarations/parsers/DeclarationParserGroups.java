@@ -35,4 +35,10 @@ public class DeclarationParserGroups {
             SET_PATH,
             SET_VARIABLE
     )).toArray(DeclarationParser[]::new);
+
+    /**
+     * Parsers active in the class area
+     */
+    public static final DeclarationParser[] CLASS = Stream.concat(MountiplexUtil.toStream(CODE_BLOCK),
+            Arrays.stream(BASE)).toArray(DeclarationParser[]::new);;
 }

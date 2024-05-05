@@ -11,7 +11,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
-import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.DeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserGroups;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;

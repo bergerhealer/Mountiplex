@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserGroups;
-import com.bergerkiller.mountiplex.reflection.declarations.parsers.SourceDeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.SourceDeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 
 /**

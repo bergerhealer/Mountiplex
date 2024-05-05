@@ -1,14 +1,17 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.ReflectionUtil;
-import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserGroups;
 import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.ClassDeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
@@ -24,6 +27,7 @@ public class ClassDeclaration extends Declaration {
     public final MethodDeclaration[] methods;
     public final FieldDeclaration[] fields;
     public final String code; /* custom code section, used during generation only */
+    public final List<String> codeImports; /* imports required for the code sections */
     public final boolean is_interface;
 
     public ClassDeclaration(ClassResolver resolver, Class<?> type) {
@@ -34,6 +38,7 @@ public class ClassDeclaration extends Declaration {
         this.type = TypeDeclaration.fromClass(type);
         this.modifiers = new ModifierDeclaration(getResolver(), type.getModifiers());
         this.code = "";
+        this.codeImports = Collections.emptyList();
 
         this.getResolver().setDeclaredClass(type);
 
@@ -78,6 +83,7 @@ public class ClassDeclaration extends Declaration {
         this.modifiers = nextModifier();
         if (!this.isValid()) {
             this.code = "";
+            this.codeImports = Collections.emptyList();
             this.base = null;
             this.type = null;
             this.subclasses = new ClassDeclaration[0];
@@ -95,6 +101,7 @@ public class ClassDeclaration extends Declaration {
             this.base = null;
             this.type = null;
             this.code = "";
+            this.codeImports = Collections.emptyList();
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
@@ -107,6 +114,7 @@ public class ClassDeclaration extends Declaration {
         if (!this.isValid()) {
             this.base = null;
             this.code = "";
+            this.codeImports = Collections.emptyList();
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
@@ -141,6 +149,7 @@ public class ClassDeclaration extends Declaration {
         }
         if (startIdx == -1) {
             this.code = "";
+            this.codeImports = Collections.emptyList();
             this.subclasses = new ClassDeclaration[0];
             this.constructors = new ConstructorDeclaration[0];
             this.methods = new MethodDeclaration[0];
@@ -150,31 +159,20 @@ public class ClassDeclaration extends Declaration {
         }
         getParserPostfix().trimWhitespace(startIdx);
 
-        final DeclarationParserContext parserContext = new BaseDeclarationParserContext();
+        final ParserContext parserContext = new ParserContext();
 
-        StringBuilder codeStr = new StringBuilder();
         LinkedList<ClassDeclaration> classes = new LinkedList<ClassDeclaration>();
         LinkedList<ConstructorDeclaration> constructors = new LinkedList<ConstructorDeclaration>();
         LinkedList<MethodDeclaration> methods = new LinkedList<MethodDeclaration>();
         LinkedList<FieldDeclaration> fields = new LinkedList<FieldDeclaration>();
         while ((postfix = getPostfix()) != null && postfix.length() > 0) {
-            if (parserContext.runParsers(DeclarationParserGroups.BASE)) {
+            if (parserContext.runParsers(DeclarationParserGroups.CLASS)) {
                 continue;
             }
 
             if (postfix.charAt(0) == '}') {
                 getParserPostfix().trimWhitespace(1);
                 break;
-            }
-
-            if (postfix.startsWith("<code>")) {
-                int endIdx = postfix.indexOf("</code>", 6);
-                if (endIdx != -1) {
-                    codeStr.append(SourceDeclaration.trimIndentation(postfix.substringToString(6, endIdx)));
-                    setPostfix(postfix.substring(endIdx + 7));
-                    getParserPostfix().trimLine();
-                    continue;
-                }
             }
 
             ClassDeclaration cldec = new ClassDeclaration(getResolver(), postfix);
@@ -196,7 +194,9 @@ public class ClassDeclaration extends Declaration {
                 break;
             }
         }
-        this.code = codeStr.toString();
+        this.code = parserContext.codeStr.toString();
+        this.codeImports = parserContext.codeImports.isEmpty() ?
+                Collections.emptyList() : Collections.unmodifiableList(parserContext.codeImports);
         this.subclasses = classes.toArray(new ClassDeclaration[classes.size()]);
         this.constructors = constructors.toArray(new ConstructorDeclaration[constructors.size()]);
         this.methods = methods.toArray(new MethodDeclaration[methods.size()]);
@@ -435,5 +435,23 @@ public class ClassDeclaration extends Declaration {
     @Override
     protected void debugString(StringBuilder str, String indent) {
         
+    }
+
+    private class ParserContext extends BaseDeclarationParserContext implements ClassDeclarationParserContext {
+        public StringBuilder codeStr = new StringBuilder();
+        public List<String> codeImports = new ArrayList<>();
+
+        public ParserContext() {
+        }
+
+        @Override
+        public void appendCode(String code) {
+            codeStr.append(SourceDeclaration.trimIndentation(code));
+        }
+
+        @Override
+        public void addCodeImport(String importPath) {
+            codeImports.add(importPath);
+        }
     }
 }

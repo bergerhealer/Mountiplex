@@ -5,9 +5,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -19,6 +22,7 @@ public class TemplateGenerator {
     private String path = "";
     private StringBuilder builder = new StringBuilder();
     private Map<String, String> imports = new TreeMap<String, String>();
+    private Set<String> codeImports = new TreeSet<>();
     private int indent = 0;
     private Map<TypeDeclaration, TemplateGenerator> generatorPool = null;
 
@@ -58,17 +62,30 @@ public class TemplateGenerator {
         addLine();
 
         String classRoot = this.path + "." + this.handleName(this.rootClassDec);
-        for (String importPath : this.imports.values()) {
-            // Verify this import is not in the root class file
-            if (importPath.startsWith(classRoot)) {
-                continue;
+
+        // Add all imports for declarations and code block imports
+        {
+            Collection<String> allImports;
+            if (codeImports.isEmpty()) {
+                allImports = this.imports.values();
+            } else {
+                allImports = new TreeSet<>(codeImports);
+                allImports.addAll(this.imports.values());
             }
-            // Verify this import is not another import in the same package
-            if (importPath.startsWith(this.path) && !importPath.substring(this.path.length() + 1).contains(".")) {
-                continue;
+
+            for (String importPath : allImports) {
+                // Verify this import is not in the root class file
+                if (importPath.startsWith(classRoot)) {
+                    continue;
+                }
+                // Verify this import is not another import in the same package
+                if (importPath.startsWith(this.path) && !importPath.substring(this.path.length() + 1).contains(".")) {
+                    continue;
+                }
+                addLine("import " + importPath);
             }
-            addLine("import " + importPath);
         }
+
         this.builder.append(resultStr);
         String templateContents = this.builder.toString();
 
@@ -118,6 +135,7 @@ public class TemplateGenerator {
         if (classDec.type.typePath.equals("")) {
             return; // don't know why this happens, but it does
         }
+
         String extendedHandleType = "Template.Handle";
         TypeDeclaration baseType = classDec.base;
         if (baseType != null && generatorPool != null) {
@@ -252,6 +270,9 @@ public class TemplateGenerator {
                     }
                     addAbstractMethodBody(mDec);
                 }
+
+                // Code imports
+                codeImports.addAll(classDec.codeImports);
 
                 // Custom code section
                 if (classDec.code.length() > 0) {

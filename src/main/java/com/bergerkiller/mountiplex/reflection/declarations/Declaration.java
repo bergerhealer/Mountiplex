@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
-import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParserContext;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.DeclarationParserContext;
 import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
 import com.bergerkiller.mountiplex.reflection.util.ExtendedClassWriter;
 import com.bergerkiller.mountiplex.reflection.util.StringBuffer;

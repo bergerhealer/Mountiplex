@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.declarations.parsers;
 
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.context.DeclarationParserContext;
+
 /**
  * Identifies a line starting with a #macro followed by a space
  */

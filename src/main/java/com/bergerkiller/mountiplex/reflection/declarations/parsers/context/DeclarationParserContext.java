@@ -1,6 +1,8 @@
-package com.bergerkiller.mountiplex.reflection.declarations.parsers;
+package com.bergerkiller.mountiplex.reflection.declarations.parsers.context;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.DeclarationParser;
+import com.bergerkiller.mountiplex.reflection.declarations.parsers.ParserStringBuffer;
 
 /**
  * Provides context about the current parsing situation. Results can be written
