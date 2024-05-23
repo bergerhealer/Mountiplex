@@ -19,6 +19,7 @@ public class DeclarationParserGroups {
             COMMENT,
             BOOTSTRAP,
             RESOLVER,
+            SET_VARIABLE,
             REQUIREMENT,
             REMAPPING,
             ERROR,
@@ -32,8 +33,7 @@ public class DeclarationParserGroups {
             PACKAGE,
             IMPORT,
             INCLUDE,
-            SET_PATH,
-            SET_VARIABLE
+            SET_PATH
     )).toArray(DeclarationParser[]::new);
 
     /**
