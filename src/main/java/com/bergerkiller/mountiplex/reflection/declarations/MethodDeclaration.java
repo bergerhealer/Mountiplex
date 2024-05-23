@@ -2,6 +2,8 @@ package com.bergerkiller.mountiplex.reflection.declarations;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
+import java.lang.reflect.GenericSignatureFormatError;
+import java.lang.reflect.MalformedParameterizedTypeException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -74,9 +76,25 @@ public class MethodDeclaration extends Declaration {
             this.constructor = null;
             this.isRecordFieldChanger = false;
             this.modifiers = new ModifierDeclaration(resolver, method.getModifiers() & ~Modifier.VOLATILE);
-            this.returnType = TypeDeclaration.fromType(resolver, method.getGenericReturnType());
             this.name = new NameDeclaration(resolver, name, alias);
-            this.parameters = new ParameterListDeclaration(resolver, method.getGenericParameterTypes());
+
+            // Try to read the information about the method using the generic type information
+            // If this information is for whatever reason corrupt, use the non-generic type information instead
+            java.lang.reflect.Type returnType;
+            java.lang.reflect.Type[] genericParameterTypes;
+            try {
+                returnType = method.getGenericReturnType();
+                genericParameterTypes = method.getGenericParameterTypes();
+            } catch (GenericSignatureFormatError | TypeNotPresentException | MalformedParameterizedTypeException err) {
+                returnType = method.getReturnType();
+                genericParameterTypes = method.getParameterTypes();
+                MountiplexUtil.LOGGER.warning("Generic type information about method " + toDebugString(method) +
+                        " is corrupt: " + err.getMessage() + " - using a non-generic fallback representation");
+            }
+
+            this.returnType = TypeDeclaration.fromType(resolver, returnType);
+            this.parameters = new ParameterListDeclaration(resolver, genericParameterTypes);
+
             this.body = null;
             this.bodyRequirements = new Requirement[0];
         } catch (Throwable t) {
