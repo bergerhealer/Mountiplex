@@ -161,11 +161,12 @@ public class SourceDeclaration extends Declaration {
         @Override
         public void includeSource(StringBuffer subSource) {
             SourceDeclaration inclSource = new SourceDeclaration(
-                    getResolver(),
+                    getResolver().clone(),
                     classLoader,
                     currentDirectory,
                     subSource);
 
+            getResolver().includeSourceDetails(inclSource.getResolver());
             classes.addAll(Arrays.asList(inclSource.classes));
         }
 

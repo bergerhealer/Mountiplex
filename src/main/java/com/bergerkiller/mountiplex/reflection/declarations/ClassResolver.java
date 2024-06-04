@@ -390,6 +390,26 @@ public class ClassResolver {
     }
 
     /**
+     * Includes all the class resolver details that are inherited/included when using
+     * the #include macro to add another source file. Some stuff, like imports and
+     * class name, are not included. Other things, like remapping rules and requirement macros,
+     * are.<br>
+     * <br>
+     * This method assumes that the class resolver provided was already derived from this one.
+     * That is, the original requirements and such that are already defined in this resolver,
+     * should also be defined in the one specified.
+     *
+     * @param from ClassResolver to copy source details from
+     */
+    public void includeSourceDetails(ClassResolver from) {
+        this.remappings.assign(from.remappings); // Assumes from is derived from this one
+        this.requirements.clear();
+        this.requirements.addAll(from.requirements);
+        this.variables = from.variables;
+        this.bootstrap = from.bootstrap;
+    }
+
+    /**
      * Sets multiple environment variables in one go, which are
      * used during parsing of template sources
      * 

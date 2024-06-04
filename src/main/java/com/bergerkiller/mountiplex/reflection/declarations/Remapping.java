@@ -61,6 +61,10 @@ public abstract class Remapping {
             }
         }
 
+        public void assign(Lookup lookup) {
+            this.table = lookup.table;
+        }
+
         public void addRemapping(Remapping remapping) {
             makeMutable();
             table.addRemapping(remapping);
