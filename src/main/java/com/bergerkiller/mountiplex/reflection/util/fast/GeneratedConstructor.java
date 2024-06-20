@@ -72,7 +72,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);
             mv.visitVarInsn(ALOAD, 1);
-            mv.visitMethodInsn(INVOKESPECIAL, "com/bergerkiller/mountiplex/reflection/util/fast/GeneratedConstructor", "<init>", "(Ljava/lang/reflect/Constructor;)V", false);
+            mv.visitMethodInsn(INVOKESPECIAL, MPLType.getInternalName(GeneratedConstructor.class), "<init>", "(Ljava/lang/reflect/Constructor;)V", false);
             mv.visitInsn(RETURN);
             mv.visitMaxs(2, 2);
             mv.visitEnd();
@@ -107,7 +107,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(GeneratedConstructor.class), "failArgs", "(I)Lcom/bergerkiller/mountiplex/reflection/util/fast/InvalidArgumentCountException;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(GeneratedConstructor.class), "failArgs", "(I)" + MPLType.getDescriptor(InvalidArgumentCountException.class), false);
                 mv.visitInsn(ATHROW);
             }
 
