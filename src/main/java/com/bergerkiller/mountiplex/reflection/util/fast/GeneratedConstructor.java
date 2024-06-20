@@ -107,7 +107,7 @@ public abstract class GeneratedConstructor implements Constructor<Object> {
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 1);
                 mv.visitInsn(ARRAYLENGTH);
-                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(GeneratedConstructor.class), "failArgs", "(I)L" + MPLType.getInternalName(InvalidArgumentCountException.class) + ";", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, MPLType.getInternalName(GeneratedConstructor.class), "failArgs", "(I)" + MPLType.getDescriptor(InvalidArgumentCountException.class), false);
                 mv.visitInsn(ATHROW);
             }
 
