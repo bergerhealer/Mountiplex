@@ -405,9 +405,15 @@ public abstract class ClassInterceptor {
         @SuppressWarnings("unchecked")
         public EnhancedClass(Class<?> baseType) {
             this.baseType = baseType;
-            this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
-            if (this.baseInstantiator == null)
-                throw new RuntimeException("Base Class " + MPLType.getName(baseType) + " has no instantiator");
+            if (baseType.isInterface()) {
+                this.baseInstantiator = () -> {
+                    throw new UnsupportedOperationException("Base type " + baseType.getName() + " is an interface and cannot be instantiated");
+                };
+            } else {
+                this.baseInstantiator = ObjenesisHelper.getInstantiatorOf(baseType);
+                if (this.baseInstantiator == null)
+                    throw new RuntimeException("Base Class " + MPLType.getName(baseType) + " has no instantiator");
+            }
 
             // These are used for transferring all fields from one Object to another
             this.baseFieldCopier = (ClassFieldCopier<Object>) ClassFieldCopier.of(baseType);
