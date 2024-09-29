@@ -408,10 +408,24 @@ public class Conversion {
         converters.put(new TypeTuple(converter), (Converter<Object, Object>) converter);
     }
 
-    private static void initType(TypeDeclaration type) {
+    private static boolean initType(TypeDeclaration type) {
         if (type.type != null && Template.Handle.class.isAssignableFrom(type.type)) {
             Resolver.initializeClass(type.type);
+            return true;
+        } else {
+            return false; // Nothing had to be initialized
+        }
+    }
 
+    /**
+     * Calls {@link #initType(TypeDeclaration)} and if initialization occurred,
+     * processes pending operations. This requires that the deferLock is locked
+     * at the time of calling this method.
+     *
+     * @param type Type to initialize
+     */
+    private static void initTypeAndProcessPending(TypeDeclaration type) {
+        if (initType(type)) {
             // Class Initialization may have registered new converters
             // This stuff will get processed right away if WE loaded the class,
             // however another thread could also have done so and we were merely
@@ -527,7 +541,7 @@ public class Conversion {
 
             Node node = findInMapping(input);
             if (node == null) {
-                initType(input);
+                initTypeAndProcessPending(input);
             }
 
             // generate more layers deeper into the tree
@@ -715,7 +729,7 @@ public class Conversion {
             if (tree == null) {
                 tree = new OutputConverterTree(output);
                 trees.put(output, tree);
-                initType(output);
+                initTypeAndProcessPending(output);
             }
             return tree;
         }
