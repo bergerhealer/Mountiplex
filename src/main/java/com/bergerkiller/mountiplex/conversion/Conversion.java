@@ -223,31 +223,76 @@ public class Conversion {
             throw ex;
         }
 
+        // Try to look it up first, which most commonly will succeed
+        OutputConverterTree outputTree = null;
+        boolean inputTypeIsInMapping = false;
+
         deferLock.lock();
         try {
             Converter<Object, Object> result = converters.get(key);
-            if (result == null) {
-                // Check if the input type can be assigned to the output type
-                // In that case, simply return a null converter
-                // Otherwise use the conversion tree to find it
-                if (input.isInstanceOf(output)) {
-                    result = new NullConverter(input, output);
-                } else {
-                    result = OutputConverterTree.get(output).find(input);
-                }
-
-                // If no converter was found, attempt to cast to the type using an upcast if possible
-                if (result == null && output.isInstanceOf(input)) {
-                    result = new CastingConverter<Object>(input, output);
-                }
-
-                // Store in the map for quick future lookup
-                // Special case for duplex converters; they can be stored twice!
-                converters.put(key, result);
-                if (result instanceof DuplexConverter) {
-                    converters.put(key.reverse(), ((DuplexConverter<Object, Object>) result).reverse());
-                }
+            if (result != null) {
+                return result;
             }
+
+            // Check if the input type can be assigned to the output type
+            // In that case, simply return a null converter
+            // Otherwise use the conversion tree to find it, later
+            if (input.isInstanceOf(output)) {
+                result = new NullConverter(input, output);
+                converters.put(key, result);
+                return result;
+            }
+
+            // Since we're already locked, look up an existing output node in the tree
+            // This helps us see whether or not to initialize the type
+            outputTree = OutputConverterTree.getIfExists(output);
+            if (outputTree != null) {
+                inputTypeIsInMapping = outputTree.isInMapping(input);
+            }
+
+        } finally {
+            deferLock.unlock();
+        }
+
+        // Before doing a converter tree search operation, ensure the input AND output type
+        // have been initialized. This must be done outside of a lock, as this could cause
+        // converters to be registered. This happening at the same time as the class loader
+        // being locked could result in a deadlock.
+        if (outputTree == null) {
+            initType(output);
+        }
+        if (!inputTypeIsInMapping) {
+            initType(input);
+        }
+
+        deferLock.lock();
+        try {
+            // Converter may have been registered between the lock-unlocks, so check again
+            Converter<Object, Object> result = converters.get(key);
+            if (result != null) {
+                return result;
+            }
+
+            // Find or create output converter tree for the output for the first time
+            if (outputTree == null) {
+                outputTree = OutputConverterTree.get(output);
+            }
+
+            // Use the conversion tree to find it
+            result = outputTree.find(input);
+
+            // If no converter was found, attempt to cast to the type using an upcast if possible
+            if (result == null && output.isInstanceOf(input)) {
+                result = new CastingConverter<Object>(input, output);
+            }
+
+            // Store in the map for quick future lookup
+            // Special case for duplex converters; they can be stored twice!
+            converters.put(key, result);
+            if (result instanceof DuplexConverter) {
+                converters.put(key.reverse(), ((DuplexConverter<Object, Object>) result).reverse());
+            }
+
             return result;
         } finally {
             deferLock.unlock();
@@ -454,6 +499,19 @@ public class Conversion {
             };
         }
 
+        public final boolean isInMapping(TypeDeclaration input) {
+            if (input.type == null) {
+                throw new IllegalArgumentException("Unresolved input type: " + input.toString());
+            }
+
+            // 'Object' inputs can have any real object assigned to it
+            if (input.type.equals(Object.class)) {
+                return true;
+            }
+
+            return findInMapping(input) != null;
+        }
+
         // finds the (chain) converter for a particular input type
         public final Converter<Object, Object> find(TypeDeclaration input) {
             if (input.type == null) {
@@ -646,6 +704,10 @@ public class Conversion {
             for (OutputConverterTree tree : trees.values()) {
                 tree.reset();
             }
+        }
+
+        public static OutputConverterTree getIfExists(TypeDeclaration output) {
+            return trees.get(output);
         }
 
         public static OutputConverterTree get(TypeDeclaration output) {
