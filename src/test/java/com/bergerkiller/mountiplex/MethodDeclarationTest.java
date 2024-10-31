@@ -14,6 +14,13 @@ import com.bergerkiller.mountiplex.types.TestObject;
 public class MethodDeclarationTest {
 
     @Test
+    public void testDelayedInitializationFastMethod() {
+        final FastMethod<Integer> method = new FastMethod<>(
+                m -> m.init(TestObject.class.getDeclaredMethod("h", int.class, int.class)));
+        assertEquals(12, (int) method.invoke(null, 4, 3));
+    }
+
+    @Test
     public void testRequirementFieldChain() {
         ClassResolver resolver = ClassResolver.DEFAULT.clone();
         resolver.setDeclaredClass(TestObject.class);

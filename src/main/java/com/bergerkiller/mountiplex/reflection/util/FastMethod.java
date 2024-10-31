@@ -1,9 +1,12 @@
 package com.bergerkiller.mountiplex.reflection.util;
 
+import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.fast.InitInvoker;
 import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
+
+import java.util.logging.Level;
 
 public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, IgnoresRemapping {
     private MethodDeclaration method;
@@ -24,6 +27,10 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
 
     public FastMethod(MethodDeclaration method) {
         this.init(method);
+    }
+
+    public FastMethod(DelayedInitializer<T> initializer) {
+        this.init(initializer);
     }
 
     public final void init(java.lang.reflect.Method method) {
@@ -61,6 +68,10 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
         }
     }
 
+    public final void init(DelayedInitializer<T> initializer) {
+        this.init(null, new DelayedInitializationInvoker<>(this, initializer));
+    }
+
     public final void init(MethodDeclaration methodDeclaration, Invoker<T> invoker) {
         this.method = methodDeclaration;
         this.invoker = invoker;
@@ -91,7 +102,16 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
      * @return True if the method is available
      */
     public final boolean isAvailable() {
-        return this.method != null;
+        if (this.method == null) {
+            if (this.invoker instanceof DelayedInitializationInvoker) {
+                this.invoker.initializeInvoker();
+                return this.method != null;
+            } else {
+                return false;
+            }
+        } else {
+            return true;
+        }
     }
 
     /**
@@ -102,7 +122,7 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
      * @return method
      */
     public final java.lang.reflect.Method getMethod() {
-        return this.method == null ? null : this.method.method;
+        return isAvailable() ? this.method.method : null;
     }
 
     /**
@@ -112,7 +132,7 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
      * @return True if it manages the same Method, False if not
      */
     public final boolean isMethod(java.lang.reflect.Method method) {
-        return this.method != null && this.method.method != null && this.method.method.equals(method);
+        return isAvailable() && this.method.method != null && this.method.method.equals(method);
     }
 
     /**
@@ -122,10 +142,10 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
      * @return method name
      */
     public final String getName() {
-        if (this.method == null) {
-            return "null";
-        } else {
+        if (isAvailable()) {
             return this.method.name.value();
+        } else {
+            return "null";
         }
     }
 
@@ -177,5 +197,50 @@ public class FastMethod<T> implements Invoker<T>, LazyInitializedObject, Ignores
     @Override
     public T invoke(Object instance, Object arg0, Object arg1, Object arg2, Object arg3, Object arg4) {
         return invoker.invoke(instance, arg0, arg1, arg2, arg3, arg4);
+    }
+
+    /**
+     * Callback that will initialize a FastMethod when it is first invoked, or {@link #forceInitialization()}
+     * is called.
+     *
+     * @param <T> Return type
+     */
+    @FunctionalInterface
+    public interface DelayedInitializer<T> {
+        void initialize(FastMethod<T> method) throws Throwable;
+    }
+
+    private static class DelayedInitializationInvoker<T> implements Invoker<T> {
+        private final FastMethod<T> method;
+        private final DelayedInitializer<T> initializer;
+
+        public DelayedInitializationInvoker(FastMethod<T> method, DelayedInitializer<T> initializer) {
+            this.method = method;
+            this.initializer = initializer;
+        }
+
+        @Override
+        public Invoker<T> initializeInvoker() {
+            try {
+                initializer.initialize(method);
+                if (method.invoker == this) {
+                    method.initUnavailable("(callback-initialized) which did not initialize");
+                } else {
+                    // Also immediately unwrap a lazy-initialized invoker for reflection
+                    // We expect the full invoker to be initialized here after all
+                    method.forceInitialization();
+                }
+            } catch (Throwable t) {
+                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to callback-initialize method", t);
+                method.initUnavailable("(callback-initialized) with init error");
+            }
+
+            return method.invoker;
+        }
+
+        @Override
+        public T invokeVA(Object instance, Object... args) {
+            return initializeInvoker().invokeVA(instance, args);
+        }
     }
 }
