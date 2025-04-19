@@ -928,6 +928,16 @@ public class Template {
             }
             return new TranslatorFieldAccessor<T>(this.raw.toFieldAccessor(), converter);
         }
+
+        /**
+         * Gets the {@link #raw} field value. Easier to use in generated code, avoiding generic
+         * type casting.
+         *
+         * @return Raw field
+         */
+        public F raw() {
+            return raw;
+        }
     }
 
     public static abstract class AbstractParamsConverter<R extends TemplateElement<?>, T, D extends Declaration> extends TemplateElement<D> {
@@ -996,6 +1006,16 @@ public class Template {
                         this.argCount + " expected, but got " + argCount + ")");
             }
             return this.converters.get();
+        }
+
+        /**
+         * Gets the {@link #raw} method value. Easier to use in generated code, avoiding generic
+         * type casting.
+         *
+         * @return Raw method
+         */
+        public R raw() {
+            return raw;
         }
     }
 
@@ -1509,6 +1529,11 @@ public class Template {
                             converters.arg4.apply(arg4)));
                 }
             }
+
+            @Override
+            public final StaticMethod<Object> raw() {
+                return this.raw;
+            }
         }
     }
 
@@ -1745,6 +1770,11 @@ public class Template {
                             converters.arg3.apply(arg3),
                             converters.arg4.apply(arg4)));
                 }
+            }
+
+            @Override
+            public final Method<Object> raw() {
+                return this.raw;
             }
         }
     }
@@ -2001,6 +2031,11 @@ public class Template {
                 Object rawValue = reverse.converter.convert(value);
                 raw.set(rawValue);
             }
+
+            @Override
+            public final StaticField<Object> raw() {
+                return this.raw;
+            }
         }
 
         /* ========================================================================================== */
@@ -2248,6 +2283,11 @@ public class Template {
              */
             public final void copy(Object instanceFrom, Object instanceTo) {
                 raw.copy(instanceFrom, instanceTo);
+            }
+
+            @Override
+            public final Field<Object> raw() {
+                return this.raw;
             }
         }
 
