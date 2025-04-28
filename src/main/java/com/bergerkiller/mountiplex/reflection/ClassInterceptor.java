@@ -30,9 +30,11 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
  * consistently return the same {@link Invoker} across all instances.
  */
 public abstract class ClassInterceptor {
+    private static final Object globalMethodDelegatesLock = new Object();
     private static Map<Class<?>, Map<Method, Invoker<?>>> globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invoker<?>>>();
     private static Map<ClassPair, EnhancedClass> enhancedTypes = new HashMap<ClassPair, EnhancedClass>();
     private boolean useGlobalCallbacks = true;
+    private final ClassLoader hookClassLoader;
     private final Map<Method, Invoker<?>> globalMethodDelegates;
     private final InstanceHolder lastHookedObject = new InstanceHolder();
     private final ThreadLocal<StackInformation> stackInfo = ThreadLocal.withInitial(StackInformation::new);
@@ -41,20 +43,28 @@ public abstract class ClassInterceptor {
         MountiplexUtil.registerUnloader(new Runnable() {
             @Override
             public void run() {
-                globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invoker<?>>>(0);
-                enhancedTypes = new HashMap<ClassPair, EnhancedClass>(0);
+                synchronized (globalMethodDelegatesLock) {
+                    globalMethodDelegatesMap = new HashMap<Class<?>, Map<Method, Invoker<?>>>(0);
+                    enhancedTypes = new HashMap<ClassPair, EnhancedClass>(0);
+                }
             }
         });
     }
 
     public ClassInterceptor() {
-        synchronized (globalMethodDelegatesMap) {
-            Map<Method, Invoker<?>> globalMethodDelegates = globalMethodDelegatesMap.get(getClass());
-            if (globalMethodDelegates == null) {
-                globalMethodDelegates = new HashMap<Method, Invoker<?>>();
-                globalMethodDelegatesMap.put(getClass(), globalMethodDelegates);
-            }
-            this.globalMethodDelegates = globalMethodDelegates;
+        this.hookClassLoader = this.getClass().getClassLoader();
+        this.globalMethodDelegates = initMethodDelegatesMap();
+    }
+
+    public ClassInterceptor(ClassLoader hookClassLoader) {
+        this.hookClassLoader = hookClassLoader;
+        this.globalMethodDelegates = initMethodDelegatesMap();
+    }
+
+    private  Map<Method, Invoker<?>> initMethodDelegatesMap() {
+        synchronized (globalMethodDelegatesLock) {
+            return globalMethodDelegatesMap.computeIfAbsent(getClass(),
+                    k -> new HashMap<>());
         }
     }
 
@@ -92,6 +102,18 @@ public abstract class ClassInterceptor {
      * @param hookedType that was generated
      */
     protected void onClassGenerated(Class<?> hookedType) {
+    }
+
+    /**
+     * Gets the ClassLoader to use for newly created hook (enhanced) classes that intercept methods.
+     * By default uses the ClassLoader that was passed in the constructor. If not passed, uses
+     * the same class loader that loaded this interceptor class. Can be overrided to set a
+     * custom class loader instead.
+     *
+     * @return Class Loader
+     */
+    public ClassLoader getHookClassLoader() {
+        return hookClassLoader;
     }
 
     /**
@@ -316,7 +338,7 @@ public abstract class ClassInterceptor {
             final EnhancedClass new_enhanced = new EnhancedClass(objectType);
             final StackInformation current_stack = interceptor.stackInfo.get();
 
-            new_enhanced.setupEnhancedType(GeneratedHook.generate(interceptor.getClass().getClassLoader(),
+            new_enhanced.setupEnhancedType(GeneratedHook.generate(interceptor.getHookClassLoader(),
                                            objectType,
                                            Arrays.asList(EnhancedObject.class),
                                            method -> {

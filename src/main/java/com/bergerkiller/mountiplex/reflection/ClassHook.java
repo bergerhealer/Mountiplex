@@ -42,10 +42,20 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
         });
     }
 
-    @SuppressWarnings("unchecked")
+    public ClassHook(ClassLoader hookClassLoader) {
+        super(hookClassLoader);
+        this.methods = loadMethodList(getClass());
+        this.base = initBaseHook();
+    }
+
     public ClassHook() {
         this.methods = loadMethodList(getClass());
-        this.base = (T) new BaseClassInterceptor(this.methods).hook(this);
+        this.base = initBaseHook();
+    }
+
+    @SuppressWarnings("unchecked")
+    private T initBaseHook() {
+        return (T) new BaseClassInterceptor(this.getHookClassLoader(), this.methods).hook(this);
     }
 
     @Override
@@ -242,7 +252,8 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     private static class BaseClassInterceptor extends ClassInterceptor {
         private final HookMethodList methodList;
 
-        public BaseClassInterceptor(HookMethodList methodList) {
+        public BaseClassInterceptor(ClassLoader classLoader, HookMethodList methodList) {
+            super(classLoader);
             this.methodList = methodList;
         }
 
