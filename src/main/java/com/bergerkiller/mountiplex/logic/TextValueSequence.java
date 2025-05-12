@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.logic;
 
+import java.util.Comparator;
+
 /**
  * Represents a String as a series of text-number sequences. For example,
  * the sequence 1-2-3 will store tokens with number 1, a string constant
@@ -7,6 +9,20 @@ package com.bergerkiller.mountiplex.logic;
  * version numbers. Each sequence can be compared trivially.
  */
 public final class TextValueSequence implements Comparable<TextValueSequence> {
+    /**
+     * A string comparator that compares the text as parsed with TextValueSequence.
+     * Does not support null values.
+     */
+    public static final Comparator<String> STRING_COMPARATOR = (a, b) -> {
+        if (a.equals(b)) {
+            return 0;
+        } else if (evaluateText(a, ">", b)) {
+            return 1;
+        } else {
+            return -1;
+        }
+    };
+
     private final String fullText;
     private boolean number;
     private int value;
