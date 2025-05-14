@@ -4,6 +4,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
+import com.bergerkiller.mountiplex.reflection.UnhandledInvokerCheckedException;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
@@ -130,7 +131,7 @@ public abstract class ReflectionInvoker<T> implements Invoker<T> {
                 if (cause instanceof RuntimeException) {
                     throw ((RuntimeException) cause);
                 } else {
-                    throw new RuntimeException("An error occurred in the invoked method", cause);
+                    throw new UnhandledInvokerCheckedException(cause);
                 }
             } catch (Throwable t) {
                 throw f(m, instance, args, t);
@@ -155,7 +156,7 @@ public abstract class ReflectionInvoker<T> implements Invoker<T> {
                 if (cause instanceof RuntimeException) {
                     throw ((RuntimeException) cause);
                 } else {
-                    throw new RuntimeException("An error occurred in the invoked method", cause);
+                    throw new UnhandledInvokerCheckedException(cause);
                 }
             } catch (Throwable t) {
                 throw f(c, instance, args, t);

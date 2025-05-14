@@ -2,6 +2,7 @@ package com.bergerkiller.mountiplex.reflection.util.fast;
 
 import java.lang.reflect.InvocationTargetException;
 
+import com.bergerkiller.mountiplex.reflection.UnhandledInvokerCheckedException;
 import com.bergerkiller.mountiplex.reflection.resolver.Resolver;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
@@ -61,7 +62,7 @@ public class ReflectionConstructor<T> implements Constructor<T> {
             if (cause instanceof RuntimeException) {
                 throw ((RuntimeException) cause);
             } else {
-                throw new RuntimeException("An error occurred in the invoked method", cause);
+                throw new UnhandledInvokerCheckedException(cause);
             }
         } catch (Throwable t) {
             throw f(args, t);
