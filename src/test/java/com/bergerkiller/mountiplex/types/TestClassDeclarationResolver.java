@@ -3,6 +3,7 @@ package com.bergerkiller.mountiplex.types;
 import java.util.Map;
 
 import com.bergerkiller.mountiplex.reflection.declarations.ClassDeclaration;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.SourceDeclaration;
 import com.bergerkiller.mountiplex.reflection.resolver.ClassDeclarationResolver;
 import com.bergerkiller.mountiplex.reflection.resolver.FieldNameResolver;
@@ -214,7 +215,12 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
                 "        #require com.bergerkiller.mountiplex.types.RenameTestObject public int overrideTestPublicMethod();\n" +
                 "        return instance#overrideTestPublicMethod();\n" +
                 "    }\n" +
-                "}\n";
+                "}\n" +
+                "\n" +
+
+                // A global #remap rule. We verify this remapping rule is found again when used in a ClassHook
+                "#remap com.bergerkiller.mountiplex.types.RemappedTestObject public String remappedMethod:a(String input);\n";
+
         long t1 = System.nanoTime();
         this.source = SourceDeclaration.parse(template);
         long t2 = System.nanoTime();
@@ -239,6 +245,11 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
 
     @Override
     public void resolveClassVariables(String classPath, Class<?> classType, Map<String, String> variables) {
+    }
+
+    @Override
+    public ClassResolver getRootClassResolver(String classPath, Class<?> classType) {
+        return this.source.getResolver();
     }
 
     @Override

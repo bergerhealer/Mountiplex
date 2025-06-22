@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Defines a remapping rule for a method or field name. This remapping rule
@@ -106,6 +107,10 @@ public abstract class Remapping {
             return null;
         }
 
+        public Collection<Remapping> getAllStoredRemappings() {
+            return table.getAllStoredRemappings();
+        }
+
         @Override
         public Lookup clone() {
             // First clone is a read-only copy for performance reasons
@@ -151,6 +156,14 @@ public abstract class Remapping {
         public Collection<ClassRemapping> getAll(Class<?> type) {
             synchronized (lock) {
                 return remappingsByDeclaringClass.getAll(type);
+            }
+        }
+
+        public Collection<Remapping> getAllStoredRemappings() {
+            synchronized (lock) {
+                return remappingsByDeclaringClass.values().stream()
+                        .flatMap(a -> a.getAll().stream())
+                        .collect(Collectors.toList());
             }
         }
 
@@ -214,6 +227,10 @@ public abstract class Remapping {
         public MethodRemapping find(MethodSignature signature) {
             return (MethodRemapping) remappings.get(signature);
         }
+
+        public Collection<Remapping> getAll() {
+            return this.remappings.values();
+        }
     }
 
     /**
@@ -238,6 +255,11 @@ public abstract class Remapping {
         public Object getKey() {
             return signature;
         }
+
+        @Override
+        public String toString() {
+            return "FieldRemapping { " + declaration.toString() + " }";
+        }
     }
 
     /**
@@ -261,6 +283,11 @@ public abstract class Remapping {
         @Override
         public Object getKey() {
             return signature;
+        }
+
+        @Override
+        public String toString() {
+            return "MethodRemapping { " + declaration.toString() + " }";
         }
     }
 }

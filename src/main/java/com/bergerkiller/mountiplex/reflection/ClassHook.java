@@ -83,12 +83,17 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             // Create resolver to decode the method, keep hook-level imports in mind
             // When method doesn't declare any imports/packages, reuse the class-level resolver
             ClassResolver resolver = classLevelResolver;
-            if (entry.hookImports.length > 0 || entry.hookPackage != null) {
+            if (entry.hookImports.length > 0 || entry.hookPackage != null || entry.variablesResolver != null) {
                 resolver = resolver.clone();
                 if (entry.hookPackage != null) {
                     resolver.setPackage(entry.hookPackage, false);
                 }
-                resolver.addImports(Arrays.asList(entry.hookImports));
+                if (entry.hookImports.length > 0) {
+                    resolver.addImports(Arrays.asList(entry.hookImports));
+                }
+                if (entry.variablesResolver != null) {
+                    resolver.setAllVariables(entry.variablesResolver);
+                }
             }
 
             // Check if signature matches with method
@@ -271,6 +276,7 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
     private static class HookMethodEntry extends InterceptorCallback {
         public final InputTypeMap<Method> superMethodMap = new InputTypeMap<Method>();
         public final Map<Class<?>, Invoker<?>> superInvokerMap = new HashMap<Class<?>, Invoker<?>>();
+        public final ClassDeclarationResolver variablesResolver;
         public final HookMethodList owner;
         public final String declaration;
         public final boolean optional;
@@ -329,16 +335,17 @@ public class ClassHook<T extends ClassHook<?>> extends ClassInterceptor {
             HookPackage hookAnnot = method.getAnnotation(HookPackage.class);
             this.hookPackage = (hookAnnot == null) ? null : hookAnnot.value();
 
+            HookLoadVariables loadVarsAnnot = method.getAnnotation(HookLoadVariables.class);
+            this.variablesResolver = (loadVarsAnnot == null) ? list.variablesResolver
+                    : loadHookVariablesResolver(method.getDeclaringClass(), loadVarsAnnot.value());
+
             HookMethodCondition conditionAnnot = method.getAnnotation(HookMethodCondition.class);
             if (conditionAnnot != null) {
                 ClassResolver resolver = new ClassResolver();
                 resolver.setDeclaredClass(Object.class); // Eh.
                 {
-                    HookLoadVariables loadVarsAnnot = method.getAnnotation(HookLoadVariables.class);
-                    ClassDeclarationResolver variablesLoader = (loadVarsAnnot == null) ? list.variablesResolver
-                            : loadHookVariablesResolver(method.getDeclaringClass(), loadVarsAnnot.value());
-                    if (variablesLoader != null) {
-                        resolver.setAllVariables(variablesLoader);
+                    if (this.variablesResolver != null) {
+                        resolver.setAllVariables(this.variablesResolver);
                     }
                 }
                 this.enabled = resolver.evaluateExpression(conditionAnnot.value());

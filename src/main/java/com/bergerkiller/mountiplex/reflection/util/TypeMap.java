@@ -251,6 +251,10 @@ public abstract class TypeMap<T> {
      * @return all values
      */
     public Collection<T> values() {
+        if (map.isEmpty()) {
+            return Collections.emptyList();
+        }
+
         ArrayList<T> result = new ArrayList<T>();
         for (Bin bin : map.values()) {
             result.addAll(bin.values);

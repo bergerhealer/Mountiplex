@@ -437,6 +437,14 @@ public class ClassResolver {
         this.variables = this.variables.modify(m -> {
             resolver.resolveClassVariables(this.declaredClassName, this.declaredClass, m);
         });
+
+        // Load remappings as well
+        {
+            ClassResolver classResolver = resolver.getRootClassResolver(this.declaredClassName, this.declaredClass);
+            for (Remapping remapping : classResolver.getRemappings().getAllStoredRemappings()) {
+                this.remappings.addRemapping(remapping);
+            }
+        }
     }
 
     /**

@@ -1,6 +1,12 @@
 package com.bergerkiller.mountiplex;
 
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.Remapping;
+import com.bergerkiller.mountiplex.reflection.util.signature.MethodSignature;
 import com.bergerkiller.mountiplex.types.IsolatedDogHook;
+import com.bergerkiller.mountiplex.types.RemappedTestObject;
+import com.bergerkiller.mountiplex.types.RemappedTestObjectHook;
+import com.bergerkiller.mountiplex.types.TestClassDeclarationResolver;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -14,6 +20,33 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class ClassHookTest {
+
+    @Test
+    public void testRemappingExistsInClassDeclarationResolver() {
+        ClassResolver resolver = TestClassDeclarationResolver.INSTANCE.getRootClassResolver(RemappedTestObject.class.getName(), RemappedTestObjectHook.class);
+
+        MethodSignature sig = new MethodSignature("remappedMethod", new Class[] { String.class });
+        if (resolver.getRemappings().find(RemappedTestObject.class, sig) != null) {
+            return;
+        }
+
+        System.err.println("Test remapping not found");
+        System.err.println("Remappings that do exist:");
+        for (Remapping remapping : resolver.getRemappings().getAllStoredRemappings()) {
+            System.err.println("- " + remapping);
+        }
+        fail("Test remapping was not found");
+    }
+
+    @Test
+    public void testRemappedMethodHook() {
+        RemappedTestObject remappedTestObject = new RemappedTestObject();
+        assertEquals("input:original", remappedTestObject.a("input"));
+
+        RemappedTestObjectHook hook = new RemappedTestObjectHook();
+        RemappedTestObject hookedRemappedTestObject = hook.hook(remappedTestObject);
+        assertEquals("input:remapped", hookedRemappedTestObject.a("input"));
+    }
 
     @Test
     public void testIsolatedHooking() throws Throwable {
