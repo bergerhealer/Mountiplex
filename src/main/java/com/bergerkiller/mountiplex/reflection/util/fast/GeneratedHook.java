@@ -185,11 +185,7 @@ public class GeneratedHook {
                 // super()
                 mv.visitVarInsn(ALOAD, 0); // this
                 MPLType.visitVarILoad(mv, 1, method.getParameterTypes());
-                mv.visitMethodInsn(INVOKESPECIAL,
-                        MPLType.getInternalName(method.getDeclaringClass()),
-                        MPLType.getName(method),
-                        MPLType.getMethodDescriptor(method),
-                        false);
+                cw.visitCallSuperMethod(mv, method);
                 mv.visitInsn(MPLType.getOpcode(method.getReturnType(), IRETURN));
             }
             mv.visitMaxs(0, 0);

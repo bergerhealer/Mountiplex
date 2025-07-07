@@ -39,6 +39,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
     private final GeneratedClassName name;
     private final GeneratorClassLoader loader;
     private final Class<?> superType;
+    private final Class<?>[] superInterfaces;
     private final List<StaticFieldInit> pendingStaticFields = new ArrayList<>();
     private final boolean singleton;
     private final List<StaticFieldInit> singletonMemberFields;
@@ -52,6 +53,7 @@ public class ExtendedClassWriter<T> extends ClassWriter {
 
         // Extends Object instead of SuperClass when it is an interface
         this.superType = options.superClass.isInterface() ? Object.class : options.superClass;
+        this.superInterfaces = options.interfaces.toArray(new Class[0]);
 
         // Only works if singleton
         this.singleton = options.singleton;
@@ -719,6 +721,40 @@ public class ExtendedClassWriter<T> extends ClassWriter {
         fv = this.visitField(ACC_PRIVATE | ACC_FINAL, fieldName,
                 MPLType.getDescriptor(field.fieldType), null, null);
         fv.visitEnd();
+    }
+
+    /**
+     * Writes a INVOKESPECIAL instruction to super-call a method on the class or interfaces being implemented.
+     * This method ensures a valid instruction is emitted, as it is not permitted to skip interfaces when
+     * invoking this way on some VMs (Graal VM).
+     *
+     * @param mv MethodVisitor used to write the current method to emit the instruction to
+     * @param method Method to super-invoke
+     */
+    public void visitCallSuperMethod(MethodVisitor mv, Method method) {
+        // Find the super class or interface that is a direct descendant that we are implementing
+        // It is not valid to call super on a deeper level on some VMs (Graal VM)
+        Class<?> declaringClass = method.getDeclaringClass();
+        Class<?> directDescendant;
+        if (declaringClass.isAssignableFrom(superType)) {
+            directDescendant = superType;
+        } else {
+            directDescendant = null;
+            for (Class<?> c : superInterfaces) {
+                if (declaringClass.isAssignableFrom(c)) {
+                    directDescendant = c;
+                    break;
+                }
+            }
+            if (directDescendant == null) {
+                throw new IllegalArgumentException("Method " + method + " is not a superclass method");
+            }
+        }
+        mv.visitMethodInsn(INVOKESPECIAL,
+                MPLType.getInternalName(directDescendant),
+                MPLType.getName(method),
+                MPLType.getMethodDescriptor(method),
+                false);
     }
 
     /**
