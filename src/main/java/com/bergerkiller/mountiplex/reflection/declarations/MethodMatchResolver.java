@@ -43,12 +43,17 @@ public class MethodMatchResolver {
             boolean found = false;
             for (MethodDeclaration realMethod : realMethods) {
                 if (realMethod.match(nameResolved)) {
-
                     // Log a warning when modifiers differ, but do not fail the matching
                     if (!realMethod.modifiers.match(method.modifiers)) {
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " +
-                                resolver.getDeclaredClassName() + " " + method.toString() +
-                                " do not match (" + realMethod.modifiers + " expected)");
+                        // Log a warning when modifiers differ in a way that the method is more privated than expected
+                        // For example, declaration says public, but the method is private/protected
+                        //
+                        // In the past we would log all the time, but it is a little spammy with no real value
+                        if (realMethod.modifiers.getProtectionLevel() > method.modifiers.getProtectionLevel()) {
+                            MountiplexUtil.LOGGER.log(Level.WARNING, "Method modifiers of " +
+                                    resolver.getDeclaredClassName() + " " + method.toString() +
+                                    " do not match (" + realMethod.modifiers + " expected)");
+                        }
                     }
 
                     method.method = realMethod.method;

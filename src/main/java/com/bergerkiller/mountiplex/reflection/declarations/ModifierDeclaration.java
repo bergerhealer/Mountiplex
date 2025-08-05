@@ -243,6 +243,29 @@ public class ModifierDeclaration extends Declaration {
         return true;
     }
 
+    /**
+     * Gets the protection level:
+     * <ul>
+     *     <li>0: public</li>
+     *     <li>1: protected</li>
+     *     <li>2: package-private</li>
+     *     <li>3: private</li>
+     * </ul>
+     *
+     * @return Protection level
+     */
+    public int getProtectionLevel() {
+        if (Modifier.isPublic(_modifiers)) {
+            return 0; // public
+        } else if (Modifier.isProtected(_modifiers)) {
+            return 1; // protected
+        } else if (!Modifier.isPrivate(_modifiers)) {
+            return 2; // package-private
+        } else {
+            return 3; // private
+        }
+    }
+
     @Override
     public final String toString(boolean identity) {
         if (!isValid()) {
