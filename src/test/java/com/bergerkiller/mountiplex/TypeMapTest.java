@@ -38,16 +38,32 @@ public class TypeMapTest {
                 "Cloneable",
                 "java.io.Serializable");
 
-        assertTypesEqual("ArrayList<String>", "ArrayList<String>",
-                "AbstractList<String>",
-                "AbstractCollection<String>",
-                "Object",
-                "Collection<String>",
-                "Iterable<String>",
-                "List<String>",
-                "RandomAccess",
-                "Cloneable",
-                "java.io.Serializable");
+        if (Integer.parseInt(System.getProperty("java.specification.version")) >= 21) {
+            assertTypesEqual("ArrayList<String>", "ArrayList<String>",
+                    "AbstractList<String>",
+                    "AbstractCollection<String>",
+                    "Object",
+                    "Collection<String>",
+                    "Iterable<String>",
+                    "List<String>",
+                    "SequencedCollection<String>",
+                    "RandomAccess",
+                    "Cloneable",
+                    "java.io.Serializable");
+
+        } else {
+            assertTypesEqual("ArrayList<String>", "ArrayList<String>",
+                    "AbstractList<String>",
+                    "AbstractCollection<String>",
+                    "Object",
+                    "Collection<String>",
+                    "Iterable<String>",
+                    "List<String>",
+                    "RandomAccess",
+                    "Cloneable",
+                    "java.io.Serializable");
+
+        }
 
         assertTypesEqual(IntegerMapOfString.class, "com.bergerkiller.mountiplex.types.IntegerMapOfString",
                 "com.bergerkiller.mountiplex.types.IntegerMapOfE<String>",
