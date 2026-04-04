@@ -88,6 +88,17 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
             // Use the resolver to add needed imports
             {
                 ClassResolver classResolver = declaration.getResolver();
+                classResolver.getAllImports().forEachOrdered(importName -> {
+                    if (importName.endsWith(".*")) {
+                        String packagePath = importName.substring(0, importName.length()-2);
+                        if (!packagePath.contains("*")) {
+                            pool.importPackage(packagePath);
+                        }
+                    } else {
+                        pool.importPackage(importName);
+                    }
+                });
+
                 if (classResolver.hasPackage()) {
                     // Import using the predefined #package
                     pool.importPackage(classResolver.getPackage());
@@ -100,17 +111,6 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                         pool.importPackage(package_path);
                     }
                 }
-
-                classResolver.getAllImports().forEachOrdered(importName -> {
-                    if (importName.endsWith(".*")) {
-                        String packagePath = importName.substring(0, importName.length()-2);
-                        if (!packagePath.contains("*")) {
-                            pool.importPackage(packagePath);
-                        }
-                    } else {
-                        pool.importPackage(importName);
-                    }
-                });
             }
 
             CtClass invoker = writer.getCtClass(pool);
