@@ -1,10 +1,13 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -211,23 +214,42 @@ public class ClassDeclaration extends Declaration {
     }
 
     private void resolveFields() {
-        java.lang.reflect.Field[] realRefFields;
-        try {
-            realRefFields = this.type.type.getDeclaredFields();
-        } catch (Throwable t) {
-            if (this.getResolver().getLogErrors()) {
-                MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get declared fields of " + this.type.typePath, t);
-            }
-            return;
-        }
-        FieldDeclaration[] realFields = new FieldDeclaration[realRefFields.length];
-        for (int i = 0; i < realFields.length; i++) {
+        Map<String, Field> realRefFieldsByName = new HashMap<>();
+
+        // Find all fields the type contains, including non-private fields declared in super classes
+        boolean excludePrivateFields = false;
+        Class<?> currentType = this.type.type;
+        while (currentType != null && currentType != Object.class && !currentType.isInterface()) {
             try {
-                realFields[i] = new FieldDeclaration(getResolver(), realRefFields[i]);
+                for (java.lang.reflect.Field field : currentType.getDeclaredFields()) {
+                    if (!excludePrivateFields || !Modifier.isPrivate(field.getModifiers())) {
+                        realRefFieldsByName.putIfAbsent(MPLType.getName(field), field);
+                    }
+                }
             } catch (Throwable t) {
                 if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefFields[i], t);
+                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get declared fields of " + currentType, t);
                 }
+                break;
+            }
+
+            currentType = currentType.getSuperclass();
+            excludePrivateFields = true;
+        }
+
+        FieldDeclaration[] realFields = new FieldDeclaration[realRefFieldsByName.size()];
+        {
+            int i = 0;
+            for (java.lang.reflect.Field realRefField : realRefFieldsByName.values()) {
+                try {
+                    realFields[i] = new FieldDeclaration(getResolver(), realRefField);
+                } catch (Throwable t) {
+                    if (this.getResolver().getLogErrors()) {
+                        MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefField, t);
+                    }
+                }
+
+                i++;
             }
         }
 

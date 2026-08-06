@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import java.util.List;
 
+import com.bergerkiller.mountiplex.types.TestObjectExtended;
+import com.bergerkiller.mountiplex.types.TestObjectExtendedHandle;
 import org.junit.Test;
 
 import com.bergerkiller.mountiplex.reflection.SafeConstructor;
@@ -19,6 +21,50 @@ import com.bergerkiller.mountiplex.types.TestObjectHandle;
 
 // tests the correct working of Template elements
 public class TemplateTest {
+
+    // Repeated tests, but with the TestObjectExtended, so it should resolve things in the parent class
+    private void test_TestObjectExtended() {
+        TestObjectExtended object = new TestObjectExtended();
+        assertFalse(TestObjectExtendedHandle.T.unusedField.isAvailable());
+        assertEquals(12, TestObjectExtendedHandle.T.defaultInterfaceMethod.invoke(object).intValue());
+        assertEquals(13, TestObjectExtendedHandle.T.inheritedClassMethod.invoke(object).intValue());
+        assertEquals(621, TestObjectExtendedHandle.T.testGenerated.invoke(object).intValue());
+        assertEquals(244, TestObjectExtendedHandle.T.testGeneratedWithArg.invoke(object, 12).intValue());
+        assertTrue(TestObjectExtendedHandle.T.testGenerated.isAvailable());
+        assertTrue(TestObjectExtendedHandle.T.oneWay.isReadonly());
+        assertEquals("OneWayConvertableType::UniqueType", TestObjectExtendedHandle.T.oneWay.get(object).name);
+        assertEquals(Integer.valueOf(562), TestObjectExtendedHandle.T.staticGenerated.invoke(50));
+
+        try {
+            TestObjectExtendedHandle.T.oneWay.set(object, null);
+            fail("Readonly field was written to");
+        } catch (UnsupportedOperationException ex) {
+            assertEquals("Field oneWay is readonly", ex.getMessage());
+        }
+        assertNotNull(TestObjectExtendedHandle.T.oneWay.get(object));
+    }
+
+    // Repeated tests, but with the TestObjectExtended, so it should resolve things in the parent class
+    private void test_TestObjectExtendedHandle() {
+        // Preset correctly
+
+        TestObjectExtended object = new TestObjectExtended();
+        TestObjectExtendedHandle handle = TestObjectExtendedHandle.createHandle(object);
+
+        assertEquals(12, handle.defaultInterfaceMethod());
+        assertEquals(13, handle.inheritedClassMethod());
+        assertEquals(244, handle.testGeneratedWithArg(12));
+        assertEquals("OneWayConvertableType::UniqueType", handle.getOneWay().name);
+        assertEquals(562, TestObjectExtendedHandle.staticGenerated(50));
+
+        try {
+            TestObjectExtendedHandle.T.oneWay.set(object, null);
+            fail("Readonly field was written to");
+        } catch (UnsupportedOperationException ex) {
+            assertEquals("Field oneWay is readonly", ex.getMessage());
+        }
+        assertNotNull(handle.getOneWay());
+    }
 
     private void test_TestObject() {
         TestObject object = new TestObject();
@@ -120,7 +166,6 @@ public class TemplateTest {
         assertEquals("test", handle.method());
     }
 
-
     @Test
     public void testTemplate() {
         // Run tests, verify bootstrap is called once and only once
@@ -136,6 +181,15 @@ public class TemplateTest {
         assertEquals(1, BootstrapState.CALLED_PRIVATETESTOBJECT);
 
         test_TestObjectHandle();
+    }
+
+    @Test
+    public void testExtendedObjectTemplate() {
+        // Run tests, verify bootstrap is called once and only once
+        test_TestObjectExtended();
+        test_TestObjectExtendedHandle();
+
+        assertEquals(1, BootstrapState.CALLED_TESTOBJECTEXTENDED);
     }
 
     @Test

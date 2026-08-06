@@ -31,13 +31,13 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
         String template = "" +
                 "#resolver com.bergerkiller.mountiplex.types.TestClassDeclarationResolver.INSTANCE\n" +
                 "#bootstrap {\n" +
-                "com.bergerkiller.mountiplex.types.BootstrapState.CALLED_ROOT = true;\n" +
+                "com.bergerkiller.mountiplex.types.BootstrapState.CALLED_ROOT++;\n" +
                 "}\n" +
                 "\n" +
                 "package com.bergerkiller.mountiplex.types;\n" +
                 "\n" +
                 "public class TestObject {\n" +
-                "    #bootstrap com.bergerkiller.mountiplex.types.BootstrapState.CALLED_TESTOBJECT = true;\n" +
+                "    #bootstrap com.bergerkiller.mountiplex.types.BootstrapState.CALLED_TESTOBJECT++;\n" +
                 "    \n" +
                 "    private static String staticField:a;\n" +
                 "    private static final String staticFinalField:a_f;\n" +
@@ -66,10 +66,31 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
                 "        return 512 + parameter;\n" +
                 "    }\n" +
                 "}\n" +
+                "\n" +
+                "public class TestObjectExtended {\n" +
+                "    #bootstrap com.bergerkiller.mountiplex.types.BootstrapState.CALLED_TESTOBJECTEXTENDED++;\n" +
+                "    \n" +
+                "    public final (List<String>) List<Integer> testRawField;\n" +
+                "    public optional String unusedField:###;\n" +
+                "    public readonly final (UniqueType) OneWayConvertableType oneWay;\n" +
+                "    public long[][] multiArr;\n" +
+                "    \n" +
+                "    public int defaultInterfaceMethod();\n" +
+                "    public int inheritedClassMethod();\n" +
+                "    public int testGeneratedWithArg(int parameter) {\n" +
+                "        return 4 + parameter * 20;\n" +
+                "    }\n" +
+                "    public optional int testGenerated() {\n" +
+                "        return 621;\n" +
+                "    }\n" +
+                "    public static int staticGenerated(int parameter) {\n" +
+                "        return 512 + parameter;\n" +
+                "    }\n" +
+                "}\n" +
                 "package com.bergerkiller.mountiplex.types;\n" +
                 "\n" +
                 "class PrivateTestObject {\n" +
-                "    #bootstrap com.bergerkiller.mountiplex.types.BootstrapState.CALLED_PRIVATETESTOBJECT = true;\n" +
+                "    #bootstrap com.bergerkiller.mountiplex.types.BootstrapState.CALLED_PRIVATETESTOBJECT++;\n" +
                 "    \n" +
                 "    public String field;\n" +
                 "    public String method();\n" +
@@ -233,12 +254,14 @@ public class TestClassDeclarationResolver implements ClassDeclarationResolver, M
             return null;
         } else if (classPath.equals("com.bergerkiller.mountiplex.types.TestObject")) {
             return source.classes[0];
-        } else if (classPath.equals("com.bergerkiller.mountiplex.types.PrivateTestObject")) {
+        } else if (classPath.equals("com.bergerkiller.mountiplex.types.TestObjectExtended")) {
             return source.classes[1];
-        } else if (classPath.equals("com.bergerkiller.mountiplex.types.SpeedTestObject")) {
+        } else if (classPath.equals("com.bergerkiller.mountiplex.types.PrivateTestObject")) {
             return source.classes[2];
-        } else if (classPath.equals("com.bergerkiller.mountiplex.types.RenameTestObject")) {
+        } else if (classPath.equals("com.bergerkiller.mountiplex.types.SpeedTestObject")) {
             return source.classes[3];
+        } else if (classPath.equals("com.bergerkiller.mountiplex.types.RenameTestObject")) {
+            return source.classes[4];
         }
         return null;
     }
