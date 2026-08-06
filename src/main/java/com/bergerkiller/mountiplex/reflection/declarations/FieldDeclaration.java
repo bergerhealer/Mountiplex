@@ -357,7 +357,24 @@ public class FieldDeclaration extends Declaration {
             FieldDeclaration nameResolved = this.resolveName();
             if (nameResolved.field == null) {
                 // Find the actual field
-                javaField = MPLType.getDeclaredField(this.getResolver().getDeclaredClass(), nameResolved.name.value());
+                // Look in super classes if not found, but only allow that to work when the field is not private
+                Class<?> searchClass = this.getResolver().getDeclaredClass();
+                javaField = MPLType.tryGetDeclaredField(searchClass, nameResolved.name.value());
+                while (javaField == null) {
+                    searchClass = searchClass.getSuperclass();
+                    if (searchClass == null || searchClass == Object.class) {
+                        break;
+                    }
+
+                    javaField = MPLType.tryGetDeclaredField(searchClass, nameResolved.name.value());
+                    if (javaField != null && Modifier.isPrivate(javaField.getModifiers())) {
+                        javaField = null;
+                    }
+                }
+                if (javaField == null) {
+                    return null;
+                }
+
                 FieldDeclaration realField = new FieldDeclaration(this.getResolver(), javaField);
 
                 // Check still matching
@@ -381,8 +398,6 @@ public class FieldDeclaration extends Declaration {
 
             this.copyFieldFrom(nameResolved);
             return nameResolved;
-        } catch (NoSuchFieldException ex) {
-            // Not found
         } catch (Throwable t) {
             MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to discover field", t);
         }

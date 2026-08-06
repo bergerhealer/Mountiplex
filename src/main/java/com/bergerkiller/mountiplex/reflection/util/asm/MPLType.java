@@ -475,6 +475,22 @@ public class MPLType {
     }
 
     /**
+     * Looks up a field declared in a Class
+     *
+     * @param clazz Class to find the field in
+     * @param name Name of the field
+     * @return the field, or null if not found
+     * @throws SecurityException
+     */
+    public static Field tryGetDeclaredField(Class<?> clazz, String name) throws SecurityException {
+        try {
+            return getDeclaredField(clazz, name);
+        } catch (NoSuchFieldException ex) {
+            return null;
+        }
+    }
+
+    /**
      * See: {@link Class#forName(String, boolean, ClassLoader)}
      * 
      * @param name

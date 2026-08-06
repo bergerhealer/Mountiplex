@@ -18,6 +18,42 @@ import static org.junit.Assert.*;
 public class ClassDeclarationTest {
 
     @Test
+    public void testFieldInParentClass() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setPackage("com.bergerkiller.mountiplex.types");
+        ClassDeclaration dec = new ClassDeclaration(resolver, "" +
+                "class TestObjectExtended {\n" +
+                "    public static int publicStaticField;\n" +
+                "    public int publicField:d;\n" +
+                "    public int publicMethod:k(int n);\n" +
+                "}");
+
+        // publicStaticField
+        {
+            FieldDeclaration field = dec.fields[0].discover();
+            assertNotNull(field);
+            assertNotNull(field.field);
+            assertEquals("publicStaticField", field.name.toString());
+        }
+
+        // publicField
+        {
+            FieldDeclaration field = dec.fields[1].discover();
+            assertNotNull(field);
+            assertNotNull(field.field);
+            assertEquals("publicField:d", field.name.toString());
+        }
+
+        // publicMethod
+        {
+            MethodDeclaration method = dec.methods[0].discover();
+            assertNotNull(method);
+            assertNotNull(method.method);
+            assertEquals("publicMethod:k", method.name.toString());
+        }
+    }
+
+    @Test
     public void testRemappedMethodDeclaration() {
         ClassResolver resolver = ClassResolver.DEFAULT.clone();
         resolver.setPackage("com.bergerkiller.mountiplex.types");

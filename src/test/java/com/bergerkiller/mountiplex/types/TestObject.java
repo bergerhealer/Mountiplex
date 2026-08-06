@@ -15,6 +15,7 @@ public class TestObject extends TestObjectDefInherited implements TestObjectDefI
     public String unusedField = "unused";
     public final OneWayConvertableType oneWay = new OneWayConvertableType();
     public long[][] multiArr;
+    public static int publicStaticField = 8;
 
     private int h(int n) {
         c += n;
