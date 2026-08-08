@@ -688,7 +688,7 @@ public class TemplateGenerator {
     }
 
     private static String getPropertyName(FieldDeclaration fDec) {
-        String name = fDec.name.real();
+        String name = fDec.name.firstReal();
         if (name.isEmpty()) {
             return "UNKNOWN";
         } else {

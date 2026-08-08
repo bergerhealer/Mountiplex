@@ -682,17 +682,13 @@ public class MethodDeclaration extends Declaration {
     @Override
     @SuppressWarnings("unchecked")
     public MethodDeclaration discover() {
-        if (!this.isValid() || !this.isResolved()) {
-            return null;
-        }
-
-        // Always exists when a body is specified
-        if (this.body != null) {
+        // If already discovered, skip.
+        if (this.isDiscovered()) {
             return this;
         }
 
-        // If the method in which it is declared cannot be found, fail right away
-        if (this.getResolver().getDeclaredClass() == null) {
+        // Types missing check
+        if (!this.isValid() || !this.isResolved() || this.getResolver().getDeclaredClass() == null) {
             return null;
         }
 
@@ -742,6 +738,10 @@ public class MethodDeclaration extends Declaration {
         // At this point we are no longer searching in the Class Declaration 'pool'
         // Because of that, we must now ask the Resolver to give us the real method name
         MethodDeclaration nameResolved = this.resolveName();
+        if (nameResolved.isDiscovered()) {
+            return nameResolved;
+        }
+
         if (nameResolved.name.value().equals("<init>")) {
             // Try to find a constructor matching the parameter types of this method declaration
             // Name is ignored entirely
@@ -757,17 +757,16 @@ public class MethodDeclaration extends Declaration {
                 return nameResolved;
             }
 
-            // First try to find the method in a quick way
-            try {
-                java.lang.reflect.Method method;
-                method = MPLType.getDeclaredMethod(this.getResolver().getDeclaredClass(), nameResolved.name.value(), nameResolved.parameters.toParamArray());
+            // First try to find the method in a quick way (java reflection)
+            // This also checks superclasses (for non-private methods) and interfaces (for public methods)
+            java.lang.reflect.Method method = MPLType.tryGetDeclaredMethodCheckSuperclasses(
+                    this.getResolver().getDeclaredClass(), nameResolved.name.value(), nameResolved.parameters.toParamArray());
+            if (method != null) {
                 MethodDeclaration result = new MethodDeclaration(this.getResolver(), method);
                 if (result.match(nameResolved) && checkPublic(method)) {
                     nameResolved.method = method;
                     return nameResolved;
                 }
-            } catch (NoSuchMethodException | SecurityException e) {
-                // Ignored
             }
 
             // Try looking through the class itself by using a ClassDeclaration to preprocess it
@@ -1006,6 +1005,21 @@ public class MethodDeclaration extends Declaration {
     }
 
     /**
+     * Gets whether this MethodDeclaration was already discovered. This is the case when this is a valid returned
+     * value from {@link #discover()}. In this case, calling discover() or resolveName() again is a no-op.<br>
+     * <br>
+     * Discovered methods will have a valid {@link #name}, and an assigned {@link #method} or {@link #constructor},
+     * or feature a {@link #body method body} that is compiled.
+     *
+     * @return True if this method declaration is fully discovered
+     */
+    public boolean isDiscovered() {
+        return (body != null && this.getResolver().getDeclaredClass() != null)
+                || method != null
+                || constructor != null;
+    }
+
+    /**
      * Asks the {@link Resolver} what the real method name is, given the provided signature
      * of this method declaration. If the name is not different, this same method declaration
      * is returned.
@@ -1019,6 +1033,11 @@ public class MethodDeclaration extends Declaration {
                 this.name.value().equals("<init>") ||
                 this.isRecordFieldChanger
         ) {
+            return this;
+        }
+
+        // If already discovered, skip name resolution, because that step was already performed as part of that.
+        if (this.isDiscovered()) {
             return this;
         }
 

@@ -5,6 +5,7 @@ import static org.objectweb.asm.Opcodes.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URLClassLoader;
 
 import org.objectweb.asm.ClassWriter;
@@ -462,6 +463,61 @@ public class MPLType {
     }
 
     /**
+     * Looks up a method declared in a Class
+     *
+     * @param clazz Class to find the method in
+     * @param name Name of the method
+     * @param parameterTypes Parameters of the method
+     * @return the method, or null if not found
+     * @throws SecurityException
+     */
+    public static Method tryGetDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) throws SecurityException {
+        try {
+            return getDeclaredMethod(clazz, name, parameterTypes);
+        } catch (NoSuchMethodException ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Looks up a method declared in a Class, also checking all superclasses and implemented
+     * interfaces. Excludes methods in superclasses that are private.
+     *
+     * @param clazz Class to find the method in
+     * @param name Name of the method
+     * @param parameterTypes Parameters of the method
+     * @return the method, or null if not found
+     * @throws SecurityException
+     */
+    public static Method tryGetDeclaredMethodCheckSuperclasses(Class<?> clazz, String name, Class<?>... parameterTypes) throws SecurityException {
+        // Try class itself or superclasses
+        Class<?> searchClass = clazz;
+        Method javaMethod = tryGetDeclaredMethod(searchClass, name, parameterTypes);
+        while (javaMethod == null) {
+            searchClass = searchClass.getSuperclass();
+            if (searchClass == null || searchClass == Object.class) {
+                break;
+            }
+
+            javaMethod = MPLType.tryGetDeclaredMethod(searchClass, name, parameterTypes);
+            if (javaMethod != null && Modifier.isPrivate(javaMethod.getModifiers())) {
+                javaMethod = null;
+            }
+        }
+
+        // Try interfaces
+        if (javaMethod == null) {
+            for (Class<?> interfaceClass : clazz.getInterfaces()) {
+                javaMethod = MPLType.tryGetDeclaredMethod(interfaceClass, name, parameterTypes);
+                if (javaMethod != null) {
+                    break;
+                }
+            }
+        }
+        return javaMethod;
+    }
+
+    /**
      * Looks up a field declared in a Class
      * 
      * @param clazz Class to find the field in
@@ -488,6 +544,32 @@ public class MPLType {
         } catch (NoSuchFieldException ex) {
             return null;
         }
+    }
+
+    /**
+     * Looks up a field declared in a Class, checking superclasses as well. Only allows fields from superclasses
+     * to be included if they are non-private. Protected/public fields are visible only.
+     *
+     * @param clazz Class to find the field in
+     * @param name Name of the field
+     * @return the field, or null if not found
+     * @throws SecurityException
+     */
+    public static Field tryGetDeclaredFieldCheckSuperClasses(Class<?> clazz, String name) throws SecurityException {
+        Class<?> searchClass = clazz;
+        Field javaField = tryGetDeclaredField(searchClass, name);
+        while (javaField == null) {
+            searchClass = searchClass.getSuperclass();
+            if (searchClass == null || searchClass == Object.class) {
+                break;
+            }
+
+            javaField = MPLType.tryGetDeclaredField(searchClass, name);
+            if (javaField != null && Modifier.isPrivate(javaField.getModifiers())) {
+                javaField = null;
+            }
+        }
+        return javaField;
     }
 
     /**

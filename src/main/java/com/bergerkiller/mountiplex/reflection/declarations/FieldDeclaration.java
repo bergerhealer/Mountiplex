@@ -348,6 +348,11 @@ public class FieldDeclaration extends Declaration {
 
     @Override
     public FieldDeclaration discover() {
+        // If already discovered, then the name is already resolved. Return this same declaration
+        if (this.isDiscovered()) {
+            return this;
+        }
+
         if (!this.isValid() || !this.isResolved()) {
             return null;
         }
@@ -359,18 +364,7 @@ public class FieldDeclaration extends Declaration {
                 // Find the actual field
                 // Look in super classes if not found, but only allow that to work when the field is not private
                 Class<?> searchClass = this.getResolver().getDeclaredClass();
-                javaField = MPLType.tryGetDeclaredField(searchClass, nameResolved.name.value());
-                while (javaField == null) {
-                    searchClass = searchClass.getSuperclass();
-                    if (searchClass == null || searchClass == Object.class) {
-                        break;
-                    }
-
-                    javaField = MPLType.tryGetDeclaredField(searchClass, nameResolved.name.value());
-                    if (javaField != null && Modifier.isPrivate(javaField.getModifiers())) {
-                        javaField = null;
-                    }
-                }
+                javaField = MPLType.tryGetDeclaredFieldCheckSuperClasses(searchClass, nameResolved.name.value());
                 if (javaField == null) {
                     return null;
                 }
@@ -428,6 +422,18 @@ public class FieldDeclaration extends Declaration {
     }
 
     /**
+     * Gets whether this FieldDeclaration was already discovered. This is the case when this is a valid returned
+     * value from {@link #discover()}. In this case, calling discover() or resolveName() again is a no-op.<br>
+     * <br>
+     * Discovered fields will have a valid {@link #name}, and an assigned {@link #field}.
+     *
+     * @return True if this field declaration is fully discovered
+     */
+    public boolean isDiscovered() {
+        return field != null;
+    }
+
+    /**
      * Asks the {@link Resolver} what the real field name is, given the provided signature
      * of this field declaration. If the name is not different, this same field declaration
      * is returned.
@@ -436,6 +442,11 @@ public class FieldDeclaration extends Declaration {
      */
     public FieldDeclaration resolveName() {
         if (!this.isResolved()) {
+            return this;
+        }
+
+        // If already discovered, then the name is already resolved. Return this same declaration
+        if (this.isDiscovered()) {
             return this;
         }
 

@@ -156,7 +156,7 @@ public class TemplateHandleBuilder<H extends Handle> {
 
                 Class<?> fieldType = fieldDec.type.exposed().type;
                 String fieldTypeDesc = MPLType.getDescriptor(fieldType);
-                String fieldName = fieldDec.name.real();
+                String fieldName = fieldDec.name.firstReal();
 
                 // Find out what Template accessor names to use
                 // For example, this returns class type Template.Field.Integer for 'int' fields
@@ -256,7 +256,7 @@ public class TemplateHandleBuilder<H extends Handle> {
                     continue;
                 }
 
-                String methodName = methodDec.name.real();
+                String methodName = methodDec.name.firstReal();
 
                 // Build the method descriptor
                 boolean hasTypeConversion = !methodDec.returnType.canDownCast();

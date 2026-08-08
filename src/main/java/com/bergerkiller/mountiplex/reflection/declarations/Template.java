@@ -714,7 +714,7 @@ public class Template {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
             for (FieldDeclaration fieldDec : dec.fields) {
-                if (fieldDec.field != null && fieldDec.name.real().equals(name)) {
+                if (fieldDec.field != null && fieldDec.name.firstReal().equals(name)) {
                     if (!fieldDec.isResolved()) {
                         initFail("Field '" + name + "' has an unresolved declaration: " + fieldDec);
                         return null;
@@ -799,7 +799,7 @@ public class Template {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
             for (MethodDeclaration methodDec : dec.methods) {
-                if ((methodDec.constructor != null || methodDec.method != null || methodDec.body != null) && methodDec.name.real().equals(name)) {
+                if ((methodDec.constructor != null || methodDec.method != null || methodDec.body != null) && methodDec.name.firstReal().equals(name)) {
                     if (!methodDec.isResolved()) {
                         initFail("Method '" + name + "' has an unresolved declaration: " + methodDec);
                         return null;

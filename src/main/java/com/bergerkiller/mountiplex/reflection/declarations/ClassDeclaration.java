@@ -1,13 +1,10 @@
 package com.bergerkiller.mountiplex.reflection.declarations;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
@@ -214,61 +211,11 @@ public class ClassDeclaration extends Declaration {
     }
 
     private void resolveFields() {
-        Map<String, Field> realRefFieldsByName = new HashMap<>();
-
-        // Find all fields the type contains, including non-private fields declared in super classes
-        boolean excludePrivateFields = false;
-        Class<?> currentType = this.type.type;
-        while (currentType != null && currentType != Object.class && !currentType.isInterface()) {
-            try {
-                for (java.lang.reflect.Field field : currentType.getDeclaredFields()) {
-                    if (!excludePrivateFields || !Modifier.isPrivate(field.getModifiers())) {
-                        realRefFieldsByName.putIfAbsent(MPLType.getName(field), field);
-                    }
-                }
-            } catch (Throwable t) {
-                if (this.getResolver().getLogErrors()) {
-                    MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to get declared fields of " + currentType, t);
-                }
-                break;
-            }
-
-            currentType = currentType.getSuperclass();
-            excludePrivateFields = true;
-        }
-
-        FieldDeclaration[] realFields = new FieldDeclaration[realRefFieldsByName.size()];
-        {
-            int i = 0;
-            for (java.lang.reflect.Field realRefField : realRefFieldsByName.values()) {
-                try {
-                    realFields[i] = new FieldDeclaration(getResolver(), realRefField);
-                } catch (Throwable t) {
-                    if (this.getResolver().getLogErrors()) {
-                        MountiplexUtil.LOGGER.log(Level.WARNING, "Failed to read field " + realRefField, t);
-                    }
-                }
-
-                i++;
-            }
-        }
-
-        // This takes care of asking the Resolver about the true name of the fields
-        FieldDeclaration[] nameResolvedFields = new FieldDeclaration[this.fields.length];
-        for (int i = 0; i < nameResolvedFields.length; i++) {
-            nameResolvedFields[i] = this.fields[i].resolveName();
-        }
-        FieldLCSResolver.resolve(nameResolvedFields, realFields);
-
-        // Copy found reflection Fields back into the field declaration
-        // Preserve original value/alias of the name
-        for (int i = 0; i < nameResolvedFields.length; i++) {
-            this.fields[i].copyFieldFrom(nameResolvedFields[i]);
-        }
+        FieldLCSResolver.resolve(this.getResolver(), this.type.type, this.fields);
     }
 
     private void resolveMethods() {
-        MethodMatchResolver.match(this.type.type, this.getResolver(), this.methods);
+        MethodMatchResolver.resolve(this.type.type, this.getResolver(), this.methods);
     }
 
     private void resolveConstructors() {

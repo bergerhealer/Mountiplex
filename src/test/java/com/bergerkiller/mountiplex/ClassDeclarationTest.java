@@ -69,6 +69,24 @@ public class ClassDeclarationTest {
         assertEquals("addInt:h", method.name.toString());
     }
 
+    // Specifically checks that a remapping on the extended class also works when the
+    // method is actually defined in a superclass.
+    @Test
+    public void testRemappedSuperclassMethodDeclaration() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setPackage("com.bergerkiller.mountiplex.types");
+        ClassDeclaration dec = new ClassDeclaration(resolver, "" +
+                "class TestObjectExtended {\n" +
+                "    #remap TestObjectExtended public int addInt:k(int n);\n" +
+                "    public int addInt(int n);\n" +
+                "}");
+
+        MethodDeclaration method = dec.methods[0].discover();
+        assertNotNull(method);
+        assertNotNull(method.method);
+        assertEquals("addInt:k", method.name.toString());
+    }
+
     @Test
     public void testRemappedMethodRequirement() {
         ClassResolver resolver = ClassResolver.DEFAULT.clone();
