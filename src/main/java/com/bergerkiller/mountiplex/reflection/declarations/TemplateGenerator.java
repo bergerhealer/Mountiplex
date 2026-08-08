@@ -180,7 +180,7 @@ public class TemplateGenerator {
                     }
 
                     String typeStr = getFieldTypeStr(fDec);
-                    String fName = fDec.name.real();
+                    String fName = fDec.name.firstReal();
 
                     populateModifiers(fDec.modifiers);
                     addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".getSafe()");
@@ -194,7 +194,7 @@ public class TemplateGenerator {
 
                     String primTypeStr = getPrimFieldType(fDec);
                     String typeStr = getFieldTypeStr(fDec);
-                    String fName = fDec.name.real();
+                    String fName = fDec.name.firstReal();
 
                     populateModifiers(fDec.modifiers);
                     addLine("public static final " + typeStr + " " + fName + " = T." + fName + ".get" + primTypeStr + "Safe()");
@@ -235,19 +235,19 @@ public class TemplateGenerator {
                     }
                     String primTypeStr = getPrimFieldType(fDec);
                     String typeStr = getFieldTypeStr(fDec);
-                    String fName = fDec.name.real();
+                    String fName = fDec.name.firstReal();
 
                     // Getter
                     populateModifiers(fDec.modifiers);
                     addLine("public static " + typeStr + " " + fName + "() {");
-                    addLine("return T." + fDec.name.real() + ".get" + primTypeStr + "()");
+                    addLine("return T." + fDec.name.firstReal() + ".get" + primTypeStr + "()");
                     addLine("}");
 
                     // Setter
                     if (!fDec.modifiers.isReadonly()) {
                         populateModifiers(fDec.modifiers);
                         addLine("public static void " + fName + "_set(" + typeStr + " value) {");
-                        addLine("T." + fDec.name.real() + ".set" + primTypeStr + "(value)");
+                        addLine("T." + fDec.name.firstReal() + ".set" + primTypeStr + "(value)");
                         addLine("}");
                     }
                 }
@@ -342,7 +342,7 @@ public class TemplateGenerator {
                     }
 
                     populateModifiers(fDec.modifiers);
-                    addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
+                    addLine("public final " + fieldTypeStr + " " + fDec.name.firstReal() + " = new " + fieldTypeStr + "()");
                     hasEnumFields = true;
                 }
                 if (hasEnumFields) {
@@ -386,7 +386,7 @@ public class TemplateGenerator {
                     }
 
                     populateModifiers(fDec.modifiers);
-                    addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
+                    addLine("public final " + fieldTypeStr + " " + fDec.name.firstReal() + " = new " + fieldTypeStr + "()");
                     hasStaticFields = true;
                 }
                 if (hasStaticFields) {
@@ -413,7 +413,7 @@ public class TemplateGenerator {
                     }
 
                     populateModifiers(fDec.modifiers);
-                    addLine("public final " + fieldTypeStr + " " + fDec.name.real() + " = new " + fieldTypeStr + "()");
+                    addLine("public final " + fieldTypeStr + " " + fDec.name.firstReal() + " = new " + fieldTypeStr + "()");
                     hasLocalFields = true;
                 }
                 if (hasLocalFields) {
@@ -429,7 +429,7 @@ public class TemplateGenerator {
                     String methodTypeStr = "Template.StaticMethod" + getMethodAppend(mDec);
 
                     populateModifiers(mDec.modifiers);
-                    addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
+                    addLine("public final " + methodTypeStr + " " + mDec.name.firstReal() + " = new " + methodTypeStr + "()");
                     hasStaticMethods = true;
                 }
                 if (hasStaticMethods) {
@@ -445,7 +445,7 @@ public class TemplateGenerator {
                     String methodTypeStr = "Template.Method" + getMethodAppend(mDec);
 
                     populateModifiers(mDec.modifiers);
-                    addLine("public final " + methodTypeStr + " " + mDec.name.real() + " = new " + methodTypeStr + "()");
+                    addLine("public final " + methodTypeStr + " " + mDec.name.firstReal() + " = new " + methodTypeStr + "()");
                     hasLocalMethods = true;
                 }
                 if (hasLocalMethods) {
@@ -503,7 +503,7 @@ public class TemplateGenerator {
                 paramsStr += ", ";
             }
             paramsStr += getExposedTypeStr(parameters.parameters[i].type);
-            paramsStr += " " + parameters.parameters[i].name.real();
+            paramsStr += " " + parameters.parameters[i].name.firstReal();
         }
         return paramsStr + ")";
     }
@@ -514,7 +514,7 @@ public class TemplateGenerator {
             if (i > 0) {
                 argsStr += ", ";
             }
-            argsStr += parameters.parameters[i].name.real();
+            argsStr += parameters.parameters[i].name.firstReal();
         }
         return argsStr;
     }
@@ -522,7 +522,7 @@ public class TemplateGenerator {
     private void addAbstractMethodBody(MethodDeclaration mDec) {
         addLine("public abstract " +
                 getExposedTypeStr(mDec.returnType) +
-                " " + mDec.name.real() +
+                " " + mDec.name.firstReal() +
                 getParamsBody(mDec.parameters));
     }
 
@@ -530,7 +530,7 @@ public class TemplateGenerator {
         // Include body
         addLine("public static " +
                 getExposedTypeStr(mDec.returnType) +
-                " " + mDec.name.real() +
+                " " + mDec.name.firstReal() +
                 getParamsBody(mDec.parameters) + " {");
 
         String bodyStr = "";
@@ -542,22 +542,22 @@ public class TemplateGenerator {
             // Call invoke/invokeVA on the Template methods themselves
             if (mDec.parameters.parameters.length <= 5) {
                 // 0/1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
-                bodyStr += "T." + mDec.name.real() + ".invoke(";
+                bodyStr += "T." + mDec.name.firstReal() + ".invoke(";
             } else {
                 // varargs Object[] invoke
-                bodyStr += "T." + mDec.name.real() + ".invokeVA(";
+                bodyStr += "T." + mDec.name.firstReal() + ".invokeVA(";
             }
         } else {
             // Call invoke/invokeVA on the 'invoker' field
             if (mDec.parameters.parameters.length == 0) {
                 // 0 argument specified invoke function, omit trailing ,
-                bodyStr += "T." + mDec.name.real() + ".invoker.invoke(null";
+                bodyStr += "T." + mDec.name.firstReal() + ".invoker.invoke(null";
             } else if (mDec.parameters.parameters.length <= 5) {
                 // 1/2/3/4/5 argument specific invoke functions that avoid Object[] creation
-                bodyStr += "T." + mDec.name.real() + ".invoker.invoke(null,";
+                bodyStr += "T." + mDec.name.firstReal() + ".invoker.invoke(null,";
             } else {
                 // varargs Object[] invoke
-                bodyStr += "T." + mDec.name.real() + ".invoker.invokeVA(null,";
+                bodyStr += "T." + mDec.name.firstReal() + ".invoker.invokeVA(null,";
             }
         }
 

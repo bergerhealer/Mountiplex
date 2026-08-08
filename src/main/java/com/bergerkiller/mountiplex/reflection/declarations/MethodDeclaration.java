@@ -500,7 +500,7 @@ public class MethodDeclaration extends Declaration {
 
             methodBody.append(", ");
             methodBody.appendAccessibleTypeName(param.type.exposed().type);
-            methodBody.append(' ').append(param.name.real());
+            methodBody.append(' ').append(param.name.firstReal());
 
             // If converted or a primitive type, name the input parameter '_conv_input'
             if ((param.type.cast != null && param.type.cast.type != Object.class) || param.type.isPrimitive) {
@@ -537,13 +537,13 @@ public class MethodDeclaration extends Declaration {
             } else if (hasConversion || param.type.isPrimitive) {
                 // Is converted or boxed, assign to its own Object field
                 methodBody.append("  Object ")
-                          .append(param.name.real())
+                          .append(param.name.firstReal())
                           .append(" = ");
             }
 
             // Assigning a boxed version of a primitive input parameter
             if (param.type.cast == null && param.type.isPrimitive) {
-                methodBody.appendBoxPrimitive(param.type.type, param.name.real(), "_conv_input")
+                methodBody.appendBoxPrimitive(param.type.type, param.name.firstReal(), "_conv_input")
                           .appendEnd();
                 continue;
             }
@@ -551,13 +551,13 @@ public class MethodDeclaration extends Declaration {
             // When no conversion happens, assign to the var-args array right away and/or stop.
             if (!hasConversion) {
                 if (isVarArgsInvoke) {
-                    methodBody.append(param.name.real()).appendEnd();
+                    methodBody.append(param.name.firstReal()).appendEnd();
                 }
                 continue;
             }
 
             // Generate name for the converter field
-            String converterFieldName = name + "_conv_" + param.name.real();
+            String converterFieldName = name + "_conv_" + param.name.firstReal();
 
             // Find converter
             Converter<Object, Object> converter = Conversion.find(param.type.cast, param.type);
@@ -573,9 +573,9 @@ public class MethodDeclaration extends Declaration {
             methodBody.append("this.").append(converterFieldName);
             methodBody.append(".convertInput(");
             if (param.type.cast.isPrimitive) {
-                methodBody.appendBoxPrimitive(param.type.cast.type, param.name.real(), "_conv_input");
+                methodBody.appendBoxPrimitive(param.type.cast.type, param.name.firstReal(), "_conv_input");
             } else {
-                methodBody.appendFieldName(param.name.real(), "_conv_input");
+                methodBody.appendFieldName(param.name.firstReal(), "_conv_input");
             }
             methodBody.append(')').appendEnd();
         }
@@ -615,7 +615,7 @@ public class MethodDeclaration extends Declaration {
             methodBody.append(".invoke(instance");
             for (int i = 0; i < this.parameters.parameters.length; i++) {
                 ParameterDeclaration param = this.parameters.parameters[i];
-                methodBody.append(", ").append(param.name.real());
+                methodBody.append(", ").append(param.name.firstReal());
             }
             methodBody.append(')')
                       .appendEnd();
@@ -1046,14 +1046,14 @@ public class MethodDeclaration extends Declaration {
         Remapping.MethodRemapping remapping = getResolver().getRemappings().find(this);
         if (remapping != null) {
             MethodDeclaration remappedSelf = new MethodDeclaration(this,
-                    this.name.rename(remapping.declaration.name));
+                    this.name.setValue(remapping.declaration.name));
             remappedSelf.method = remapping.method;
             return remappedSelf;
         }
 
         String resolvedName = Resolver.resolveMethodName(this.getResolver().getDeclaredClass(), this.name.value(), this.parameters.toParamArray());
         if (resolvedName != null && !resolvedName.equals(this.name.value())) {
-            return new MethodDeclaration(this, this.name.rename(resolvedName));
+            return new MethodDeclaration(this, this.name.setValue(resolvedName));
         } else {
             return this;
         }

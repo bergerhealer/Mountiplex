@@ -799,7 +799,7 @@ public class Template {
                 throw new IllegalArgumentException("ClassDeclaration is null");
             }
             for (MethodDeclaration methodDec : dec.methods) {
-                if ((methodDec.constructor != null || methodDec.method != null || methodDec.body != null) && methodDec.name.firstReal().equals(name)) {
+                if (methodDec.isDiscovered() && methodDec.name.firstReal().equals(name)) {
                     if (!methodDec.isResolved()) {
                         initFail("Method '" + name + "' has an unresolved declaration: " + methodDec);
                         return null;
@@ -1820,7 +1820,12 @@ public class Template {
             }
             constantName = name;
             for (FieldDeclaration fDec : dec.fields) {
-                if (fDec.isEnum && fDec.name.real().equals(name)) {
+                if (fDec.isEnum && fDec.name.firstReal().equals(name)) {
+                    // Skip if not static
+                    if (fDec.field != null && !Modifier.isStatic(fDec.field.getModifiers())) {
+                        continue;
+                    }
+
                     // Check if the class is initialized
                     if (dec.type.type == null) {
                         initFail("Enumeration constant " + name + " in class " +
@@ -1828,16 +1833,24 @@ public class Template {
                         return null;
                     }
 
-                    // Find the enum constant
-                    for (Object enumConstant : dec.type.type.getEnumConstants()) {
-                        if (((Enum<?>) enumConstant).name().equals(fDec.name.value())) {
-                            constant = (T) enumConstant;
+                    // Previous resolving will already have found the java reflection Field instance
+                    // Just get the constant value from that
+                    // Previously we used getEnumConstants(), but Enum name() does not use the actual
+                    // field name. That makes this impossible to use.
+                    if (fDec.field != null) {
+                        try {
+                            fDec.field.setAccessible(true);
+                            constant = (T) fDec.field.get(null);
                             return fDec;
+                        } catch (Throwable t) {
+                            initFail("Enumeration constant " + name + " (" + fDec.name + ") could not be retrieved in class " +
+                                    dec.type + ": " + t.getMessage());
+                            return null;
                         }
                     }
 
                     // Not found, despite being declared
-                    initFail("Enumeration constant " + name + " missing in class " + dec.type);
+                    initFail("Enumeration constant " + name + " (" + fDec.name + ") missing in class " + dec.type);
                     return null;
                 }
             }

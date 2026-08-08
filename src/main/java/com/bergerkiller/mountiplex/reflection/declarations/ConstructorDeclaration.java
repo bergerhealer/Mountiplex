@@ -39,7 +39,7 @@ public class ConstructorDeclaration extends Declaration {
     public final String getName() {
         String name = "constr";
         for (ParameterDeclaration param : parameters.parameters) {
-            name += "_" + param.name.real();
+            name += "_" + param.name.firstReal();
         }
         return name;
     }

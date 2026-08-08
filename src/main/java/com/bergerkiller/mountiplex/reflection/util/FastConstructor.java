@@ -99,7 +99,7 @@ public class FastConstructor<T> implements Constructor<T>, LazyInitializedObject
             StringBuilder name = new StringBuilder();
             name.append("constr");
             for (ParameterDeclaration param : this.constructorDec.parameters.parameters) {
-                name.append(param.name.real());
+                name.append(param.name.firstReal());
             }
             return name.toString();
         }

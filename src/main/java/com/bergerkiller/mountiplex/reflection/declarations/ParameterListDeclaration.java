@@ -103,7 +103,7 @@ public class ParameterListDeclaration extends Declaration {
             this.parameters[i] = new ParameterDeclaration(
                     this.getResolver(),
                     sourceParam.type,
-                    sourceParam.name.rename(nameMapper.apply(sourceParam)));
+                    sourceParam.name.setValue(nameMapper.apply(sourceParam)));
         }
     }
 
@@ -210,7 +210,7 @@ public class ParameterListDeclaration extends Declaration {
      *
      * @param nameMapper Function that gives new names to parameters
      * @return Updated ParameterListDeclaration
-     * @see NameDeclaration#rename(String)
+     * @see NameDeclaration#setValue(String)
      */
     public ParameterListDeclaration renameParameters(Function<ParameterDeclaration, String> nameMapper) {
         return new ParameterListDeclaration(this, nameMapper);

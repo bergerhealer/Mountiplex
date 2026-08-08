@@ -321,7 +321,7 @@ public class TemplateClassBuilder<C extends Template.Class<H>, H extends Handle>
                     // we need to use reflection or runtime-code-gen to call this method.
                     // for this we add a static Invoker field to handle initialization/execution for us
                     // the invoker is initialized in such a way that, when first called, it will update the field storing it
-                    String invoker_name = methodDec.name.real() + "_invoker_" + (fieldNameIdx++);
+                    String invoker_name = methodDec.name.firstReal() + "_invoker_" + (fieldNameIdx++);
                     if (invoker_name.startsWith("<init>_")) {
                         invoker_name = "initializer_" + invoker_name.substring(7); // Fix invalid names
                     }

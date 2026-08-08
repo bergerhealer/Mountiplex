@@ -124,7 +124,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                 // Add the method signature information
                 methodBody.append("public ")
                           .append(ReflectionUtil.getAccessibleTypeName(declaration.returnType.type))
-                          .append(" ").append(declaration.name.real()).append("(");
+                          .append(" ").append(declaration.name.firstReal()).append("(");
                 if (!declaration.modifiers.isStatic()) {
                     methodBody.append(ReflectionUtil.getAccessibleTypeName(declaration.getDeclaringClass()))
                               .append(" instance");
@@ -136,7 +136,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                     ParameterDeclaration param = declaration.parameters.parameters[i];
                     methodBody.append(ReflectionUtil.getAccessibleTypeName(param.type.type))
                               .append(' ')
-                              .append(param.name.real());
+                              .append(param.name.firstReal());
                     if (i < (argCount-1)) {
                         methodBody.append(',');
                     }
@@ -284,7 +284,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
         }
 
         // With this, instance (optional) and all arguments on the stack, invoke the actual method
-        mv.visitMethodInsn(INVOKEVIRTUAL, writer.getInternalName(), declaration.name.real(), invokeDescriptor.toString(), false);
+        mv.visitMethodInsn(INVOKEVIRTUAL, writer.getInternalName(), declaration.name.firstReal(), invokeDescriptor.toString(), false);
 
         // Might be it returns a primitive type, which we would have to wrap properly
         MPLType.visitBoxVariable(mv, returnType);

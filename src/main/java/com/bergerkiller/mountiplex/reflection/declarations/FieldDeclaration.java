@@ -455,7 +455,7 @@ public class FieldDeclaration extends Declaration {
         Remapping.FieldRemapping remapping = getResolver().getRemappings().find(this);
         if (remapping != null) {
             FieldDeclaration remappedSelf = new FieldDeclaration(this,
-                    this.name.rename(remapping.declaration.name));
+                    this.name.setValue(remapping.declaration.name));
             remappedSelf.field = remapping.field;
             remappedSelf.isEnum = remapping.field.isEnumConstant();
             return remappedSelf;
@@ -463,7 +463,7 @@ public class FieldDeclaration extends Declaration {
 
         String resolvedName = Resolver.resolveFieldName(this.getResolver().getDeclaredClass(), this.name.value());
         if (resolvedName != null && !resolvedName.equals(this.name.value())) {
-            return new FieldDeclaration(this, this.name.rename(resolvedName));
+            return new FieldDeclaration(this, this.name.setValue(resolvedName));
         } else {
             return this;
         }

@@ -78,7 +78,7 @@ public final class StringBuffer implements CharSequence {
     }
 
     public boolean substringEquals(int start, int end, String text) {
-        if (start < 0 || ((end - start) > this.length())) {
+        if (start < 0 || end > this.length()) {
             return false;
         } else {
             return this.substringToString(start, end).equals(text);
@@ -124,6 +124,16 @@ public final class StringBuffer implements CharSequence {
     @Override
     public StringBuffer subSequence(int start, int end) {
         return this.subSequence(start, end);
+    }
+
+    public int lastIndexOf(char token) {
+        int bidx = this.buffer_start + this.buffer_length - 1;
+        for (int i = this.buffer_length - 1; i >= 0; --i) {
+            if (this.buffer[bidx--] == token) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public int indexOf(char token) {

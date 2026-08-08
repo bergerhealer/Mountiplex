@@ -7,19 +7,20 @@ import com.bergerkiller.mountiplex.reflection.util.StringBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Declaration for a method or field name
  */
 public class NameDeclaration extends Declaration {
-    private final String _name;
+    private final String _value;
     private final String _alias;
+    private final String _firstReal;
 
-    public NameDeclaration(ClassResolver resolver, String name, String alias) {
+    public NameDeclaration(ClassResolver resolver, String value, String alias) {
         super(resolver);
-        this._name = name;
+        this._value = value;
         this._alias = alias;
+        this._firstReal = computeFirstReal(alias, value);
     }
 
     @Deprecated
@@ -41,8 +42,9 @@ public class NameDeclaration extends Declaration {
 
         // Invalid declarations are forced by passing null
         if (declaration == null) {
-            this._name = "";
+            this._value = "";
             this._alias = null;
+            this._firstReal = "";
             this.setInvalid();
             return;
         }
@@ -50,7 +52,6 @@ public class NameDeclaration extends Declaration {
         // Locate the name
         int startIdx = -1;
         StringBuffer name = null;
-        StringBuffer alias = null;
         for (int cidx = 0; cidx < declaration.length(); cidx++) {
             char c = declaration.charAt(cidx);
 
@@ -96,11 +97,13 @@ public class NameDeclaration extends Declaration {
         if (startIdx == -1) {
             // When an optional index is set and no name is available, allow for a fallback name
             if (optionalIdx != -1) {
-                this._name = "arg" + optionalIdx;
+                this._value = "arg" + optionalIdx;
                 this._alias = null;
+                this._firstReal = this._value;
             } else {
-                this._name = "";
+                this._value = "";
                 this._alias = null;
+                this._firstReal = "";
                 this.setInvalid();
             }
             return;
@@ -113,14 +116,20 @@ public class NameDeclaration extends Declaration {
         }
 
         // Check for alias (:)
-        int alias_idx = name.indexOf(':');
-        if (alias_idx != -1) {
-            alias = name.substring(0, alias_idx);
+        int alias_idx = name.lastIndexOf(':');
+        if (alias_idx == -1) {
+            // No alias at all
+            this._value = name.toString();
+            this._alias = null;
+            this._firstReal = this._value;
+        } else {
+            // Handle alias, also extract the first real alias in case multiple are specified
+            StringBuffer alias = name.substring(0, alias_idx);
             name = name.substring(alias_idx + 1);
+            this._value = name.toString();
+            this._alias = alias.toString();
+            this._firstReal = computeFirstReal(this._alias, this._value);
         }
-
-        this._name = (name == null) ? null : name.toString();
-        this._alias = (alias == null) ? null : alias.toString();
     }
 
     /**
@@ -130,7 +139,7 @@ public class NameDeclaration extends Declaration {
      * @return name
      */
     public final String value() {
-        return _name;
+        return _value;
     }
 
     /**
@@ -152,7 +161,7 @@ public class NameDeclaration extends Declaration {
      * @return real name
      */
     public final String real() {
-        return _alias != null ? _alias : _name;
+        return _alias != null ? _alias : _value;
     }
 
     /**
@@ -163,15 +172,19 @@ public class NameDeclaration extends Declaration {
      * @return first real name
      */
     public final String firstReal() {
-        if (_alias != null) {
-            int index = _alias.indexOf(':');
+        return _firstReal;
+    }
+
+    private static String computeFirstReal(String alias, String name) {
+        if (alias != null) {
+            int index = alias.indexOf(':');
             if (index != -1) {
-                return _alias.substring(0, index);
+                return alias.substring(0, index);
             } else {
-                return _alias;
+                return alias;
             }
         } else {
-            return _name;
+            return name;
         }
     }
 
@@ -190,7 +203,7 @@ public class NameDeclaration extends Declaration {
      * @return True if the name is obfuscated (such as 'aB', 'e', '_Y')
      */
     public final boolean isObfuscated() {
-    	return _name.length() <= 2;
+    	return _value.length() <= 2;
     }
 
     /**
@@ -203,8 +216,8 @@ public class NameDeclaration extends Declaration {
         if (!this.hasAlias()) {
             return false;
         }
-        for (int cidx = 0; cidx < this._name.length(); cidx++) {
-            if (this._name.charAt(cidx) != '?') {
+        for (int cidx = 0; cidx < this._value.length(); cidx++) {
+            if (this._value.charAt(cidx) != '?') {
                 return false;
             }
         }
@@ -217,7 +230,7 @@ public class NameDeclaration extends Declaration {
     		return 0.0;
     	}
     	NameDeclaration n = (NameDeclaration) other;
-    	if (n._name.equals(this._name)) {
+    	if (n._value.equals(this._value)) {
     		return 1.0;
     	}
     	if (n.isObfuscated() && this.isObfuscated()) {
@@ -230,7 +243,7 @@ public class NameDeclaration extends Declaration {
     		return 0.1;
     	} else {
     		// Both are deobfuscated, calculate similarity of the two names
-    		return MountiplexUtil.similarity(n._name, this._name);
+    		return MountiplexUtil.similarity(n._value, this._value);
     	}
     }
     
@@ -250,19 +263,14 @@ public class NameDeclaration extends Declaration {
                 // getName() == getName:???
                 return this.matchAlias(other._alias);
             } else {
-                return other._name.equals(this._name);
+                return other._value.equals(this._value);
             }
         }
         return false;
     }
 
     private boolean matchAlias(String otherAlias) {
-        String self_name = this.real();
-        int top_alias_end = self_name.indexOf(':');
-        if (top_alias_end != -1) {
-            self_name = self_name.substring(0, top_alias_end);
-        }
-        return self_name.equals(otherAlias);
+        return this.firstReal().equals(otherAlias);
     }
 
     @Override
@@ -270,10 +278,10 @@ public class NameDeclaration extends Declaration {
         if (!isValid()) {
             return "??[" + _initialDeclaration + "]??";
         }
-        if (_alias == null || identity) {
-            return _name;
+        if (_alias == null) {
+            return _value;
         } else {
-            return _alias + ":" + _name;
+            return _alias + ":" + _value;
         }
     }
 
@@ -287,7 +295,7 @@ public class NameDeclaration extends Declaration {
         str.append(indent).append("Name {\n");
         str.append(indent).append("  declaration=").append(this._initialDeclaration).append('\n');
         str.append(indent).append("  postfix=").append(this.getPostfix()).append('\n');
-        str.append(indent).append("  name=").append(this._name).append('\n');
+        str.append(indent).append("  name=").append(this._value).append('\n');
         str.append(indent).append("  alias=").append(this._alias).append('\n');
         str.append(indent).append("}\n");
     }
@@ -301,27 +309,32 @@ public class NameDeclaration extends Declaration {
      * @param newName The new name, can not be null
      * @return new name declaration with the name changed
      */
-    public NameDeclaration rename(NameDeclaration newName) {
-        if (!newName.hasAlias()) {
-            return rename(newName.value());
+    public NameDeclaration setValue(NameDeclaration newName) {
+        // Return newName if this name has no aliases, and already equals the first alias
+        if (!this.hasAlias() && this.value().equals(newName.firstReal())) {
+            return newName;
         }
 
-        // Obtain all known aliases. Omit the alias that is equal to this name.
-        List<String> aliases = new ArrayList<>(Arrays.asList(newName.alias().split(":")));
-        if (aliases.get(0).equals(this.value())) {
-            aliases.remove(0);
-        }
-        if (aliases.isEmpty()) {
-            return rename(newName.value());
+        // If the new name has no alias, or the alias already equals this name's value, then
+        // perform an optimized method that avoids parsing text.
+        if (!newName.hasAlias() || newName.alias().equals(this.value())) {
+            return setValueExact(newName.value());
         }
 
-        if (newName.value().equals(this.value())) {
-            return this; // No need to keep the original aliases
+        // Extract alias and value part to append
+        String aliasToAppend = newName.alias();
+
+        // Omit the first alias if it already equals this name's value (duplicate aliases)
+        int firstAliasEnd = aliasToAppend.indexOf(':');
+        if (firstAliasEnd != -1) {
+            String firstAlias = aliasToAppend.substring(0, firstAliasEnd);
+            if (firstAlias.equals(this.value())) {
+                aliasToAppend = aliasToAppend.substring(firstAliasEnd + 1);
+            }
         }
 
-        aliases.add(0, this.value());
         return new NameDeclaration(this.getResolver(), newName.value(),
-                String.join(":", aliases));
+                this.alias() + ":" + this.value() + ":" + aliasToAppend);
     }
 
     /**
@@ -332,13 +345,28 @@ public class NameDeclaration extends Declaration {
      * @param newName The new name, can not be null
      * @return new name declaration with the name changed
      */
-    public NameDeclaration rename(String newName) {
-        if (newName.equals(this.value())) {
+    public NameDeclaration setValue(String newName) {
+        // In case somebody is specifying a stringified name that has aliases,
+        // defer to the NameDeclaration rename logic to avoid breakage.
+        int aliasEnd = newName.lastIndexOf(':');
+        if (aliasEnd != -1) {
+            return setValue(new NameDeclaration(this.getResolver(),
+                    newName.substring(aliasEnd + 1), /* value */
+                    newName.substring(0, aliasEnd) /* alias */
+            ));
+        }
+
+        // Value specified (no :)
+        return setValueExact(newName);
+    }
+
+    private NameDeclaration setValueExact(String newValue) {
+        if (newValue.equals(this.value())) {
             return this;
         } else if (this.hasAlias()) {
-            return new NameDeclaration(this.getResolver(), newName, this.alias() + ":" + this.value());
+            return new NameDeclaration(this.getResolver(), newValue, this.alias() + ":" + this.value());
         } else {
-            return new NameDeclaration(this.getResolver(), newName, this.value());
+            return new NameDeclaration(this.getResolver(), newValue, this.value());
         }
     }
 }
