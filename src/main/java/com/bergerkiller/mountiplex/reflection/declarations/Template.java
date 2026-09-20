@@ -162,6 +162,17 @@ public class Template {
         public final void forceInitialization() {
             if (this.isAvailable()) {
                 boolean success = true;
+
+                if (this.handleConverter instanceof DuplexHandleConverterInvoker) {
+                    try {
+                        ((DuplexHandleConverterInvoker<H>) this.handleConverter).createHandleMethod.forceInitialization();
+                    } catch (Throwable t) {
+                        MountiplexUtil.LOGGER.log(Level.SEVERE, "Failed to initialize " + this.classPath +
+                                " createHandle method", t);
+                        success = false;
+                    }
+                }
+
                 for (TemplateElement<?> element : this.elements) {
                     if (!element.isOptional() || element.isAvailable()) {
                         try {
@@ -221,8 +232,14 @@ public class Template {
             }
 
             // Create duplex converter between handle type and instance type
+            // If a custom createHandle(Object) was defined in the template, call that instead of the one on Class
             if (this.classType != null && this.handleType != null) {
-                this.handleConverter = new DuplexHandleConverter<H>(this);
+                MethodDeclaration createHandleMethod = this.classDec == null ? null : this.classDec.findCreateHandleMethod();
+                if (createHandleMethod != null) {
+                    this.handleConverter = new DuplexHandleConverterInvoker<>(this, createHandleMethod);
+                } else {
+                    this.handleConverter = new DuplexHandleConverter<H>(this);
+                }
                 Conversion.registerConverter(this.handleConverter);
             }
 
@@ -588,6 +605,27 @@ public class Template {
         @Override
         public H convertOutput(Object value) {
             return this.handleClass.createHandle(value, false);
+        }
+    }
+
+    // duplex converter for converting from/to raw type/handle type, that calls into a template-declared createHandle method
+    public static final class DuplexHandleConverterInvoker<H extends Handle> extends DuplexConverter<Object, H> {
+        public final FastMethod<H> createHandleMethod;
+
+        public DuplexHandleConverterInvoker(Class<H> handleClass, MethodDeclaration createHandleMethod) {
+            super(TypeDeclaration.fromClass(handleClass.getType()), TypeDeclaration.fromClass(handleClass.getHandleType()), null);
+            this.reverse = new ReverseDuplexConverter();
+            this.createHandleMethod = new FastMethod<>(createHandleMethod);
+        }
+
+        @Override
+        public H convertInput(Object value) {
+            return createHandleMethod.invoke(null, value);
+        }
+
+        @Override
+        public Object convertOutput(H value) {
+            return value.getRaw();
         }
     }
 

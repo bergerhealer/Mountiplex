@@ -204,9 +204,14 @@ public class TemplateGenerator {
                 addLine();
 
                 // Create from existing handle; important for use by converters
-                addLine("public static " + handleName(classDec) + " createHandle(Object handleInstance) {");
-                addLine("return T.createHandle(handleInstance)");
-                addLine("}");
+                // Only include if not overridden by templates. This can happen when the template wants to
+                // return a customized (extended) handle type depending on the type of raw value.
+                // In that case this method calling the template will automatically be included already.
+                if (classDec.findCreateHandleMethod() == null) {
+                    addLine("public static " + handleName(classDec) + " createHandle(Object handleInstance) {");
+                    addLine("return T.createHandle(handleInstance)");
+                    addLine("}");
+                }
 
                 // Constructors turned into static create functions, with converted parameters
                 for (ConstructorDeclaration cDec : classDec.constructors) {

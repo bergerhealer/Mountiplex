@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.bergerkiller.mountiplex"
-version = "3.35"
+version = "3.36"
 
 repositories {
     mavenCentral()

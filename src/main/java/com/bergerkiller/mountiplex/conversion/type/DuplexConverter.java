@@ -224,7 +224,7 @@ public abstract class DuplexConverter<A, B> extends Converter<A, B> {
         return (converter instanceof NullConverter) || (converter instanceof DuplexNullConverter);
     }
 
-    private final class ReverseDuplexConverter extends DuplexConverter<B, A> {
+    protected final class ReverseDuplexConverter extends DuplexConverter<B, A> {
 
         public ReverseDuplexConverter() {
             super(DuplexConverter.this.output, DuplexConverter.this.input, DuplexConverter.this);
