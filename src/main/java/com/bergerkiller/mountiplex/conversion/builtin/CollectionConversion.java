@@ -77,7 +77,9 @@ public class CollectionConversion {
                     converters.add(new CollectionConverter<Queue<?>>(output) {
                         @Override
                         protected Queue<?> change(Iterable<?> original) {
-                            if (original instanceof Collection) {
+                            if (original instanceof Queue) {
+                                return (Queue<?>) original;
+                            } else if (original instanceof Collection) {
                                 return new LinkedList<Object>((Collection<?>) original);
                             } else {
                                 LinkedList<Object> result = new LinkedList<Object>();
@@ -100,7 +102,9 @@ public class CollectionConversion {
                     converters.add(new CollectionConverter<List<?>>(output) {
                         @Override
                         protected List<?> change(Iterable<?> original) {
-                            if (original instanceof Collection) {
+                            if (original instanceof List) {
+                                return (List<?>) original;
+                            } else if (original instanceof Collection) {
                                 return new ArrayList<Object>((Collection<?>) original);
                             } else {
                                 ArrayList<Object> result = new ArrayList<Object>();
@@ -123,7 +127,9 @@ public class CollectionConversion {
                     converters.add(new CollectionConverter<Set<?>>(output) {
                         @Override
                         protected Set<?> change(Iterable<?> original) {
-                            if (original instanceof Collection) {
+                            if (original instanceof Set) {
+                                return (Set<?>) original;
+                            } else if (original instanceof Collection) {
                                 return new HashSet<Object>((Collection<?>) original);
                             } else {
                                 HashSet<Object> result = new HashSet<Object>();
