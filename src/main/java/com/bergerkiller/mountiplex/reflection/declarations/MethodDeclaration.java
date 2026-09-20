@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
@@ -49,7 +50,7 @@ public class MethodDeclaration extends Declaration {
             this.method = null;
             this.constructor = (Constructor<Object>) constructor;
             this.isRecordFieldChanger = false;
-            this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers());
+            this.modifiers = new ModifierDeclaration(resolver, constructor.getModifiers() | Modifier.STATIC);
             this.returnType = TypeDeclaration.fromClass(constructor.getDeclaringClass());
             this.name = new NameDeclaration(resolver, "<init>", null);
             this.parameters = new ParameterListDeclaration(resolver, constructor.getGenericParameterTypes());
@@ -742,7 +743,7 @@ public class MethodDeclaration extends Declaration {
             return nameResolved;
         }
 
-        if (nameResolved.name.value().equals("<init>")) {
+        if (nameResolved.isConstructor()) {
             // Try to find a constructor matching the parameter types of this method declaration
             // Name is ignored entirely
             try {
@@ -803,8 +804,14 @@ public class MethodDeclaration extends Declaration {
             return;
         }
 
+        String altType = "method";
         MethodDeclaration[] alternatives;
-        if (this.modifiers.isStatic()) {
+        if (this.isConstructor()) {
+            altType = "constructor";
+            alternatives = Stream.of(declaringClass.getDeclaredConstructors())
+                    .map(c -> new MethodDeclaration(getResolver(), c))
+                    .toArray(MethodDeclaration[]::new);
+        } else if (this.modifiers.isStatic()) {
             alternatives = ReflectionUtil.getAllMethods(declaringClass)
                     .filter(m -> Modifier.isStatic(m.getModifiers()))
                     .map(m -> new MethodDeclaration(getResolver(), m))
@@ -817,7 +824,7 @@ public class MethodDeclaration extends Declaration {
                     .toArray(MethodDeclaration[]::new);
         }
         sortSimilarity(this, alternatives);
-        FieldLCSResolver.logAlternatives("method", alternatives, this, true);
+        FieldLCSResolver.logAlternatives(altType, alternatives, this, true);
     }
 
     @Override
@@ -1030,7 +1037,7 @@ public class MethodDeclaration extends Declaration {
         if (!this.isResolved() ||
                 this.getResolver().getDeclaredClass() == null ||
                 this.body != null ||
-                this.name.value().equals("<init>") ||
+                this.isConstructor() ||
                 this.isRecordFieldChanger
         ) {
             return this;
@@ -1057,6 +1064,17 @@ public class MethodDeclaration extends Declaration {
         } else {
             return this;
         }
+    }
+
+    /**
+     * Gets whether this method refers to a constructor of the class, rather than a (static) member method.
+     * If this is the case, method name remapping and lookup do not apply, and a constructor is found
+     * purely by the parameters of this method.
+     *
+     * @return True if this is a method that refers to a constructor
+     */
+    public boolean isConstructor() {
+        return this.name.value().equals("<init>");
     }
 
     /**
