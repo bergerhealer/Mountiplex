@@ -414,23 +414,6 @@ public class TemplateHandleBuilder<H extends Handle> {
     }
 
     /**
-     * Gets whether a given Method Declaration refers to a createHandle method,
-     * which is normally generated. If this method exists in the class declaration,
-     * then it overrides the default createHandle logic.
-     * 
-     * @param method
-     * @return True if the method refers to a createHandle implementation
-     */
-    public static boolean isCreateHandleMethod(MethodDeclaration method) {
-        return method.modifiers.isStatic() &&
-               method.name.value().equals("createHandle") &&
-               method.parameters.parameters.length == 1 &&
-               method.parameters.parameters[0].type.isResolved() &&
-               method.parameters.parameters[0].type.type.equals(Object.class) &&
-               method.parameters.parameters[0].type.cast == null;
-    }
-
-    /**
      * Fallback Handle class when no declarations/generated methods exist.
      * Merely provides access to the raw instance.
      */

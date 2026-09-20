@@ -51,7 +51,6 @@ public class Template {
         private java.lang.Class<H> handleType = null;
         private DuplexConverter<Object, H> handleConverter = null;
         private TemplateHandleBuilder<H> handleBuilder = null;
-        private Invoker<H> handleBuilderMethod = null;
         private NullInstantiator<Object> instantiator = null;
         private TemplateElement<?>[] elements = new TemplateElement<?>[0];
         private ClassFieldCopier<Object> fieldCopier = null;
@@ -96,7 +95,11 @@ public class Template {
 
         /**
          * Creates a new Handle instance suitable for this Template Class type.
-         * If the instance is null, null is returned.
+         * If the instance is null, null is returned.<br>
+         * <br>
+         * If the template declares a custom createHandle implementation, that implementation is
+         * <b>not</b> called when this method is called. This is useful for if that custom
+         * implementation needs to create a handle of this type itself, to avoid infinite recursion.
          * 
          * @param instance to create a handle for
          * @return handle
@@ -107,7 +110,11 @@ public class Template {
 
         /**
          * Creates a new Handle instance suitable for this Template Class type.
-         * If the instance is null and allowNullInstance is false, null is returned.
+         * If the instance is null and allowNullInstance is false, null is returned.<br>
+         * <br>
+         * If the template declares a custom createHandle implementation, that implementation is
+         * <b>not</b> called when this method is called. This is useful for if that custom
+         * implementation needs to create a handle of this type itself, to avoid infinite recursion.
          * 
          * @param instance to create a handle for
          * @param allowNullInstance whether an internal null instance is allowed
@@ -116,9 +123,6 @@ public class Template {
         public final H createHandle(Object instance, boolean allowNullInstance) {
             if (instance == null && !allowNullInstance) {
                 return null;
-            }
-            if (this.handleBuilderMethod != null) {
-                return handleBuilderMethod.invoke(null, instance);
             }
             if (this.handleBuilder == null) {
                 synchronized (this) {
@@ -270,15 +274,7 @@ public class Template {
                     }
                     if (valid) {
                         Object result = element.init(this, this.classDec, templateFieldName);
-                        if (result != null) {
-                            // If this is a static createHandle(Object) method, register it
-                            // Only do this if the method matches the signature exactly
-                            if (result instanceof MethodDeclaration &&
-                                TemplateHandleBuilder.isCreateHandleMethod((MethodDeclaration) result))
-                            {
-                                this.handleBuilderMethod = InitInvoker.proxy(this, "handleBuilderMethod", ((StaticMethod<H>) element).invoker);
-                            }
-                        } else if (!element._optional) {
+                        if (result == null && !element._optional) {
                             fieldsSuccessful = false;
                         }
                     } else {

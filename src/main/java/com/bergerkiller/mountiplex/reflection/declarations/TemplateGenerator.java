@@ -262,9 +262,6 @@ public class TemplateGenerator {
                     if (mDec.modifiers.isUnknown() || !mDec.modifiers.isStatic() || mDec.modifiers.isOptional()) {
                         continue;
                     }
-                    if (TemplateHandleBuilder.isCreateHandleMethod(mDec)) {
-                        continue;
-                    }
                     addStaticMethodBody(mDec);
                 }
 
