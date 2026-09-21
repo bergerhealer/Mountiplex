@@ -9,30 +9,22 @@ import java.util.Locale;
  */
 public class SourcePreprocessor {
     private final ClassResolver resolver;
-    private StringBuilder result = new StringBuilder();
-    private int disabledIfLevel = 0;
-    private boolean disabledIfExpression = false;
-    private LinkedList<String> selectStack = new LinkedList<String>();
-    private boolean isFirstSelectCase = false;
+    private final StringBuilder result = new StringBuilder();
+    private int disabledIfLevel;
+    private boolean disabledIfExpression;
+    private final LinkedList<String> selectStack = new LinkedList<String>();
+    private boolean isFirstSelectCase;
+    private boolean inBlockComment;
+    private boolean inCodeBlock;
+    private boolean inCodeBlockComment;
 
     public SourcePreprocessor(ClassResolver resolver) {
         this.resolver = resolver;
+        reset();
     }
 
     public String preprocess(String declaration) {
-        // Trim block comments from the declaration text
-        while (true) {
-            int startIndex = declaration.lastIndexOf("/*");
-            if (startIndex == -1) {
-                break;
-            }
-            int endIndex = declaration.indexOf("*/", startIndex + 2);
-            if (endIndex == -1) {
-                break;
-            }
-            declaration = declaration.substring(0, startIndex) +
-                    declaration.substring(endIndex + 2);
-        }
+        reset();
 
         for (String line : declaration.split("\\r?\\n")) {
             preprocessLine(line);
@@ -41,7 +33,94 @@ public class SourcePreprocessor {
         return result.toString();
     }
 
+    private void reset() {
+        result.setLength(0);
+        disabledIfLevel = 0;
+        disabledIfExpression = false;
+        selectStack.clear();
+        isFirstSelectCase = false;
+        inBlockComment = false;
+        inCodeBlock = false;
+        inCodeBlockComment = false;
+    }
+
     public void preprocessLine(String line) {
+        String trimmedLine = line.trim();
+
+        if (inCodeBlockComment) {
+            if ("*/".equals(trimmedLine)) {
+                inBlockComment = false;
+            } else if ("</code>".equals(trimmedLine)) {
+                inCodeBlockComment = false;
+            }
+            return;
+        }
+
+        if (inBlockComment) {
+            if ("<code>".equals(trimmedLine)) {
+                inCodeBlockComment = true;
+            } else if ("*/".equals(trimmedLine)) {
+                inBlockComment = false;
+            }
+            return;
+        }
+
+        if (inCodeBlock) {
+            if ("</code>".equals(trimmedLine)) {
+                inCodeBlock = false;
+                result.append(line).append('\n');
+                return;
+            }
+            result.append(line).append('\n');
+            return;
+        }
+
+        if ("<code>".equals(trimmedLine)) {
+            result.append(line).append('\n');
+            inCodeBlock = true;
+            return;
+        }
+
+        StringBuilder filteredLine = new StringBuilder(line.length());
+        boolean lineStartsBlockComment = false;
+        boolean lineHadTextOutsideComment = false;
+        boolean startedInsideComment = inBlockComment;
+        int index = 0;
+
+        while (index < line.length()) {
+            if (inBlockComment) {
+                int endIndex = line.indexOf("*/", index);
+                if (endIndex == -1) {
+                    break;
+                }
+                index = endIndex + 2;
+                inBlockComment = false;
+            } else {
+                int startIndex = line.indexOf("/*", index);
+                if (startIndex == -1) {
+                    filteredLine.append(line.substring(index));
+                    lineHadTextOutsideComment = true;
+                    break;
+                }
+
+                if (startIndex > index) {
+                    filteredLine.append(line, index, startIndex);
+                    lineHadTextOutsideComment = true;
+                }
+
+                lineStartsBlockComment = true;
+                index = startIndex + 2;
+                inBlockComment = true;
+            }
+        }
+
+        line = filteredLine.toString();
+        if (line.isEmpty() && lineStartsBlockComment && !startedInsideComment) {
+            line = "";
+        } else if (line.isEmpty() && !lineHadTextOutsideComment) {
+            return;
+        }
+
         String lineTrimmed = line.trim();
         String lineLower = lineTrimmed.toLowerCase(Locale.ENGLISH);
 
@@ -89,7 +168,7 @@ public class SourcePreprocessor {
             }
 
             StringBuilder replacement = new StringBuilder();
-            replacement.append(line.substring(0, start));
+            replacement.append(line, 0, start);
             if (!isFirstSelectCase && isFinalElse) {
                 replacement.append("#else");
                 if (afterElse != null) {
@@ -194,7 +273,7 @@ public class SourcePreprocessor {
             }
             String varName = lineTrimmed.substring(0, nameEndIdx);
             String varValue = lineTrimmed.substring(nameEndIdx + 1);
-            while (varValue.length() > 0 && varValue.charAt(0) == ' ') {
+            while (!varValue.isEmpty() && varValue.charAt(0) == ' ') {
                 varValue = varValue.substring(1);
             }
             resolver.setVariable(varName, varValue);

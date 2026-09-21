@@ -10,6 +10,20 @@ public class SourceDeclarationTest {
 
     @Test
     public void testPreprocessConditionals() {
+        String sourceDec = "#set dummy 2\n" +
+                           "#if dummy == 1\n" +
+                           "WRONG\n" +
+                           "#elseif dummy == 2\n" +
+                           "RIGHT\n" +
+                           "#else\n" +
+                           "WRONG AGAIN\n" +
+                           "#endif\n";
+
+        assertPreprocessEquals(sourceDec, "#set dummy 2\nRIGHT\n");
+    }
+
+    @Test
+    public void testPreprocessConditionalsAndSelectCases() {
         String sourceDec = "#set test 1.23.55\n" +
                            "#set dummy 12\n" +
                            "#if classexists this.class.does.not.exist\n" +
@@ -85,19 +99,60 @@ public class SourceDeclarationTest {
                           "COPYVALUEOF SHOULD EXIST\n" +
                           "PLEASE BE THERE\n" +
                           "\n" +
-                          "#set casevarA 1.15\n" + 
-                          "#set casevarB 1.12\n" + 
-                          "               CASE_VAR_A_CORRECT\n" + 
+                          "#set casevarA 1.15\n" +
+                          "#set casevarB 1.12\n" +
+                          "               CASE_VAR_A_CORRECT\n" +
                           "                CASE_VAR_B_CORRECT\n";
 
-        String result = SourceDeclaration.preprocess(sourceDec);
-        if (!result.equals(expected)) {
-            System.out.println("== EXPECTED ==");
-            System.out.println(expected);
-            System.out.println("== BUT GOT ==");
-            System.out.println(result);
-            fail("Source declaration was not correctly parsed");
-        }
+        assertPreprocessEquals(sourceDec, expected);
+    }
+
+    @Test
+    public void testPreprocessBlockComments() {
+        String sourceDec = "BEFORE\n" +
+                           "/*\n" +
+                           "THIS SHOULD BE REMOVED\n" +
+                           "#if dummy == 1\n" +
+                           "THIS SHOULD ALSO BE REMOVED\n" +
+                           "#endif\n" +
+                           "*/\n" +
+                           "AFTER\n";
+
+        assertPreprocessEquals(sourceDec, "BEFORE\n\nAFTER\n");
+    }
+
+    @Test
+    public void testPreprocessBlockCommentsInline() {
+        String sourceDec = "BEFORE /* THIS SHOULD BE REMOVED */ AFTER\n";
+
+        assertPreprocessEquals(sourceDec, "BEFORE  AFTER\n");
+    }
+
+    @Test
+    public void testPreprocessCodeBlocksIgnoreDirectivesAndComments() {
+        String sourceDec = "BEFORE\n" +
+                           "<code>\n" +
+                           "#if dummy == 1\n" +
+                           "/*\n" +
+                           "THIS SHOULD STAY RAW\n" +
+                           "</code>\n" +
+                           "AFTER\n";
+
+        assertPreprocessEquals(sourceDec, "BEFORE\n<code>\n#if dummy == 1\n/*\nTHIS SHOULD STAY RAW\n</code>\nAFTER\n");
+    }
+
+    @Test
+    public void testPreprocessCommentBeforeCodeBlockIsOmitted() {
+        String sourceDec = "BEFORE\n" +
+                           "/*\n" +
+                           "<code>\n" +
+                           "#if dummy == 1\n" +
+                           "*/\n" +
+                           "THIS SHOULD STILL BE OMITTED\n" +
+                           "</code>\n" +
+                           "AFTER\n";
+
+        assertPreprocessEquals(sourceDec, "BEFORE\n\nAFTER\n");
     }
 
     @Test
@@ -122,6 +177,10 @@ public class SourceDeclarationTest {
                           "YES\n" +
                           "NO\n";
 
+        assertPreprocessEquals(sourceDec, expected);
+    }
+
+    private void assertPreprocessEquals(String sourceDec, String expected) {
         String result = SourceDeclaration.preprocess(sourceDec);
         if (!result.equals(expected)) {
             System.out.println("== EXPECTED ==");
