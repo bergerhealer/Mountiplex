@@ -14,6 +14,28 @@ import com.bergerkiller.mountiplex.types.TestObject;
 public class MethodDeclarationTest {
 
     @Test
+    public void testImportChildClasses() {
+        ClassResolver resolver = ClassResolver.DEFAULT.clone();
+        resolver.setDeclaredClass(TestObject.class);
+        resolver.addImport("com.bergerkiller.mountiplex.types.otherpackage.ChildClassImportObject");
+        MethodDeclaration dec = new MethodDeclaration(resolver, "" +
+                "public int getChildClassTest() {\n" +
+                "    ChildClassImportObject$OtherClassInChildClass obj = new ChildClassImportObject$OtherClassInChildClass();\n" +
+                "    return obj.test;\n" +
+                "}");
+
+        assertTrue(dec.isValid());
+        assertTrue(dec.isResolved());
+
+        // Method declaration is OK from this point. Try to invoke it.
+        FastMethod<Integer> method = new FastMethod<>();
+        method.init(dec);
+        TestObject testObject = new TestObject();
+        int value = method.invoke(testObject);
+        assertEquals(5, value);
+    }
+
+    @Test
     public void testDelayedInitializationFastMethod() {
         final FastMethod<Integer> method = new FastMethod<>(
                 m -> m.init(TestObject.class.getDeclaredMethod("h", int.class, int.class)));

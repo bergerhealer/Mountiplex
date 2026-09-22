@@ -29,6 +29,8 @@ public class ClassResolver {
 
     private final ArrayList<String> imports;
     private final ArrayList<String> manualImports;
+    private final Map<String, String> exactImports;
+    private final ArrayList<String> wildcardImports;
     private final List<Requirement> requirements;
     private final Remapping.Lookup remappings;
     private VariablesMap variables;
@@ -46,6 +48,8 @@ public class ClassResolver {
         this.variables = src.variables;
         this.imports = new ArrayList<String>(src.imports);
         this.manualImports = new ArrayList<String>(src.manualImports);
+        this.exactImports = new HashMap<String, String>(src.exactImports);
+        this.wildcardImports = new ArrayList<String>(src.wildcardImports);
         this.requirements = new ArrayList<Requirement>(src.requirements);
         this.remappings = src.remappings.clone();
         this.packagePath = src.packagePath;
@@ -62,6 +66,8 @@ public class ClassResolver {
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
+        this.exactImports = new HashMap<String, String>();
+        this.wildcardImports = new ArrayList<String>();
         this.requirements = new ArrayList<Requirement>();
         this.remappings = Remapping.createLookup();
         this.packagePath = "";
@@ -79,6 +85,8 @@ public class ClassResolver {
         this.variables = VariablesMap.EMPTY;
         this.imports = new ArrayList<String>();
         this.manualImports = new ArrayList<String>();
+        this.exactImports = new HashMap<String, String>();
+        this.wildcardImports = new ArrayList<String>();
         this.requirements = new ArrayList<Requirement>();
         this.remappings = Remapping.createLookup();
         this.packagePath = "";
@@ -687,17 +695,45 @@ public class ClassResolver {
         // Try imports
         String classPath;
         String bestImport = null;
-        String dotName = "." + name;
-        for (String imp : this.imports) {
-            if (imp.endsWith(".*") || imp.endsWith("$*")) {
-                classPath = imp.substring(0, imp.length() - 1) + name;
-            } else if (imp.endsWith(dotName)) {
-                classPath = imp;
-                bestImport = imp;
-            } else {
-                continue;
-            }
 
+        // Look up the first dot or $ character, and extract the word prior
+        int firstBoundary = -1;
+        int dotIdx = name.indexOf('.');
+        int dollarIdx = name.indexOf('$');
+        if (dotIdx != -1) {
+            firstBoundary = dotIdx;
+        }
+        if (dollarIdx != -1 && (firstBoundary == -1 || dollarIdx < firstBoundary)) {
+            firstBoundary = dollarIdx;
+        }
+
+        // If this matches an imported class name, resolve it automatically relative to that
+        // When a subclass of the class is requested, repair/preserve that path.
+        if (firstBoundary == -1) {
+            String exactImport = this.exactImports.get(name);
+            if (exactImport != null) {
+                Class<?> byImport = Resolver.loadClass(exactImport, false, this.classLoader);
+                if (byImport != null) {
+                    return new ResolveResult(exactImport, byImport);
+                }
+                bestImport = exactImport;
+            }
+        } else {
+            String importKey = name.substring(0, firstBoundary);
+            String exactImport = this.exactImports.get(importKey);
+            if (exactImport != null) {
+                classPath = exactImport + name.substring(firstBoundary);
+                Class<?> byImport = Resolver.loadClass(classPath, false, this.classLoader);
+                if (byImport != null) {
+                    return new ResolveResult(classPath, byImport);
+                }
+                bestImport = classPath;
+            }
+        }
+
+        // Handle wildcard (.*) imports with lower priority
+        for (String imp : this.wildcardImports) {
+            classPath = imp + name;
             Class<?> byImport = Resolver.loadClass(classPath, false, this.classLoader);
             if (byImport != null) {
                 return new ResolveResult(classPath, byImport);
@@ -841,6 +877,18 @@ public class ClassResolver {
             this.imports.add(this.packagePath + ".*");
         }
         this.imports.addAll(default_imports);
+
+        this.exactImports.clear();
+        this.wildcardImports.clear();
+        for (String imp : this.imports) {
+            if (imp.endsWith(".*") || imp.endsWith("$*")) {
+                this.wildcardImports.add(imp.substring(0, imp.length() - 1));
+            } else {
+                int lastDot = imp.lastIndexOf('.');
+                String simpleName = (lastDot == -1) ? imp : imp.substring(lastDot + 1);
+                this.exactImports.putIfAbsent(simpleName, imp);
+            }
+        }
     }
 
     /**

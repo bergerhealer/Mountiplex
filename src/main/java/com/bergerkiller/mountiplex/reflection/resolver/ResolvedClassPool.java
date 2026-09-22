@@ -7,6 +7,7 @@ import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     private static final Map<ClassPool, Reference<Map<String,String>>> globalInvalidNamesMap = findInvalidNamesMap();
     private boolean ignoreRemapper = false;
     private Remapping.Lookup remappings = NO_REMAPPINGS;
+    private final Map<String, String> importedExactClasses = new HashMap<String, String>();
 
     /**
      * Creates a resolved class pool, or retrieves one from cache.
@@ -56,6 +58,7 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
     @Override
     public void close() {
         clearImportedPackages();
+        importedExactClasses.clear();
         remappings = NO_REMAPPINGS;
         resetInvalidNames(this);
         synchronized (CACHED_CLASS_POOLS) {
@@ -84,6 +87,15 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
      */
     public void setRemappings(Remapping.Lookup remappings) {
         this.remappings = remappings;
+    }
+
+    public void importExactClass(String className) {
+        if (className != null && !className.isEmpty()) {
+            int lastDot = className.lastIndexOf('.');
+            String simpleName = (lastDot == -1) ? className : className.substring(lastDot + 1);
+            importedExactClasses.put(simpleName, className);
+        }
+        this.importPackage(className);
     }
 
     @Override
@@ -241,6 +253,30 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
         }
     }
 
+    /**
+     * Rewrites a class load request for a sub-class of another import to be absolute.
+     * This ensures an import for path.to.Class makes Class$SubClass resolve to path.to.Class$SubClass.
+     *
+     * @param className Class name
+     * @return Corrected class name, or same as input
+     */
+    private String rewriteImportedClassName(String className) {
+        if (className.indexOf('.') != -1) {
+            return className;
+        }
+        int firstDollarIdx = className.indexOf('$');
+        if (firstDollarIdx == -1) {
+            return className;
+        }
+
+        String simpleName = className.substring(0, firstDollarIdx);
+        String importedClass = importedExactClasses.get(simpleName);
+        if (importedClass != null) {
+            return importedClass + '$' + className.substring(firstDollarIdx + 1).replace('.', '$');
+        }
+        return className;
+    }
+
     private final String resolveClassPath(String classname) {
         if (classname.startsWith(MPLMemberResolver.IGNORE_PREFIX)) {
             String cleanedName = classname.substring(MPLMemberResolver.IGNORE_PREFIX.length());
@@ -249,6 +285,7 @@ public final class ResolvedClassPool extends ClassPool implements Closeable {
             }
             return cleanedName;
         } else {
+            classname = rewriteImportedClassName(classname);
             if (!Resolver.getPackageNameCache().canExist(classname)) {
                 return null;
             }

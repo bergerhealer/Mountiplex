@@ -95,7 +95,7 @@ public abstract class GeneratedCodeInvoker<T> implements GeneratedExactSignature
                             pool.importPackage(packagePath);
                         }
                     } else {
-                        pool.importPackage(importName);
+                        pool.importExactClass(importName);
                     }
                 });
 
