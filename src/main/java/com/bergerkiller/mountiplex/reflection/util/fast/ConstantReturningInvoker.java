@@ -1,5 +1,7 @@
 package com.bergerkiller.mountiplex.reflection.util.fast;
 
+import com.bergerkiller.mountiplex.reflection.util.BoxedType;
+
 /**
  * Invoker that always returns the same, constant value
  * 
@@ -64,5 +66,17 @@ public final class ConstantReturningInvoker<T> implements Invoker<T> {
      */
     public static <T> ConstantReturningInvoker<T> of(T value) {
         return new ConstantReturningInvoker<T>(value);
+    }
+
+    /**
+     * Creates a new constant-returning invoker, returning null (or 0, false, etc. for primitives)
+     * depending on the type specified.
+     *
+     * @param type Type of value the invoker is expected to return
+     * @return invoker returning null or uninitialized default value
+     * @param <T> Type
+     */
+    public static <T> ConstantReturningInvoker<T> nullOfType(Class<T> type) {
+        return of(BoxedType.getDefaultValue(type));
     }
 }

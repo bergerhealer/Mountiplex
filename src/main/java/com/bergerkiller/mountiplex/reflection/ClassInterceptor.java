@@ -329,7 +329,7 @@ public abstract class ClassInterceptor {
         }
 
         // The key used to access the EnhancedClass instance for creating this instance
-        final ClassPair key = new ClassPair(interceptor.getClass(), objectType);
+        final ClassPair key = new ClassPair(interceptor.getClass(), objectType, interceptor.useGlobalCallbacks);
 
         // Try to find the CGLib-generated enhanced class that provides the needed callbacks
         // If none exists yet, generate a new one and put it into the table for future re-use
@@ -361,12 +361,20 @@ public abstract class ClassInterceptor {
                     return null;
                 }
 
+                // If callback already returns a constant, then there is guaranteed no need to keep track of the
+                // stack. There is not going to be any 'super' call invoked from the callback. So to avoid the need
+                // for bookkeeping, return the invoker as-is.
+                // Only when global callbacks are used. Callbacks can change by instance otherwise.
+                if (key.globalCallbacks && callback instanceof ConstantReturningInvoker) {
+                    return callback;
+                }
+
                 // Register the callback
                 current_stack.storeCallback(method, callback);
 
                 // Create callback handler for this method
                 // This interceptor will call the actual callback
-                return new CallbackMethodInterceptor(method);
+                return key.globalCallbacks ? new GlobalCallbackMethodInterceptor(method) : new CallbackMethodInterceptor(method);
             }));
 
             // Finally create the enhanced class type and store it in the mapping for later use
@@ -388,12 +396,14 @@ public abstract class ClassInterceptor {
     private static final class ClassPair {
         public final Class<?> hookClass;
         public final Class<?> instanceClass;
+        public final boolean globalCallbacks;
         private final int hashcode;
 
-        public ClassPair(Class<?> hookClass, Class<?> instanceClass) {
+        public ClassPair(Class<?> hookClass, Class<?> instanceClass, boolean globalCallbacks) {
             this.hookClass = hookClass;
             this.instanceClass = instanceClass;
-            this.hashcode = (hookClass.hashCode() >> 1) + (instanceClass.hashCode() >> 1);
+            this.globalCallbacks = globalCallbacks;
+            this.hashcode = (hookClass.hashCode() >> 1) + (instanceClass.hashCode() >> 1) + (globalCallbacks ? 1 : 0);
         }
 
         @Override
@@ -405,7 +415,7 @@ public abstract class ClassInterceptor {
         public boolean equals(Object other) {
             if (other instanceof ClassPair) {
                 ClassPair p = (ClassPair) other;
-                return hookClass.equals(p.hookClass) && instanceClass.equals(p.instanceClass);
+                return hookClass.equals(p.hookClass) && instanceClass.equals(p.instanceClass) && globalCallbacks == p.globalCallbacks;
             }
             return false;
         }
@@ -493,7 +503,6 @@ public abstract class ClassInterceptor {
      * In here the right callback to use is found and executed. It also updates the call stack.
      * The call stack is important for the correct workings of:
      * <ul>
-     * <li>{@link ClassInterceptor#findMethodProxy(method, instance)}
      * <li>{@link ClassInterceptor#instance()}
      * </ul>
      */
@@ -502,6 +511,32 @@ public abstract class ClassInterceptor {
 
         public CallbackMethodInterceptor(Method method) {
             this.method = method;
+        }
+
+        protected Invoker<?> getCallback(ClassInterceptor interceptor, StackInformation stack, Object instance) {
+            // Find method callback delegate if we don't know yet
+            Invoker<?> callback = stack.getCallback(method);
+            if (callback == null) {
+                synchronized (interceptor.globalMethodDelegates) {
+                    callback = interceptor.globalMethodDelegates.get(method);
+                }
+                if (callback == null) {
+                    callback = interceptor.getCallback(interceptor.instanceBaseType(), method);
+                    if (callback == null) {
+                        callback = GeneratedHook.createSuperInvoker(instance.getClass(), method);
+                    }
+
+                    // Register globally if needed
+                    if (interceptor.useGlobalCallbacks){
+                        synchronized (interceptor.globalMethodDelegates) {
+                            interceptor.globalMethodDelegates.put(method, callback);
+                        }
+                    }
+                }
+                stack.storeCallback(method, callback);
+            }
+
+            return callback;
         }
 
         @Override
@@ -519,27 +554,7 @@ public abstract class ClassInterceptor {
             try {
                 frame.instance = instance;
 
-                // Find method callback delegate if we don't know yet
-                Invoker<?> callback = stack.getCallback(method);
-                if (callback == null) {
-                    synchronized (interceptor.globalMethodDelegates) {
-                        callback = interceptor.globalMethodDelegates.get(method);
-                    }
-                    if (callback == null) {
-                        callback = interceptor.getCallback(interceptor.instanceBaseType(), method);
-                        if (callback == null) {
-                            callback = GeneratedHook.createSuperInvoker(instance.getClass(), method);
-                        }
-
-                        // Register globally if needed
-                        if (interceptor.useGlobalCallbacks){
-                            synchronized (interceptor.globalMethodDelegates) {
-                                interceptor.globalMethodDelegates.put(method, callback);
-                            }
-                        }
-                    }
-                    stack.storeCallback(method, callback);
-                }
+                Invoker<?> callback = this.getCallback(interceptor, stack, instance);
 
                 // Make sure to inline the InterceptorCallback to avoid a stack frame
                 if (callback instanceof InterceptorCallback) {
@@ -554,6 +569,41 @@ public abstract class ClassInterceptor {
                 // Make sure to reset instance, otherwise we risk a memory leak
                 frame.instance = null;
                 stack.frame = frame.prev;
+            }
+        }
+    }
+
+    /**
+     * For interceptors that have {@link #useGlobalCallbacks} enabled. Caches the invoker to call
+     * upon in a volatile field, to avoid the overhead of a hashmap lookup per call. This optimization
+     * only works when a single interceptor is reused multiple times, but the overhead for a miss
+     * is small.
+     */
+    private static class GlobalCallbackMethodInterceptor extends CallbackMethodInterceptor {
+        private volatile CachedGlobalInvoker cachedGlobalInvoker = null;
+
+        public GlobalCallbackMethodInterceptor(Method method) {
+            super(method);
+        }
+
+        @Override
+        protected Invoker<?> getCallback(ClassInterceptor interceptor, StackInformation stack, Object instance) {
+            CachedGlobalInvoker cached = cachedGlobalInvoker;
+            if (cached == null || cached.interceptor != interceptor) {
+                Invoker<?> invoker = super.getCallback(interceptor, stack, instance);
+                cached = new CachedGlobalInvoker(interceptor, invoker);
+                cachedGlobalInvoker = cached;
+            }
+            return cached.invoker;
+        }
+
+        private static final class CachedGlobalInvoker {
+            public final ClassInterceptor interceptor;
+            public final Invoker<?> invoker;
+
+            public CachedGlobalInvoker(ClassInterceptor interceptor, Invoker<?> invoker) {
+                this.interceptor = interceptor;
+                this.invoker = invoker;
             }
         }
     }

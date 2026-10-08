@@ -35,6 +35,26 @@ public class ClassInterceptorTest {
         assertEquals("meow", unhooked_cat.meow());
     }
 
+    @Test
+    public void testGlobalCallbacksSettingHasDistinctEnhancedClass() {
+        class ModeInterceptor extends ClassInterceptor {
+            @Override
+            protected Invoker<?> getCallback(Method method) {
+                return null;
+            }
+        }
+
+        ModeInterceptor globalInterceptor = new ModeInterceptor();
+        globalInterceptor.setUseGlobalCallbacks(true);
+        Cat hookedGlobal = globalInterceptor.hook(new Cat("meow"));
+
+        ModeInterceptor localInterceptor = new ModeInterceptor();
+        localInterceptor.setUseGlobalCallbacks(false);
+        Cat hookedLocal = localInterceptor.hook(new Cat("meow"));
+
+        assertNotSame(hookedGlobal.getClass(), hookedLocal.getClass());
+    }
+
     /*
      * This test is needed to verify that many different threads calling a method
      * does not cause a method to be called on an entirely different object.
