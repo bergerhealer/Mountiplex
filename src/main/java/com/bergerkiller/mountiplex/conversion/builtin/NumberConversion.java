@@ -3,7 +3,7 @@ package com.bergerkiller.mountiplex.conversion.builtin;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 
-public class NumberConversion {
+class NumberConversion {
     public static void register() {
         // Parse String to Byte
         Conversion.registerConverter(new IntegerNumberParser<Byte>(Byte.class) {

@@ -17,7 +17,7 @@ import com.bergerkiller.mountiplex.conversion.util.ConvertingList;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.BoxedType;
 
-public class ArrayConversion {
+class ArrayConversion {
     public static void register() {
         // int[] <> Integer[] etc. Needed for proper boxing/unboxing of types
         for (Class<?> unboxedType : BoxedType.getUnboxedTypes()) {

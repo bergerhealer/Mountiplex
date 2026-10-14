@@ -21,7 +21,7 @@ import com.bergerkiller.mountiplex.conversion.util.ConvertingQueue;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingSet;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
-public class CollectionConversion {
+class CollectionConversion {
 
     public static void register() {
 

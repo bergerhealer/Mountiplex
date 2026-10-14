@@ -7,7 +7,7 @@ import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 
-public class ToStringConversion {
+class ToStringConversion {
     public static void register() {
         // Object -> String (lazy!)
         Conversion.registerConverter(new Converter<Object, String>(Object.class, String.class) {

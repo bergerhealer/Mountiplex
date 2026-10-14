@@ -18,15 +18,7 @@ import java.util.logging.Level;
 import com.bergerkiller.mountiplex.MountiplexUtil;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
 import com.bergerkiller.mountiplex.conversion.annotations.ProviderMethod;
-import com.bergerkiller.mountiplex.conversion.builtin.ArrayConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.BooleanConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.CollectionConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.EnumConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.MapConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.NumberConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.StreamConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.ToStringConversion;
-import com.bergerkiller.mountiplex.conversion.builtin.VoidTypeConverter;
+import com.bergerkiller.mountiplex.conversion.builtin.BuiltinTypeConversion;
 import com.bergerkiller.mountiplex.conversion.type.AnnotatedConverter;
 import com.bergerkiller.mountiplex.conversion.type.AnnotatedProvider;
 import com.bergerkiller.mountiplex.conversion.type.CastingConverter;
@@ -57,15 +49,7 @@ public class Conversion {
         }
 
         // Register other builtin converters
-        NumberConversion.register();
-        ToStringConversion.register();
-        EnumConversion.register();
-        CollectionConversion.register();
-        MapConversion.register();
-        ArrayConversion.register();
-        VoidTypeConverter.register();
-        BooleanConversion.register();
-        StreamConversion.register();
+        BuiltinTypeConversion.register();
 
         // We can not remove registered converters and providers for safety reasons
         // We will clear all generated data, though

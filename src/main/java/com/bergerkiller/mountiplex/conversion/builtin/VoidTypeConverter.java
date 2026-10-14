@@ -6,7 +6,7 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 /**
  * With voids, any value you put in turns into null
  */
-public class VoidTypeConverter {
+class VoidTypeConverter {
 
     public static void register() {
         Conversion.registerConverter(new Converter<Object, Object>(Object.class, void.class) {

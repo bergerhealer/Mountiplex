@@ -5,10 +5,15 @@ import static org.junit.Assert.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,7 +23,6 @@ import org.junit.Test;
 import com.bergerkiller.mountiplex.conversion.Conversion;
 import com.bergerkiller.mountiplex.conversion.Converter;
 import com.bergerkiller.mountiplex.conversion.annotations.ConverterMethod;
-import com.bergerkiller.mountiplex.conversion.builtin.ToStringConversion;
 import com.bergerkiller.mountiplex.conversion.type.DuplexConverter;
 import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingIterable;
@@ -498,12 +502,65 @@ public class ConversionTest {
         Iterable<String> stringIterable = (Iterable<String>) conv.convert(Arrays.asList(1, 2, 3, 4, 5));
         assertTrue(stringIterable instanceof ConvertingIterable);
         Converter<?, String> converter = ((ConvertingIterable<String>) stringIterable).getConverter();
-        assertTrue(converter.getClass().getName().startsWith(ToStringConversion.class.getName()));
+
+        final String toStringConverterName = "com.bergerkiller.mountiplex.conversion.builtin.ToStringConversion";
+        assertTrue(converter.getClass().getName().startsWith(toStringConverterName));
         int n = 0;
         for (String s : stringIterable) {
             assertEquals(Integer.toString(++n), s);
         }
         assertEquals(5, n);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testPredicate() {
+        Converter<Object, Object> conv = Conversion.find(TypeDeclaration.createGeneric(Predicate.class, Integer.class),
+                TypeDeclaration.createGeneric(Predicate.class, String.class));
+        Predicate<Integer> basePredicate = (value) -> value == 5;
+
+        Predicate<String> convertedPredicate = (Predicate<String>) conv.convert(basePredicate);
+        assertNotNull(convertedPredicate);
+
+        assertTrue(convertedPredicate.test("5"));
+        assertFalse(convertedPredicate.test("6"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testConsumer() {
+        Converter<Object, Object> conv = Conversion.find(TypeDeclaration.createGeneric(Consumer.class, Integer.class),
+                TypeDeclaration.createGeneric(Consumer.class, String.class));
+
+        final List<Integer> consumedValues = new ArrayList<>();
+        Consumer<Integer> baseConsumer = consumedValues::add;
+
+        Consumer<String> convertedConsumer = (Consumer<String>) conv.convert(baseConsumer);
+        assertNotNull(convertedConsumer);
+
+        convertedConsumer.accept("5");
+        assertEquals(Collections.singletonList(5), consumedValues);
+        consumedValues.clear();
+
+        convertedConsumer.accept("22");
+        assertEquals(Collections.singletonList(22), consumedValues);
+        consumedValues.clear();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testSupplier() {
+        Converter<Object, Object> conv = Conversion.find(TypeDeclaration.createGeneric(Supplier.class, Integer.class),
+                TypeDeclaration.createGeneric(Supplier.class, String.class));
+
+        final AtomicInteger counter = new AtomicInteger(0);
+        Supplier<Integer> baseSupplier = counter::incrementAndGet;
+
+        Supplier<String> convertedSupplier = (Supplier<String>) conv.convert(baseSupplier);
+        assertNotNull(convertedSupplier);
+
+        assertEquals("1", convertedSupplier.get());
+        assertEquals("2", convertedSupplier.get());
     }
 
     public static class TestWildCardType<T> {

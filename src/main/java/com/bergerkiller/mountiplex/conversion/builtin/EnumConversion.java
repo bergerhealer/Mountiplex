@@ -12,7 +12,7 @@ import com.bergerkiller.mountiplex.conversion.ConverterProvider;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 @SuppressWarnings("rawtypes")
-public class EnumConversion {
+class EnumConversion {
 
     public static void register() {
         Conversion.registerProvider(new ConverterProvider() {

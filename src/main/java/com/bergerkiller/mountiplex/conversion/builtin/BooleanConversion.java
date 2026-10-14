@@ -6,7 +6,7 @@ import com.bergerkiller.mountiplex.conversion.Converter;
 /**
  * Converts a Boolean type from/to numeric types as 0 and 1
  */
-public class BooleanConversion {
+class BooleanConversion {
 
     public static void register() {
         Conversion.registerConverter(new Converter<Boolean, Byte>(Boolean.class, Byte.class) {

@@ -15,7 +15,7 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 /**
  * Turning Stream&lt;T&gt; into Stream&lt;R&gt; using the .map() function
  */
-public class StreamConversion {
+class StreamConversion {
     public static void register() {
         Conversion.registerProvider(new ConverterProvider() {
             @Override

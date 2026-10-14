@@ -11,7 +11,7 @@ import com.bergerkiller.mountiplex.conversion.type.InputConverter;
 import com.bergerkiller.mountiplex.conversion.util.ConvertingMap;
 import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
-public class MapConversion {
+class MapConversion {
 
     public static void register() {
         Conversion.registerProvider(new ConverterProvider() {
