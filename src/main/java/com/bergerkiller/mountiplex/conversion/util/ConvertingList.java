@@ -41,7 +41,7 @@ public class ConvertingList<T> extends ConvertingCollection<T> implements List<T
 
     @Override
     public void add(int index, T element) {
-        getBase().add(index, converter.convert(element));
+        getBase().add(index, converter.convertReverse(element));
     }
 
     @Override
