@@ -44,6 +44,7 @@ Project terms used throughout the documentation.
 - **InputTypeMap / OutputTypeMap**: maps by type where a lookup also returns values stored for super types (input) or sub types (output). See [type-maps.md](type-maps.md).
 - **Fast* (FastMethod, FastField, FastConstructor)**: lazily initialized reflection wrappers that generate direct-call code for public members. See [fast-access.md](fast-access.md).
 - **Invoker**: the interface for calling a method or constructor with an instance and arguments. Implemented by generated, reflection and constant-returning variants.
+- **Record changer (`<record_changer>`)**: a requirement method that returns a copy of an immutable record with some fields replaced. See [template-syntax.md](template-syntax.md#record-changer-record_changer).
 - **Converting view**: a live wrapper (`ConvertingList`, `ConvertingMap`...) that converts the elements of another collection on access, without copying it. See [converting-collections.md](converting-collections.md).
 - **ExtendedClassWriter / MPLType**: the ASM class writer for generating a class that extends or implements a type, and the helper for names and descriptors in bytecode. See [class-generation.md](class-generation.md).
 - **ClassTemplate (legacy)**: the pre-template way to describe a class's members in Java code. Do not use in new code. See [legacy-class-template.md](legacy-class-template.md).

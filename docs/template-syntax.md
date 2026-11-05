@@ -356,6 +356,59 @@ A `#require` directive declares a member of a class once; bodies then use it wit
   The full BKCommonLib version of this is in [the walkthrough](examples/template-walkthrough.md#4-constructor-requirement-code-block-and-bootstrap).
 - The name is the alias of the declaration, so the version-specific real name is only defined in the `#require`.
 
+### Record Changer (`<record_changer>`)
+
+Record classes (and other immutable value classes) cannot have a field assigned, so `instance#field = value;` does not work on them. The special method name
+`<record_changer>` declares a generated method that instead **creates a copy of the object with some of its fields replaced**, by calling the
+constructor with the existing values (read through the accessor methods) for every field that is not replaced.
+
+```
+#require pkg.Parameters pkg.Parameters change_name:<record_changer>(Component displayName);
+...
+parameters = parameters#change_name(displayName);
+```
+
+- **Where:** it is written as a `#require`, and used like any requirement method: `instance#change_name(value)` returns the **new** instance. The original is not modified, so
+  the result has to be stored back (in a variable, or by passing it to whatever holds the record, such as a setter).
+- **Declaration form:** `#require <DeclaringClass> <ReturnType> <alias>:<record_changer>(<Type> <recordField>, ...);` The declaring class and the return type are both the record class. The alias is the name used after the `#`
+  (without one the method is called `change`).
+- **Parameter names are the record's field names**, not free names. Each parameter is matched against the record components (their accessor methods, which go through the
+  [Resolver](resolver.md)'s method name translation), so a renamed component is declared with the name this environment uses. A name that is not found fails with
+  `Record class X does not contain record with name 'y'!`. The parameter types are not needed to find the component, but write the real type.
+- **Several fields at once:** list several parameters, in any order. The call arguments follow the order of the declaration, not the order of the record. Up to 5 fields are passed
+  without an argument array; more are still supported.
+- **Real records and a fallback:** on a JDK with records (16+) the components come from the record. For a class that is not a record, all non-static declared fields are
+  used, and the constructor must take them in the same order. That is mostly meant for testing.
+- **The class must be accessible.** The generated code lives in a different package, so the record class, its constructor and its accessor methods must be public. A package-private
+  class fails with `IllegalAccessError` when first used.
+- **Used from Java too:** a `MethodDeclaration` with this name can be given to [`FastMethod`](fast-access.md) like any other, and `RecordClassFieldChanger.create(type, alias, fieldNames)`
+  (`reflection/util/fast/`) builds the invoker directly.
+
+[BKCommonLib](https://github.com/bergerhealer/BKCommonLib) uses it in `protocol_packets_scoreboard.txt`, where a team packet's `Parameters` became an immutable record in newer Minecraft versions. The setter
+is written for both shapes of the class:
+
+```
+public void setDisplayName((ChatText) Component displayName) {
+    ClientboundSetPlayerTeamPacket$Parameters parameters = instance#getParametersOrDefault();
+#if version >= 26.2
+    #require ClientboundSetPlayerTeamPacket.Parameters ClientboundSetPlayerTeamPacket.Parameters change_display_name:<record_changer>(Component displayName);
+    parameters = parameters#change_display_name(displayName);
+    instance#setParameters(parameters);
+#else
+    parameters#displayName = displayName;
+#endif
+}
+```
+
+The same idea written against a plain test class (from `RecordClassFieldChangerTest`; the declaration is parsed in a `ClassResolver` whose declared class is `TestRecordClass`):
+
+```
+public TestRecordClass change(int x) {
+    #require TestRecordClass TestRecordClass change_x:<record_changer>(int field2_x);
+    return instance#change_x(x);
+}
+```
+
 ### `<code>` Blocks
 
 Inside a class declaration, `<code> ... </code>` contains ordinary Java placed **verbatim into the generated handle

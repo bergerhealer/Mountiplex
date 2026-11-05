@@ -154,6 +154,6 @@ It is also used by `LambdaBuilder.createConstant`, which implements a single-met
 | Task | Files |
 |---|---|
 | Public API | `reflection/util/FastMethod.java`, `FastField.java`, `FastConstructor.java`, `FastConvertedField.java` |
-| Invoker types and choosing | `reflection/util/fast/InitInvoker.java` (`forMethod` decides body, method, constructor or record field changer), `GeneratedInvoker.java` (`canCreate`), `ReflectionInvoker.java` |
+| Invoker types and choosing | `reflection/util/fast/InitInvoker.java` (`forMethod` decides body, method, constructor or record field changer, see [Record Changer](template-syntax.md#record-changer-record_changer)), `reflection/util/fast/RecordClassFieldChanger.java`, `GeneratedInvoker.java` (`canCreate`), `ReflectionInvoker.java` |
 | Field access | `reflection/util/fast/ReflectionAccessor.java` (`create`), `GeneratedAccessor.java`, interfaces `Reader`, `Writer`, `Copier` |
 | Constant fast path | `reflection/util/fast/ConstantReturningInvoker.java`, `reflection/ClassInterceptor.java` |
