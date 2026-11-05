@@ -4,6 +4,12 @@ import java.lang.reflect.Modifier;
 
 import com.bergerkiller.mountiplex.reflection.util.asm.MPLType;
 
+/**
+ * Legacy holder for a reflection Field.
+ *
+ * @deprecated Use {@link FastField} instead
+ */
+@Deprecated
 public final class SecureField {
     private java.lang.reflect.Field field;
     private boolean canGet, canSet;
