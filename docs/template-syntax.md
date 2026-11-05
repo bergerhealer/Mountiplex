@@ -311,6 +311,20 @@ A `#require` directive declares a member of a class once; bodies then use it wit
   value.doOtherThing();
   ```
 
+- **How an assignment is found.** A field requirement followed by a single `=` (not `==`) is an assignment. For a non-public or final
+  field it is rewritten into a setter call, `instance#field = value;` becoming `this.field.setX(instance, value)`. The text of
+  `value` is taken as everything up to the first `;` **or** the first unmatched `)`, counting `(` and `)` along the way. Spaces
+  in the value do not matter (`ticks + 1` and `ticks+1` both work), but the value must follow these rules:
+  - Write the assignment as its own statement ending in `;`. In a nested position the end is not found: in
+    `Math.max(instance#field = 3, 4)` the comma does not end the value, so the call is broken (it fails when compiled).
+  - Parentheses inside string or character literals count too. A value such as `")".length()` ends early and breaks. Move such
+    values into a local variable first.
+  - Parentheses in the value must be balanced, and a `;` in the value that is not inside parentheses (an anonymous class or a lambda block)
+    ends it.
+  - Compound assignment (`+=`) is not recognized as an assignment. Write `instance#field = instance#field + 1;`.
+  The object on the left (`instance`, `other.node`, `getThing()`) is found by scanning backwards over letters, digits, `.`, `_`, `$`
+  and balanced parentheses, so it must be written as one expression with no other operators in it. Public non-final fields are
+  not rewritten into a setter; the `#` is replaced by a direct field access and Java's own parser sees the assignment.
 - **Scope:** a `#require` written inside a method body is only visible in that one method. A `#require` written
   outside a method body (in the class body, above the methods) can be used by every method declared below it.
   Declare a requirement once outside when several methods need it, to avoid repeating it.
@@ -675,6 +689,24 @@ Notes:
   could not be loaded, followed by a `Declaration:` line), `Remapping declaration not found!` for `#remap`,
   and at runtime `Field '<decl>' in class <name> not found; no alternatives available. (Removed?)` from `ClassTemplate`.
 - Members marked `optional` do not produce these warnings.
+
+### `??` Markers: Types That Could Not Be Loaded
+
+In logged declarations, a type that could not be turned into a real class is printed between question marks, as `??name??`
+(`TypeDeclaration.toString`). A declaration that is not valid at all (it failed to parse) is printed as `??[original text]??`.
+Examples:
+
+```
+WARNING: Failed to find method public ??net.example.OldName?? getThing(); - Alternatives:
+SEVERE:  Declaration could not be found inside: ??com.example.RenamedClass??
+SEVERE:  Requirement declaration declaring Class not found: ??com.example.RenamedClass??
+```
+
+Read these as: **the class could not be loaded under that name**. The member itself may be perfectly fine. The usual cause is a class
+resolver problem: the class was renamed or moved in this environment version and no `#remap`, class path resolver or version
+branch maps the name to the right one (see [resolver.md](resolver.md#translating-names)). Other causes are a missing `import`, a typo
+in the package or name, or a class that really does not exist in this environment. Fix the class name first. The member warnings caused by it (and the "Alternatives" list, which is
+then compared against nothing useful) disappear once the class loads.
 
 Source of truth for the language: parsers in `reflection/declarations/parsers/` (directives),
 `SourcePreprocessor` (conditionals), `ClassResolver` (expressions), and the `*Declaration` classes in
