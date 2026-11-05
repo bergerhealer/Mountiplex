@@ -4,8 +4,9 @@ import com.bergerkiller.mountiplex.reflection.declarations.TypeDeclaration;
 
 /**
  * A smart set of types that keeps track of all extensions and implementations of types added.
- * For example, when a ArrayList type is added to this set, List but also Collection and all other
- * interfaces and superclasses of ArrayList will pass the {@link #contains(type)} check.
+ * For example, when a Collection type is added to this set, ArrayList, List and all other
+ * types that extend or implement Collection will pass the {@link #contains(TypeDeclaration)} check.
+ * Adding ArrayList does not make its super types, such as List or Collection, pass.
  */
 public class InputTypeSet {
     private final InputTypeMap<Object> map = new InputTypeMap<Object>();
@@ -13,7 +14,7 @@ public class InputTypeSet {
     /**
      * Adds a new type to this set. This type, and all types that
      * extend or implement it, will from now on result in <i>true</i> when querying
-     * {@link #contains(type)}
+     * {@link #contains(TypeDeclaration)}
      * 
      * @param type to add
      */
