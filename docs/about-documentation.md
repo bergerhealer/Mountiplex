@@ -24,6 +24,13 @@ It is an architectural overview, not a replacement for source code or generated 
 - `docs/README.md` is the index. Every page is listed there with a one-line description
   of what it covers and when to read it.
 - `docs/about-documentation.md` is this file.
+- `docs/SUMMARY.md` is the minimal context an agent loads to decide whether this project is worth considering for the
+  problem it is solving. Because it is consumed always and costs tokens every time, keep it extremely short: only what
+  the project can be used for, when it applies, the main package path(s) if it is a software library, and how to recognize its code (names, annotations, file types) in other
+  code. It is handed to the agent without its file location, so it must state where the docs live (e.g. `docs/`) and
+  name pages by path from the repository root in plain code formatting, never as relative links. No explanations, examples or API details; point to the overview, the index or specific pages instead. Anything
+  beyond that is found through further tool calls to specific source files or docs. Update it when the project's scope
+  changes.
 - Required pages:
   - **Overview**: the big picture. Purpose of the system, module map, external dependencies,
     key data and control flows. This is the top of a top-down hierarchy
@@ -115,6 +122,7 @@ Omit sections that do not apply.
 - Update affected pages in the same change that alters architecture, public usage or conventions.
 - Fix references when files or classes are renamed or moved; remove docs for removed features.
 - Keep `docs/README.md` in sync with the existing pages.
+- Keep `docs/SUMMARY.md` accurate and minimal: when adding to it, check that the detail could not live in a page instead.
 - Where possible, add an automated check (e.g. in CI) that links and referenced paths still exist.
 
 ## Updating These Guidelines

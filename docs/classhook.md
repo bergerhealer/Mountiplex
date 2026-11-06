@@ -1,6 +1,6 @@
 # ClassHook
 
-Reference for hooking (overriding) methods of existing classes with `ClassInterceptor` and `ClassHook`
+Reference for hooking methods by extending (subclassing) existing classes with `ClassInterceptor` and `ClassHook`
 (`reflection/`). Read this page before reading, writing or changing any class that **extends `ClassHook`**
 (recognizable by `@ClassHook.HookMethod(...)` annotations and uses of a `base` field).
 See [overview.md](overview.md#class-generation-handles-and-hooking) for where hooking fits in the project.
@@ -8,8 +8,12 @@ See [overview.md](overview.md#class-generation-handles-and-hooking) for where ho
 ## Purpose
 
 Create a generated subclass of an environment class, override some of its methods with methods of your own, and
-still be able to call the original method. Used when the implementation must be altered rather than
-only read or called.
+still be able to call the original method. Used when the implementation must be extended with different behaviour
+rather than only read or called.
+
+**Existing classes are never altered.** No bytecode of the original class is changed, patched or redefined, and
+no instrumentation or agent is used. Hooking only generates a new subclass; only instances of that subclass behave
+differently. Existing objects keep their behaviour unless they are replaced by a hooked copy.
 
 ## Key Files
 

@@ -5,6 +5,7 @@ Read the relevant pages here before opening source files.
 
 ## Meta
 
+- [SUMMARY.md](SUMMARY.md) - Short description of when this library is relevant and which page to read. For tools deciding whether to read more.
 - [about-documentation.md](about-documentation.md) - How this documentation is written and maintained.
 
 ## Architecture
@@ -26,7 +27,7 @@ Read the relevant pages here before opening source files.
 - [build-and-release.md](build-and-release.md) - Building, testing and publishing this project; the Gradle plugin's tasks.
 - [fast-access.md](fast-access.md) - `FastMethod`, `FastField`, `FastConstructor` and `Invoker`: lazy, low-overhead replacements for `java.lang.reflect`. Read when calling members by reflection or reading code that uses `Fast*` types.
 - [legacy-class-template.md](legacy-class-template.md) - **Legacy.** `ClassTemplate` and the `FieldAccessor`/`MethodAccessor` family that predate templates. For reading and migrating old code only; no new code should use them.
-- [classhook.md](classhook.md) - Hooking methods of existing classes (`ClassInterceptor`, `ClassHook`, `@HookMethod`). Read before reading or changing a class that extends `ClassHook`.
+- [classhook.md](classhook.md) - Hooking methods by generating a subclass of an existing class, which is not altered (`ClassInterceptor`, `ClassHook`, `@HookMethod`). Read before reading or changing a class that extends `ClassHook`.
 - [glossary.md](glossary.md) - Definitions of project terms.
 
 ## Internals (for maintainers of this project only)

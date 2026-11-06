@@ -33,8 +33,8 @@ Project terms used throughout the documentation.
 - **Remapping**: translating a name from the template to the real name in the environment.
 - **Invoker / Accessor**: fast callable objects for methods/constructors and fields.
   May be generated at runtime or reflection-backed.
-- **Hook / Interceptor**: a runtime-generated subclass that intercepts method calls on an
-  existing object. `ClassInterceptor` is the callback-driven base; `ClassHook` adds annotations.
+- **Hook / Interceptor**: a runtime-generated subclass of an existing class that overrides its methods. The
+  original class is never altered; only instances of the generated subclass intercept calls. `ClassInterceptor` is the callback-driven base; `ClassHook` adds annotations.
 - **Base (hook)**: the `base` field of a `ClassHook`, used to call the original (super) method.
 - **Generator class loader**: class loader used to define classes generated at runtime; chosen
   and initialized by `ExtendedClassWriter`.
